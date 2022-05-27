@@ -14,7 +14,7 @@ I also, choose not to change the original software as much as possible, and focu
 
 To implement the waterfall I have considered this:
 
-- There are 3 ADC inputs: I, Q and MIC  (if we remove the VOX function, we could remove the MIC ADC during reception, this will increase the ADC frequency for I and Q, improving the frequencies we can see at the display - for now I keep it like the original).
+- There are 3 ADC inputs: I, Q and MIC  (if we remove the VOX function, we could remove the MIC ADC during reception, this will increase the ADC frequency for I and Q, improving the frequencies we can see at the display - for now I will keep it like the original).
 - The max ADC frequency is 500kHz, I have changed it to 480kHz (close to the original) to make the divisions "rounded".
 - The ADC for audio reception has frequency of 16kHz (close to the original). I have tested higher frequencies, but the time became critical, without so much benefit.
 - The max ADC frequency for each sample = 480kHz / 3 = 160kHz   (because there is only one internal ADC for 3 inputs).
@@ -35,7 +35,7 @@ To implement the waterfall I have considered this:
 
 Nyquist considerations:
 If we sample each signal I, Q and MIC at 160kHz, it is necessary to have a hardware low pass filter for max 80kHz on each input (anti-aliasing filter).
-If we deliver an audio signal at 16kHz (sample frequency), we need a hardware low pass filter for less than 8kHz at the output (the sample frequency will be present and need to be removed as it is and audio frequency).
+If we deliver an audio signal at 16kHz (sample frequency), we need a hardware low pass filter for less than 8kHz at the output (the sample frequency will be present and need to be removed as it is an audio frequency).
 
 
 Microcontroller RP2040 notes:
