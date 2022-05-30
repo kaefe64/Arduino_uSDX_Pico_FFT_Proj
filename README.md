@@ -8,7 +8,7 @@ I strongly recommend you to take a look there before trying to follow this one.
 
 My intention was to include a waterfall or panadapter to the uSDR-pico project, for this, I included a ILI9341 240x320 without touch to the project, and also, changed the software to generate the waterfall.
 
-Initially, I have used Visual Studio, but for personal reasons, I ported all code to Arduino IDE. So, to compile and run this code you need the Arduino IDE installed for a Raspberry Pi Pico project.
+Initially, I have used Visual Studio, but after some considerations, I ported all code to Arduino IDE. So, to compile and run this code you need the Arduino IDE installed for a Raspberry Pi Pico project.
 
 I also, choose not to change the original software as much as possible, and focused on the waterfall implementation, mostly in the dsp.c.
 
@@ -40,8 +40,30 @@ If we deliver an audio signal at 16kHz (sample frequency), we need a hardware lo
 
 Microcontroller RP2040 notes:
 - Core0 and Core1 are too much connected and affect each other. This made me lose some painful hours...
-- There are only 3 ADC ports available
-- There are some reports at internet about the low quality of the ADC readings
+- There are only 3 ADC ports available.
+- There are some reports at internet about the low quality of the RP2040 ADC readings.
 
-Hardware
+
+Arduino IDE setup and notes:
+- I am using version 1.8.19 in Linux/Ubuntu
+- File > Preferences > Additional Boards Manager URLs:
+  https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
+- LIb: TFT_eSPI by Bodmer
+  There are some comments at beginning of  .ino  file.  I use them to "adjust" the library files to the project.
+  
+
+Hardware, changes and notes:
+- Inclusion of ILI9341 on free pins, using SPI1, and removing the LCD display.
+- I noticed that changing ond ADC input signal, afffect the others through the resistors for setting half Vref. To solve this, I changed it to hava a separate resistor divider for each ADC input.
+- Use input/output filters for Nyquist considerations (see above).
+
+
+To do list:
+- There is some noise on ADC readings with nothing connected, so I will try some capacitors on Vref and each ADC input.
+- I removed the AGC during tests, it needs to be uncommented in the code.
+- Search why the signal level meter is not working on the display.
+- Write to the display only when something changes
+- Include a microphone and make more tests
+- Tests...  menus...  switches...   display appearance
+- Try to improve the suppression of not desired audio and waterfall bands
 
