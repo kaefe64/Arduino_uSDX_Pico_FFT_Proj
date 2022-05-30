@@ -1,5 +1,5 @@
 # Arduino_uSDX_Pico_FFT_Proj
-Hamradio SDR transceiver software     by Klaus Fensterseifer - PY2KLA
+Hamradio SDR transceiver software   -  by Klaus Fensterseifer - PY2KLA
 
 
 
