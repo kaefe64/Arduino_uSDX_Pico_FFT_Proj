@@ -49,6 +49,16 @@ For ILI9341 + RP2040,  change  TFT_eSPI/TFT_Drivers/ILI9341_Defines.h
 #define TFT_HEIGHT 240  //320
 
 
+look pins at  pins_arduino.h
+.arduino15/packages/arduino/hardware/mbed_rp2040/3.0.1/variants/RASPBERRY_PI_PICO
+change   #define WIRE_HOWMANY (2)  //default 1
+change the pins for I2C0 and include the pins for I2C1:
+// Wire
+#define PIN_WIRE_SDA        (16u)
+#define PIN_WIRE_SCL        (17u)
+#define PIN_WIRE_SDA1       (18u)
+#define PIN_WIRE_SCL1       (19u)
+
 */
 
 #include "uSDR.h"
