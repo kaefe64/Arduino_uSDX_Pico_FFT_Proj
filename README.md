@@ -45,7 +45,7 @@ Microcontroller RP2040 notes:
 
 
 Arduino IDE setup and notes:
-- I am using version 1.8.19 in Linux/Ubuntu
+- I am using Arduino IDE version 1.8.19 in Linux/Ubuntu
 - File > Preferences > Additional Boards Manager URLs:
   https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
 - LIb: TFT_eSPI by Bodmer
@@ -54,7 +54,7 @@ Arduino IDE setup and notes:
 
 Hardware, changes and notes:
 - Inclusion of ILI9341 on free pins, using SPI1, and removing the LCD display.
-- I noticed that changing ond ADC input signal, afffect the others through the resistors for setting half Vref. To solve this, I changed it to hava a separate resistor divider for each ADC input.
+- I noticed that changing one ADC input signal, afffect the other inputs through the resistors for setting half Vref. To solve this, I changed it to hava a separate resistor divider for each ADC input.
 - Use input/output filters for Nyquist considerations (see above).
 
 
@@ -63,7 +63,6 @@ To do list:
 - I removed the AGC during tests, it needs to be uncommented in the code.
 - Search why the signal level meter is not working on the display.
 - Write to the display only when something changes
-- Include a microphone and make more tests
-- Tests...  menus...  switches...   display appearance
+- Tests: reception/transmission SSB...  menus...  switches...   display appearance
 - Try to improve the suppression of not desired audio and waterfall bands
 
