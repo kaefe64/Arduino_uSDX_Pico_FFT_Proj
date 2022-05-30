@@ -54,7 +54,7 @@ Arduino IDE setup and notes:
 
 Hardware, changes and notes:
 - Inclusion of ILI9341 on free pins, using SPI1, and removing the LCD display.
-- I noticed that changing one ADC input signal, afffect the other inputs through the resistors for setting half Vref. To solve this, I changed it to hava a separate resistor divider for each ADC input.
+- I noticed that changing one ADC input signal, affect the other inputs through the resistors for setting half Vref. To solve this, I changed it to a separate resistor divider for each ADC input.
 - Use input/output filters for Nyquist considerations (see above).
 
 
