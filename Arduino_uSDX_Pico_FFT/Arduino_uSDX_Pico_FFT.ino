@@ -3,20 +3,24 @@
 
   Arduino_uSDX_Pico.ino  
   
-  uSDX_PICO running in Raspberry Pi Pico RP2040 with Arduino
-  https://github.com/ArjanteMarvelde/uSDR-pico
+  
+  uSDX_PICO running in Raspberry Pi Pico RP2040 with Arduino IDE
+  https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj
+  
 
 
 
-
-Arquivo  ...ini.elf.uf2  gerado em  /tmp/arduino_build_...
-Rodei uma vez
+File  ...ini.elf.uf2  generated at  /tmp/arduino_build_...
+On Ubuntu, to allow program direct from Arduino IDE to the Pico, run once:
 ~/.arduino15/packages/arduino/hardware/mbed_rp2040/3.0.1$ sudo ./post_install.sh
-para permitir gravar direto do Arduino IDE para o Pico
+
 
  
-Mods in the TFT_eSPI LIBRARY:
+Mods in the Library files to fit to the project:
+================================================
 
+
+TFT_eSPI LIBRARY:
 ----------------------------------------------------
 Change Arduino/Libraries/TFT_eSPI/User_Setup_Select.h
 Comment:
@@ -48,10 +52,11 @@ For ILI9341 + RP2040,  change  TFT_eSPI/TFT_Drivers/ILI9341_Defines.h
 #define TFT_WIDTH  320  //240
 #define TFT_HEIGHT 240  //320
 
-
+--------------------------------------------------------------
+For Wire/I2C
 look pins at  pins_arduino.h
 .arduino15/packages/arduino/hardware/mbed_rp2040/3.0.1/variants/RASPBERRY_PI_PICO
-change   #define WIRE_HOWMANY (2)  //default 1
+change:   #define WIRE_HOWMANY (2)  //default 1
 change the pins for I2C0 and include the pins for I2C1:
 // Wire
 #define PIN_WIRE_SDA        (16u)
