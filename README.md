@@ -12,6 +12,10 @@ Initially, I have used Visual Studio, but after some considerations, I ported al
 
 I also, choose not to change the original software as much as possible, and focused on the waterfall implementation, mostly in the dsp.c.
 
+
+Initial tests video:  https://youtu.be/0zGAnkRjizE
+
+
 To implement the waterfall I have considered this:
 
 - There are 3 ADC inputs: I, Q and MIC  (if we remove the VOX function, we could remove the MIC ADC during reception, this will increase the ADC frequency for I and Q, improving the frequencies we can see at the display - for now I will keep it like the original).
@@ -50,11 +54,13 @@ Arduino IDE setup and notes:
   https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
 - LIb: TFT_eSPI by Bodmer
   There are some comments at beginning of  .ino  file.  I use them to "adjust" the library files to the project.
-  
+- The board I am using is:  Arduino Mbed OS RP2040 Boards version 3.0.1 (If I update it, I will need to adjust the library files again, so I will leave it for later).
+  And the board selection is: Tools  >  Board: "RaspberryPiPico"  >  Arduino Mbed OS RP2040 Boards  >  RaspberryPiPico
+- The code files have cpp type, but the code itself is in C (cpp is used to help in some compiler issues).
 
 Hardware, changes and notes:
 - Inclusion of ILI9341 on free pins, using SPI1, and removing the LCD display.
-- I noticed that changing one ADC input signal, affect the other inputs through the resistors for setting half Vref. To solve this, I changed it to a separate resistor divider for each ADC input.
+- I noticed that changing the signal in one ADC input, changes the other inputs signal through the resistors for setting half Vref. To solve this, I changed the circuit to have a separate resistor divider for each ADC input.
 - Use input/output filters for Nyquist considerations (see above).
 
 
