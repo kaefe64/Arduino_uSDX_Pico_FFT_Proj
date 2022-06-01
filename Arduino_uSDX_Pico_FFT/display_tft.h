@@ -9,6 +9,7 @@ extern "C" {
 
 #define ROTATION_SETUP  0
 
+//ILI9341
 #define display_WIDTH  TFT_WIDTH   //TFT_HEIGHT=240
 #define display_HEIGHT TFT_HEIGHT    //TFT_WIDTH=320
 /*

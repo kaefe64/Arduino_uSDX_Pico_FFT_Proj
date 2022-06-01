@@ -4,13 +4,13 @@ Hamradio SDR transceiver software   -  by Klaus Fensterseifer - PY2KLA
 
 
 This project is based on  Arjante Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico
-I strongly recommend you to take a look there before trying to follow this one.
+ . I strongly recommend you to take a look there before trying to follow this one.
 
-My intention was to include a waterfall or panadapter to the uSDR-pico project, for this, I included a ILI9341 240x320 without touch to the project, and also, changed the software to generate the waterfall.
+My intention was to include a waterfall or panadapter to the uSDR-pico project, for this, I included a ILI9341 240x320, without touch, to the project, and also, changed the software to generate the waterfall.
 
 Initially, I have used Visual Studio, but after some considerations, I ported all code to Arduino IDE. So, to compile and run this code you need the Arduino IDE installed for a Raspberry Pi Pico project.
 
-I also, choose not to change the original software as much as possible, and focused on the waterfall implementation, mostly in the dsp.c.
+I also, chose not to change the original software as much as possible, and focused on the waterfall implementation, mostly in the dsp.c.
 
 
 Initial tests video:  https://youtu.be/0zGAnkRjizE
@@ -52,23 +52,25 @@ Arduino IDE setup and notes:
 - I am using Arduino IDE version 1.8.19 in Linux/Ubuntu
 - File > Preferences > Additional Boards Manager URLs:
   https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
-- LIb: TFT_eSPI by Bodmer
-  There are some comments at beginning of  .ino  file.  I use them to "adjust" the library files to the project.
-- The board I am using is:  Arduino Mbed OS RP2040 Boards version 3.0.1 (If I update it, I will need to adjust the library files again, so I will leave it for later).
-  And the board selection is: Tools  >  Board: "RaspberryPiPico"  >  Arduino Mbed OS RP2040 Boards  >  RaspberryPiPico
-- The code files have cpp type, but the code itself is in C (cpp is used to help in some compiler issues).
+  . Install information at: https://github.com/earlephilhower/arduino-pico
+- Lib used: TFT_eSPI by Bodmer
+- There are some comments at beginning of  .ino  file.  I use them to "adjust" the library files to the project.
+- The board I am using is:  Arduino Mbed OS RP2040 Boards, version 3.0.1 (If I update it, I will need to adjust the library files again, so I will leave it for later).
+- The board selection is: Tools  >  Board: "RaspberryPiPico"  >  Arduino Mbed OS RP2040 Boards  >  RaspberryPiPico
+- The code files have cpp type, but the code itself is in C (cpp type is used to help in some compiler issues).
 
 Hardware, changes and notes:
 - Inclusion of ILI9341 on free pins, using SPI1, and removing the LCD display.
 - I noticed that changing the signal in one ADC input, changes the other inputs signal through the resistors for setting half Vref. To solve this, I changed the circuit to have a separate resistor divider for each ADC input.
-- Use input/output filters for Nyquist considerations (see above).
+- Use input/output filters for Nyquist considerations (see above). 
+- Obs.: at the initial test video, I used only the RC output filter shown in the schematic, and for input filter, only what is already inside of the Softrock RXTX Ensemble.
 
 
 To do list:
 - There is some noise on ADC readings with nothing connected, so I will try some capacitors on Vref and each ADC input.
 - I removed the AGC during tests, it needs to be uncommented in the code.
 - Search why the signal level meter is not working on the display.
-- Write to the display only when something changes
-- Tests: reception/transmission SSB...  menus...  switches...   display appearance
+- Write to the display only when something changes.
+- Tests: reception/transmission SSB...  menus...  switches/debounce...   display appearance
 - Try to improve the suppression of not desired audio and waterfall bands
 
