@@ -6,7 +6,7 @@ Hamradio SDR transceiver software   -  by Klaus Fensterseifer - PY2KLA
 This project is based on  Arjante Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico
  . I strongly recommend you to take a look there before trying to follow this one.
 
-My intention was to include a waterfall or panadapter to the uSDR-pico project, for this, I included a ILI9341 240x320, without touch, to the project, and also, changed the software to generate the waterfall.
+My intention was to include a waterfall or panadapter to the uSDR-pico project, for this, I included an ILI9341 240x320, without touch, to the project, and also, changed the software to generate the waterfall.
 
 Initially, I have used Visual Studio, but after some considerations, I ported all code to Arduino IDE. So, to compile and run this code you need the Arduino IDE installed for a Raspberry Pi Pico project.
 
@@ -30,7 +30,7 @@ To implement the waterfall I have considered this:
     For FFT, we need all samples, so they are copied to a FFT buffer for later use.
 - There is also no time to process the samples and the receiver part at 16kHz, so I chose to split it, the interrupt and buffer/average part is done at Core1, and the audio original reception is in the Core0.
 - Every 16kHz interrupt, after average the I, Q and MIC audio samples are passed to Core0.
-- For FFT, when we have received 320 I and Q samples, it stops of filling the buffer and indicate to the Core1 main loop to process a new FFT and waterfall graphic.
+- For FFT, when we have received 320 I and Q samples, it stops of filling the buffer and indicates to the Core1 main loop to process a new FFT and waterfall graphic.
 - The original processes run at Core0, every 100ms.
 - There is a digital low pass filter FIR implemented at the code (in the original too) that will give the passband we want for audio.
   This filter was calculated with the help of this site:  http://t-filter.engineerjs.com/
@@ -50,13 +50,10 @@ Microcontroller RP2040 notes:
 
 Arduino IDE setup and notes:
 - I am using Arduino IDE version 1.8.19 in Linux/Ubuntu
-- File > Preferences > Additional Boards Manager URLs:
-  https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
-  . Install information at: https://github.com/earlephilhower/arduino-pico
 - Lib used: TFT_eSPI by Bodmer
 - There are some comments at beginning of  .ino  file.  I use them to "adjust" the library files to the project.
-- The board I am using is:  Arduino Mbed OS RP2040 Boards, version 3.0.1 (If I update it, I will need to adjust the library files again, so I will leave it for later).
-- The board selection is: Tools  >  Board: "RaspberryPiPico"  >  Arduino Mbed OS RP2040 Boards  >  RaspberryPiPico
+- Boards Manager:  Arduino Mbed OS RP2040 Boards, version 3.0.1 (If I update it, I will need to adjust the library files again, so I will leave it for later).
+- Board: "RaspberryPiPico"  >  Arduino Mbed OS RP2040 Boards  >  RaspberryPiPico
 - The code files have cpp type, but the code itself is in C (cpp type is used to help in some compiler issues).
 
 Hardware, changes and notes:
