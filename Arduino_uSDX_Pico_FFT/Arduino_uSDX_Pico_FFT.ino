@@ -83,10 +83,10 @@ change the pins for I2C0 and include the pins for I2C1:
 #define PIN_WIRE_SCL1       (19u)
 
 #define WIRE_HOWMANY    (2)  //default was 1
-#define I2C_SDA            (digitalPinToPinName(PIN_WIRE_SDA))
-#define I2C_SCL            (digitalPinToPinName(PIN_WIRE_SCL))
-#define I2C_SDA1            (digitalPinToPinName(PIN_WIRE_SDA))
-#define I2C_SCL1            (digitalPinToPinName(PIN_WIRE_SCL))
+#define I2C_SDA      (digitalPinToPinName(PIN_WIRE_SDA))
+#define I2C_SCL      (digitalPinToPinName(PIN_WIRE_SCL))
+#define I2C_SDA1      (digitalPinToPinName(PIN_WIRE_SDA1))
+#define I2C_SCL1      (digitalPinToPinName(PIN_WIRE_SCL1))
 */
 
 #include "uSDR.h"
