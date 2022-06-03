@@ -52,7 +52,8 @@ Arduino IDE setup and notes:
 - I am using Arduino IDE version 1.8.19 in Linux/Ubuntu
 - Lib used: TFT_eSPI by Bodmer
 - There are some comments at beginning of  .ino  file.  I use them to "adjust" the library files to the project.
-- Boards Manager:  Arduino Mbed OS RP2040 Boards, version 3.0.1 (If I update it, I will need to adjust the library files again, so I will leave it for later).
+- Boards Manager:  Arduino Mbed OS RP2040 Boards. My version is 3.0.1 (If I update it, I will need to adjust the library files again, so I will leave it for later).
+- Do not use EarlePhilhower library (it is just conflitant with Mbed)
 - Board: "RaspberryPiPico"  >  Arduino Mbed OS RP2040 Boards  >  RaspberryPiPico
 - The code files have cpp type, but the code itself is in C (cpp type is used to help in some compiler issues).
 
