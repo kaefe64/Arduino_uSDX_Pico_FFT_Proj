@@ -14,6 +14,7 @@ I also, chose not to change the original software as much as possible, and focus
 
 
 Initial tests video:  https://youtu.be/0zGAnkRjizE
+AGC and Visual Scope video: https://youtu.be/BiaS002xZfw
 
 
 To implement the waterfall I have considered this:
