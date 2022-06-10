@@ -57,7 +57,24 @@ extern volatile uint16_t tim_count;
 //extern volatile uint16_t fft_samples_ready;
 //extern volatile uint16_t fft_samp_pos;    //number of samples saved for FFT
 extern volatile uint16_t fft_samples_ready;
-extern volatile uint16_t display_graf_new;
+extern volatile uint16_t fft_display_graf_new;
+
+#define AUD_GRAPH_NUM_COLS  100
+
+#define AUD_NUM_VAR    (6u)  // number of variables on buffer for low freq = audio graphic
+#define AUD_NUM_SAMP   (AUD_GRAPH_NUM_COLS*3u)  // number of variables on buffer for low freq = audio graphic
+#define AUD_SAMP_I     0u
+#define AUD_SAMP_Q     1u
+#define AUD_SAMP_MIC   2u
+#define AUD_SAMP_A     3u
+#define AUD_SAMP_PEAK  4u
+#define AUD_SAMP_GAIN  5u
+#define AUD_STATE_SAMP_IN      0
+#define AUD_STATE_SAMP_RDY     10
+//#define AUD_STATE_SAMP_GRAPH   20
+//#define AUD_STATE_SAMP_DONE    30
+extern volatile int16_t aud_samp[AUD_NUM_VAR][AUD_NUM_SAMP];  //samples buffer for FFT and waterfall    only 0-1 used for I and Q  (3=MIC)  [NL][NCOL]
+extern volatile uint16_t aud_samples_state;
 
 extern volatile bool tx_enabled;
 #define DSP_SETPTT(on)			tx_enabled = (on)

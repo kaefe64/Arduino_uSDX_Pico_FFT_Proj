@@ -35,6 +35,7 @@ To implement the waterfall I have considered this:
 - There is a digital low pass filter FIR implemented at the code (in the original too) that will give the passband we want for audio.
   This filter was calculated with the help of this site:  http://t-filter.engineerjs.com/
   The dificulty is that the number of taps could not be high (there is no much time to spend), so the filter must be chosen carefully.
+- Block diagram at "Arduino uSDR Pico FFT.png".
 
 
 Nyquist considerations:
@@ -59,15 +60,21 @@ Arduino IDE setup and notes:
 
 Hardware, changes and notes:
 - Inclusion of ILI9341 on free pins, using SPI1, and removing the LCD display.
+- Schematic diagram at "FFT_LCD_pico.png".
 - I noticed that changing the signal in one ADC input, changes the other inputs signal through the resistors for setting half Vref. To solve this, I changed the circuit to have a separate resistor divider for each ADC input.
 - Use input/output filters for Nyquist considerations (see above). 
 - Obs.: at the initial test video, I used only the RC output filter shown in the schematic, and for input filter, only what is already inside of the Softrock RXTX Ensemble.
 
 
+Last changes and notes:
+Jun10 2022
+- AGC uncommented and adapted to work.
+- A visual scope was implemented to allow visualization of some internal variables.
+- The signal level meter at the display does not change because it is fixed at the original code (the level depends on the software as well as the hardware).
+
+
 To do list:
 - There is some noise on ADC readings with nothing connected, so I will try some capacitors on Vref and each ADC input.
-- I removed the AGC during tests, it needs to be uncommented in the code.
-- Search why the signal level meter is not working on the display.
 - Write to the display only when something changes.
 - Tests: reception/transmission SSB...  menus...  switches/debounce...   display appearance
 - Try to improve the suppression of not desired audio and waterfall bands

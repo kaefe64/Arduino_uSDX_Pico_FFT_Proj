@@ -3,7 +3,9 @@
  *
  * Created: Jan 2020
  * Author: Arjan
- 
+ * May2022: adapted by Klaus Fensterseifer 
+ * https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj) 
+
 Si5351 principle:
 =================
              +-------+             +-------+     +------+

@@ -7,11 +7,21 @@ extern "C" {
 
 
 
-#define ROTATION_SETUP  0
+#define ROTATION_SETUP  0   // 0 or 1
 
+
+#if ROTATION_SETUP == 0
 //ILI9341
 #define display_WIDTH  TFT_WIDTH   //TFT_HEIGHT=240
 #define display_HEIGHT TFT_HEIGHT    //TFT_WIDTH=320
+#endif
+
+#if ROTATION_SETUP == 1
+//ILI9341
+#define display_WIDTH  TFT_HEIGHT    //TFT_WIDTH=320
+#define display_HEIGHT TFT_WIDTH   //TFT_HEIGHT=240
+#endif
+
 /*
 #define FONT &FreeMonoBold9pt7b
 #define X_CHAR  11
@@ -72,7 +82,17 @@ uint16_t blue =   tft.color565(0, 0, 255);
 uint16_t yellow = tft.color565(255, 255, 0);
 */
 
+// scope graph
+//#define AUD_GRAPH_NUM_COLS  100
+#define AUD_GRAPH_MIN       -25
+#define AUD_GRAPH_MAX       25
+#define X_MIN_AUD_GRAPH     200
+#define Y_MIN_AUD_GRAPH     30
+#define Y_MAX_AUD_GRAPH     (Y_MIN_AUD_GRAPH + AUD_GRAPH_MAX - AUD_GRAPH_MIN)
 
+
+
+// waterfall = FFT graph
 #define GRAPH_NUM_LINES   (48u)
 #define GRAPH_NUM_COLS    (FFT_NSAMP)
 #define Y_MIN_DRAW   (display_HEIGHT - GRAPH_NUM_LINES)
@@ -83,17 +103,22 @@ extern uint8_t vet_graf_fft[GRAPH_NUM_LINES][GRAPH_NUM_COLS];    // [NL][NCOL]
 
 
 
+
+
 //void tft_setup(void);
 //void tft_writexy(uint8_t x, uint8_t y, uint8_t *s);
 void tft_writexy_(uint16_t font, uint16_t color, uint16_t color_back, uint8_t x, uint8_t y, uint8_t *s);
+void tft_writexy_2(uint16_t font, uint16_t color, uint16_t color_back, uint8_t x, uint8_t x_plus, uint8_t y, uint8_t y_plus, uint8_t *s);
 void tft_cursor(uint16_t font, uint16_t color, uint8_t x, uint8_t y);
+void tft_cursor_2(uint16_t font, uint16_t color, uint8_t x, uint8_t x_plus, uint8_t y, uint8_t y_plus);
 uint16_t tft_color565(uint16_t r, uint16_t g, uint16_t b);
 
-//extern uint8_t display_graf_new;
-void display_graf(void);
+//extern uint8_t fft_display_graf_new;
+void display_fft_graf(int16_t change);
 void display_tft_setup(void);
 void display_tft_loop(void);
 
+void display_aud_graf(void);
 
 
 

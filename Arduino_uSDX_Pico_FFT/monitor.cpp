@@ -3,6 +3,8 @@
  *
  * Created: Mar 2021
  * Author: Arjan te Marvelde
+ * May2022: adapted by Klaus Fensterseifer 
+ * https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj) 
  * 
  * Command shell on stdin/stdout.
  * Collects characters and parses commandstring.

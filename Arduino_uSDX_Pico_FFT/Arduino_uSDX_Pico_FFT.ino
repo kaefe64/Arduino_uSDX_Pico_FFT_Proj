@@ -66,10 +66,12 @@ Leave the fonts available:
 #define SMOOTH_FONT
 
 --------------------------------------------------------------
-For ILI9341 + RP2040,  change  TFT_eSPI/TFT_Drivers/ILI9341_Defines.h
+In case your ILI9341 looks 90 degree view:
+For ILI9341 + RP2040,  try change  TFT_eSPI/TFT_Drivers/ILI9341_Defines.h
 #define TFT_WIDTH  320  //240
 #define TFT_HEIGHT 240  //320
-(this was reported as a issue to TFT_eSPI github project, and can be solved on new releases, just put it back if your display looks turned 90 degrees)
+(this was reported as a issue to TFT_eSPI github project: https://github.com/Bodmer/TFT_eSPI/issues/1725)
+In combination, you can try to change display_tft.h  #define ROTATION_SETUP  0    to 1
 
 --------------------------------------------------------------
 For Wire/I2C (thanks to Bob W9RAN for corrections)

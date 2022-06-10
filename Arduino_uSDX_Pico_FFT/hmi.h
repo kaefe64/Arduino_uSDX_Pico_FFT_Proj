@@ -19,9 +19,6 @@ extern uint32_t hmi_freq;
 
 void hmi_init(void);
 void hmi_evaluate(void);
-//void hmi_evaluate1(void);
-//void hmi_evaluate2(void);
-//void hmi_evaluate3(void);
 
 #ifdef __cplusplus
 }

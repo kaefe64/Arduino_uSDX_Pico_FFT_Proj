@@ -3,6 +3,8 @@
  *
  * Created: Nov 2021
  * Author: Arjan te Marvelde
+ * May2022: adapted by Klaus Fensterseifer 
+ * https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj)
  * 
  * Two PCF8574 expanders are on the I2C bus, one on the RX and one on the BPF board.
  * The RX (0x42) bit assignments:

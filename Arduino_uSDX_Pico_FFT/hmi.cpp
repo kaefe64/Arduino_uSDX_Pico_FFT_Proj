@@ -3,6 +3,8 @@
  *
  * Created: Apr 2021
  * Author: Arjan te Marvelde
+ * May2022: adapted by Klaus Fensterseifer 
+ * https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj)
  * 
  * This file contains the HMI driver, processing user inputs.
  * It will also do the logic behind these, and write feedback to the LCD.
@@ -137,19 +139,29 @@ uint8_t hmi_pre[5] = {REL_ATT_30, REL_ATT_20, REL_ATT_10, REL_ATT_00, REL_PRE_10
 uint8_t hmi_bpf[5] = {REL_LPF2, REL_BPF6, REL_BPF12, REL_BPF24, REL_BPF40};
 
 uint8_t  hmi_state, hmi_option;											// Current state and option selection
-uint8_t  hmi_sub[HMI_NSTATES] = {4,0,0,3,0,2};							// Stored option selection per state
+uint8_t  hmi_sub[HMI_NSTATES] = {4,0,2,3,0,2};							// Stored option selection per state
 bool	 hmi_update;
 
 uint32_t hmi_freq;														// Frequency from Tune state
 uint32_t hmi_step[7] = {10000000, 1000000, 100000, 10000, 1000, 100, 50};	// Frequency digit increments
 #define HMI_MAXFREQ		30000000
 #define HMI_MINFREQ		     100
-#define HMI_MULFREQ          4  //1			 	// Factor between HMI and actual frequency
-																		// Set to 2 for certain types of mixer
+#define HMI_MULFREQ          1			// Factor between HMI and actual frequency
+																		// Set to 2 or 4 for certain types of mixer
 
-#define PTT_DEBOUNCE	3												// Nr of cycles for debounce
+#define PTT_DEBOUNCE	3											// Nr of cycles for debounce
 int ptt_state;															// Debounce counter
 bool ptt_active;														// Resulting state
+
+
+#define HMI_DISPLAY_CHANGE_MASK_TX     1u
+#define HMI_DISPLAY_CHANGE_MASK_MENU   2u
+#define HMI_DISPLAY_CHANGE_MASK_FREQ   4u
+#define HMI_DISPLAY_CHANGE_MASK_MODE   8u
+#define HMI_DISPLAY_CHANGE_MASK_LEVEL  16u
+uint16_t hmi_display_change = 0;    //to indicate something changed and the display needs refresh
+
+
 
 /*
  * Some macros
@@ -272,23 +284,38 @@ void hmi_callback(uint gpio, uint32_t events)
 	{
 	case GP_ENC_A:									// Encoder
 		if (events&GPIO_IRQ_EDGE_FALL)
+    {
 			evt = gpio_get(GP_ENC_B)?HMI_E_INCREMENT:HMI_E_DECREMENT;
+      hmi_display_change = HMI_DISPLAY_CHANGE_MASK_FREQ;    //something changed and the display needs refresh
+    }
 		break;
 	case GP_AUX_0:									// Enter
 		if (events&GPIO_IRQ_EDGE_FALL)
+    {
 			evt = HMI_E_ENTER;
+      hmi_display_change = HMI_DISPLAY_CHANGE_MASK_MENU;    //something changed and the display needs refresh
+    }
 		break;
 	case GP_AUX_1:									// Escape
 		if (events&GPIO_IRQ_EDGE_FALL)
+    {
 			evt = HMI_E_ESCAPE;
+      hmi_display_change = HMI_DISPLAY_CHANGE_MASK_MENU;    //something changed and the display needs refresh
+    }
 		break;
 	case GP_AUX_2:									// Previous
 		if (events&GPIO_IRQ_EDGE_FALL)
+    {
 			evt = HMI_E_LEFT;
+      hmi_display_change = HMI_DISPLAY_CHANGE_MASK_MENU;    //something changed and the display needs refresh
+    }
 		break;
 	case GP_AUX_3:									// Next
 		if (events&GPIO_IRQ_EDGE_FALL)
+    {
 			evt = HMI_E_RIGHT;
+      hmi_display_change = HMI_DISPLAY_CHANGE_MASK_MENU;    //something changed and the display needs refresh
+    }
 		break;
 	default:
 		return;
@@ -309,7 +336,7 @@ void hmi_init(void)
 	 * For debouncing, the GPIO pins should be pulled-up and connected to gnd with 100nF.
 	 * PTT has separate debouncing logic
 	 */
-	 
+
 	// Init input GPIOs
 	gpio_init_mask(GP_MASK_IN);
 	
@@ -355,149 +382,148 @@ void hmi_init(void)
 
 
 
-
-
 /*
  * Redraw the display, representing current state
  * This function is called regularly from the main loop.
  */
-//uint16_t iii;
 void hmi_evaluate(void)
 {
 	char s[32];
- //static char car = 0;
- //static int cont =0;
-
-  //tft_setup();
-  
-	// Print top line of display
-	//sprintf(s, "%s %7.1f %c%3d", hmi_o_mode[hmi_sub[HMI_S_MODE]], (double)hmi_freq/1000.0, (tx_enabled?0x07:0x06), (tx_enabled?0:920));
-	//lcd_writexy(0,0,(uint8_t *)s);
-  
-  
-  sprintf(s, "%s", hmi_o_mode[hmi_sub[HMI_S_MODE]]);
-  tft_writexy_(2, TFT_GREEN, TFT_BLACK, 1,1,(uint8_t *)s);
-
-  
-  sprintf(s, "%7.1f", (double)hmi_freq/1000.0);
-  tft_writexy_(3, TFT_YELLOW, TFT_BLACK, 2,2,(uint8_t *)s);
-  s[(hmi_option>4?6:hmi_option)+1] = 0;
-  //tft_writexy_(3, TFT_YELLOW, tft_color565(55, 55, 55), 4+(hmi_option>4?6:hmi_option),0,(uint8_t *)&s[(hmi_option>4?6:hmi_option)]);
-  tft_cursor(3, TFT_YELLOW, 2+(hmi_option>4?6:hmi_option), 2);
-  //tft_cursor(3, TFT_YELLOW, 4, 3);
+  static bool tx_enabled_old = true;  //save the actual state (true to force te first print to display)
 
 
-  sprintf(s, "%c%3d", (tx_enabled?'T':'R'), (tx_enabled?0:920));
-  tft_writexy_(2, TFT_GREEN, TFT_BLACK, 10,1,(uint8_t *)s);
-/*  
-  sprintf(s, "1234");
-  tft_writexy_(2, TFT_MAGENTA, TFT_BLACK, 0,2,(uint8_t *)s);
-  tft_writexy_(2, TFT_MAGENTA, TFT_BLACK, 1,3,(uint8_t *)s);
-  tft_writexy_(2, TFT_MAGENTA, TFT_BLACK, 2,4,(uint8_t *)s);
-*/
-/*
-  if(cont++ > 5)
+  
+  /* PTT debouncing */
+  if (hmi_sub[HMI_S_VOX] == 0)            // No VOX active
   {
-    car++;
-    sprintf(s, " %c %3d", car, car);
-    tft_writexy(0,1,(uint8_t *)s);
-    cont = 0;
+    gpio_set_dir(GP_PTT, false);          // PTT input
+    if (gpio_get(GP_PTT))             // Get PTT level
+    {
+      if (ptt_state<PTT_DEBOUNCE)         // Increment debounce counter when high
+        ptt_state++;
+    }
+    else 
+    {
+      if (ptt_state>0)              // Decrement debounce counter when low
+        ptt_state--;
+    }
+    if (ptt_state == PTT_DEBOUNCE)          // Reset PTT when debounced level high
+      ptt_active = false;
+    if (ptt_state == 0)               // Set PTT when debounced level low
+      ptt_active = true;
   }
-*/	
-	// Print bottom line of dsiplay, depending on state
-	switch (hmi_state)
-	{
-	case HMI_S_TUNE:
-		sprintf(s, "%s   %s   %s", hmi_o_vox[hmi_sub[HMI_S_VOX]], hmi_o_agc[hmi_sub[HMI_S_AGC]], hmi_o_pre[hmi_sub[HMI_S_PRE]]);
-		//lcd_writexy(0,1,(uint8_t *)s);	
-    tft_writexy_(1, TFT_BLUE, TFT_BLACK,0,0,(uint8_t *)s);  
-		//lcd_curxy(4+(hmi_option>4?6:hmi_option), 0, true);
-		break;
-	case HMI_S_MODE:
-		sprintf(s, "Set Mode: %s        ", hmi_o_mode[hmi_option]);
-		//lcd_writexy(0,1,(uint8_t *)s);	
-    tft_writexy_(1, TFT_MAGENTA, TFT_BLACK,0,0,(uint8_t *)s);  
-		//lcd_curxy(9, 1, false);
-		break;
-	case HMI_S_AGC:
-		sprintf(s, "Set AGC: %s        ", hmi_o_agc[hmi_option]);
-		//lcd_writexy(0,1,(uint8_t *)s);	
-    tft_writexy_(1, TFT_MAGENTA, TFT_BLACK,0,0,(uint8_t *)s);  
-		//lcd_curxy(8, 1, false);
-		break;
-	case HMI_S_PRE:
-		sprintf(s, "Set Pre: %s        ", hmi_o_pre[hmi_option]);
-		//lcd_writexy(0,1,(uint8_t *)s);	
-    tft_writexy_(1, TFT_MAGENTA, TFT_BLACK,0,0,(uint8_t *)s);  
-		//lcd_curxy(8, 1, false);
-		break;
-	case HMI_S_VOX:
-		sprintf(s, "Set VOX: %s        ", hmi_o_vox[hmi_option]);
-		//lcd_writexy(0,1,(uint8_t *)s);	
-    tft_writexy_(1, TFT_MAGENTA, TFT_BLACK,0,0,(uint8_t *)s);  
-		//lcd_curxy(8, 1, false);
-		break;
-	case HMI_S_BPF:
-		sprintf(s, "Band: %d %s        ", hmi_option, hmi_o_bpf[hmi_option]);
-		//lcd_writexy(0,1,(uint8_t *)s);	
-    tft_writexy_(1, TFT_MAGENTA, TFT_BLACK,0,0,(uint8_t *)s);  
-		//lcd_curxy(8, 1, false);
-	default:
-		break;
-	}
-	
-	/* PTT debouncing */
-	if (hmi_sub[HMI_S_VOX] == 0)						// No VOX active
-	{
-		gpio_set_dir(GP_PTT, false);					// PTT input
-		if (gpio_get(GP_PTT))							// Get PTT level
-		{
-			if (ptt_state<PTT_DEBOUNCE)					// Increment debounce counter when high
-				ptt_state++;
-		}
-		else 
-		{
-			if (ptt_state>0)							// Decrement debounce counter when low
-				ptt_state--;
-		}
-		if (ptt_state == PTT_DEBOUNCE)					// Reset PTT when debounced level high
-			ptt_active = false;
-		if (ptt_state == 0)								// Set PTT when debounced level low
-			ptt_active = true;
-	}
-	else
-	{
-		ptt_active = false;
-		gpio_set_dir(GP_PTT, true);						// PTT output
-	}
+  else
+  {
+    ptt_active = false;
+    gpio_set_dir(GP_PTT, true);           // PTT output
+  }
+
+  if(tx_enabled != tx_enabled_old)  //check for TX RX changing
+  {
+    tx_enabled_old = tx_enabled;
+    hmi_display_change = HMI_DISPLAY_CHANGE_MASK_TX;    //something changed and the display needs refresh
+  }
+   
+
+  hmi_display_change = 1;
+  
+  if(hmi_display_change != 0)  //write to the display just on changes
+  {
+
+  
+    // Set parameters corresponding to latest entered option value 
+    SI_SETFREQ(0, HMI_MULFREQ*hmi_freq);
+    dsp_setmode(hmi_sub[HMI_S_MODE]);
+    dsp_setvox(hmi_sub[HMI_S_VOX]);
+    dsp_setagc(hmi_sub[HMI_S_AGC]); 
+    if (hmi_update)
+    { 
+      dsp_setmode(hmi_sub[HMI_S_MODE]);
+      dsp_setvox(hmi_sub[HMI_S_VOX]);
+      dsp_setagc(hmi_sub[HMI_S_AGC]); 
+      relay_setband(hmi_bpf[hmi_sub[HMI_S_BPF]]);
+      sleep_ms(1);                  // I2C doesn't work without...
+      relay_setattn(hmi_pre[hmi_sub[HMI_S_PRE]]);
+      hmi_update = false;
+    }
 
 
-	// Set parameters corresponding to latest entered option value 
-	SI_SETFREQ(0, HMI_MULFREQ*hmi_freq);
-	dsp_setmode(hmi_sub[HMI_S_MODE]);
-	dsp_setvox(hmi_sub[HMI_S_VOX]);
-	dsp_setagc(hmi_sub[HMI_S_AGC]);	
-	if (hmi_update)
-	{	
-		dsp_setmode(hmi_sub[HMI_S_MODE]);
-		dsp_setvox(hmi_sub[HMI_S_VOX]);
-		dsp_setagc(hmi_sub[HMI_S_AGC]);	
-		relay_setband(hmi_bpf[hmi_sub[HMI_S_BPF]]);
-		sleep_ms(1);									// I2C doesn't work without...
-		relay_setattn(hmi_pre[hmi_sub[HMI_S_PRE]]);
-		hmi_update = false;
-	}
+    //mode 
+    sprintf(s, "%s", hmi_o_mode[hmi_sub[HMI_S_MODE]]);
+    tft_writexy_(2, TFT_GREEN, TFT_BLACK, 0,1,(uint8_t *)s);
+  
+    //freq
+    sprintf(s, "%7.1f", (double)hmi_freq/1000.0);
+    //tft_writexy_(3, TFT_YELLOW, TFT_BLACK, 2,2,(uint8_t *)s);
+    tft_writexy_2(3, TFT_YELLOW, TFT_BLACK, 2,0,2,20,(uint8_t *)s);
+    s[(hmi_option>4?6:hmi_option)+1] = 0;
+    //tft_cursor(3, TFT_YELLOW, 2+(hmi_option>4?6:hmi_option), 2);
+    tft_cursor_2(3, TFT_YELLOW, 2+(hmi_option>4?6:hmi_option), 0, 2, 20);
+  
+    //T or R  (using letters instead of arrow used on original project)
+    sprintf(s, "%c%3d", (tx_enabled?'T':'R'), (tx_enabled?0:920));
+    tft_writexy_(2, TFT_GREEN, TFT_BLACK, 0,2,(uint8_t *)s);
+
+  	//menu 
+  	switch (hmi_state)
+  	{
+  	case HMI_S_TUNE:
+  		sprintf(s, "%s   %s   %s", hmi_o_vox[hmi_sub[HMI_S_VOX]], hmi_o_agc[hmi_sub[HMI_S_AGC]], hmi_o_pre[hmi_sub[HMI_S_PRE]]);
+      tft_writexy_(1, TFT_BLUE, TFT_BLACK,0,0,(uint8_t *)s);  
+  		break;
+  	case HMI_S_MODE:
+  		sprintf(s, "Set Mode: %s        ", hmi_o_mode[hmi_option]);
+      tft_writexy_(1, TFT_MAGENTA, TFT_BLACK,0,0,(uint8_t *)s);  
+  		break;
+  	case HMI_S_AGC:
+  		sprintf(s, "Set AGC: %s        ", hmi_o_agc[hmi_option]);
+      tft_writexy_(1, TFT_MAGENTA, TFT_BLACK,0,0,(uint8_t *)s);  
+  		break;
+  	case HMI_S_PRE:
+  		sprintf(s, "Set Pre: %s        ", hmi_o_pre[hmi_option]);
+      tft_writexy_(1, TFT_MAGENTA, TFT_BLACK,0,0,(uint8_t *)s);  
+  		break;
+  	case HMI_S_VOX:
+  		sprintf(s, "Set VOX: %s        ", hmi_o_vox[hmi_option]);
+      tft_writexy_(1, TFT_MAGENTA, TFT_BLACK,0,0,(uint8_t *)s);  
+  		break;
+  	case HMI_S_BPF:
+  		sprintf(s, "Band: %d %s        ", hmi_option, hmi_o_bpf[hmi_option]);
+      tft_writexy_(1, TFT_MAGENTA, TFT_BLACK,0,0,(uint8_t *)s);  
+  	default:
+  		break;
+  	}
+   
+  }
+
+
 
 
  
-  if (display_graf_new == 1) //design a new graphic only when a new one is ready
+  if (fft_display_graf_new == 1) //design a new graphic only when a new line is ready from FFT
   {
-    //plot graphic     
-    display_graf();
+    //plot waterfall graphic     
+    display_fft_graf(hmi_display_change);
 
-    display_graf_new = 0;  
+    fft_display_graf_new = 0;  
     fft_samples_ready = 2;  //ready to start new sample collect
   }
 
+
+ 
+  if (aud_samples_state == AUD_STATE_SAMP_RDY) //design a new graphic only when data is ready
+  {
+    //plot audio graphic     
+    display_aud_graf();
+
+    aud_samples_state = AUD_STATE_SAMP_IN;  
+  }
+
+
+
+
+
+
+  hmi_display_change = 0;  // changes already on display
 
 }
