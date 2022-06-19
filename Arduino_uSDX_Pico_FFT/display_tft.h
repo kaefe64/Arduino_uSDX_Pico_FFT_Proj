@@ -86,7 +86,7 @@ uint16_t yellow = tft.color565(255, 255, 0);
 //#define AUD_GRAPH_NUM_COLS  100
 #define AUD_GRAPH_MIN       -25
 #define AUD_GRAPH_MAX       25
-#define X_MIN_AUD_GRAPH     200
+#define X_MIN_AUD_GRAPH     215
 #define Y_MIN_AUD_GRAPH     30
 #define Y_MAX_AUD_GRAPH     (Y_MIN_AUD_GRAPH + AUD_GRAPH_MAX - AUD_GRAPH_MIN)
 

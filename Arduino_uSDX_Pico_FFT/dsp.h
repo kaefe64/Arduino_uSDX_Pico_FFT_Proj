@@ -20,7 +20,7 @@ extern "C" {
 #define FSAMP_AUDIO 16000UL  // audio freq sample   32kHz=critical time
 #define ADC_CLOCK_DIV ((uint16_t)(48000000UL/FSAMP))  //48Mhz / 480Khz = 100 
 #define FRES      500u    //Hz resolucao de frequencias desejado para cada bin
-#define FFT_NSAMP      ((((uint16_t)((FSAMP / 3u) / FRES))+1u) & (~(uint16_t)1u))  // must be even  160k / 50 = 320
+#define FFT_NSAMP      ((((uint16_t)((FSAMP / 3u) / FRES))+1u) & (~(uint16_t)1u))  // must be even  160k / 500 = 320
 //FFT max freq = (FSAMP/3) / 2
 #define FFT_NUMFREQ    (FFT_NSAMP/2)
 

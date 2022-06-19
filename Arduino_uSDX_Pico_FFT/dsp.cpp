@@ -88,12 +88,18 @@ bool vox(void);
  * The decay time is about 100x this value
  * Slow attack would be about 4096
  **************************************************************************************/
-int16_t gain_shift = 2;   //overall gain, set by user, applies to overall including the waterfall
+//#define ALL_GAIN_SHIFT  1   //if consider some overall input sample gain other than 10x input signal
+                              //do not use!!  risk of overflow
+#ifdef ALL_GAIN_SHIFT         //all_gain_shift only works when the input signal is small and the samples use only few bits
+int16_t all_gain_shift = 2;   //overall extra gain, set by user, applies to overall including the waterfall
+                              //samples = 12bits  x 10 (from average) = 16bits   (FFF * 10 = 9FF6)
+                              //** sample variables = 16bits !!!
+#endif
 #define PEAK_AVG_SHIFT   5     //affects agc speed 
 volatile int32_t peak_avg_shifted=0;     // signal level detector = average of positive values
 volatile int16_t peak_avg_diff_accu=0;   // Log peak level integrator
-#define AGC_GAIN_MAX    32       //max attenuation agc can do   signal * agc_gain / 32
 #define AGC_GAIN_SHIFT  5        //shift corresponding to AGC_GAIN_MAX
+#define AGC_GAIN_MAX    (1<<AGC_GAIN_SHIFT)       //max attenuation agc can do   signal * agc_gain / 32
 volatile int16_t agc_gain=0;     // AGC attenuation (right-shift value)
 #define AGC_REF		4 //6
 #define AGC_DECAY	8192
@@ -614,16 +620,20 @@ void __not_in_flash_func(dma_handler)(void)
   {
     // low pass filter with the last samples average    4096 * 10  fits on  16 bits
     // (the signal should have freqs only < 8kHz  for use in the FIR low pass filter @16kHz sample freq)
-    if(gain_shift >= 0)
+#ifdef ALL_GAIN_SHIFT
+    if(all_gain_shift >= 0)
     {
-      adc_result[i_int] = adc_samp_sum[adc_samp_last_block_pos][i_int] << gain_shift; 
+      adc_result[i_int] = adc_samp_sum[adc_samp_last_block_pos][i_int] << all_gain_shift; 
     }
     else
     {
-      adc_result[i_int] = adc_samp_sum[adc_samp_last_block_pos][i_int] >> (-gain_shift); 
+      adc_result[i_int] = adc_samp_sum[adc_samp_last_block_pos][i_int] >> (-all_gain_shift); 
     }
+#else
+    adc_result[i_int] = adc_samp_sum[adc_samp_last_block_pos][i_int];   // = 10x input signal, 12bits x 10 = 16bits   (FFF * 10 = 9FF6)
+#endif
   }
-  adc_result[2] = adc_samp_sum[adc_samp_last_block_pos][2] >> 3u;  // /8 instead of /10 = little gain  MIC is out of agc gain 
+  adc_result[2] = adc_samp_sum[adc_samp_last_block_pos][2] >> 3u;  // /8 instead of /10 = little gain
 
 
 /*
@@ -643,14 +653,14 @@ adc_result[1] = vetsub[(possub+(TAMSUB/4u))&TAMSUB_MASK];
   
   if(fft_samples_ready == 0)  //receiving the samples
   {
-    //copy new samples to FFT buffer
+    //copy new samples to FFT buffer  (raw adc sample values for FFT)
     for(i_int=0; i_int<BLOCK_NSAMP; )
     {  
       fft_samp[fft_samp_block_pos][i_int] = adc_samp[adc_samp_last_block_pos][i_int];
       i_int++;
       fft_samp[fft_samp_block_pos][i_int] = adc_samp[adc_samp_last_block_pos][i_int];
       i_int++;
-      fft_samp[fft_samp_block_pos][i_int] = adc_samp[adc_samp_last_block_pos][i_int]; 
+      fft_samp[fft_samp_block_pos][i_int] = adc_samp[adc_samp_last_block_pos][i_int];   // MIC is not necessary, but lets save it too
       i_int++;
     }
     
@@ -803,8 +813,8 @@ bool rx(void)
 
 	/*** SAMPLING ***/
 	
-	q_sample = adc_result[0];						// Take last ADC 0 result, connected to Q input
-	i_sample = adc_result[1];						// Take last ADC 1 result, connected to I input
+	q_sample = adc_result[0];		// Take last ADC 0 result, connected to Q input  (16 bits size)
+	i_sample = adc_result[1];		// Take last ADC 1 result, connected to I input  (16 bits size)
 /*
 if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphic
   {
@@ -930,7 +940,7 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
  
 	if (peak_avg_diff_accu > agc_attack)						// Attack time, gain correction in case of high level
 	{
-    if(agc_gain>1) 
+    if(agc_gain>1)
     {
       agc_gain--;               // Decrease gain
     }
@@ -967,7 +977,7 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
   {
     aud_samp[AUD_SAMP_A][aud_samp_block_pos] = a_sample>>1;
     aud_samp[AUD_SAMP_PEAK][aud_samp_block_pos] = peak_avg_shifted>>PEAK_AVG_SHIFT;
-    aud_samp[AUD_SAMP_GAIN][aud_samp_block_pos] = agc_gain;  //peak_avg_diff_accu;
+    aud_samp[AUD_SAMP_GAIN][aud_samp_block_pos] = agc_gain;
 
     if(++aud_samp_block_pos >= AUD_NUM_SAMP)
     {
@@ -1454,17 +1464,21 @@ for (i_c1=0; i_c1<10000; i_c1++) {  j_c1++; }   //wait core0 to be ready
       // fill first samples to calculate the first Hilbert value
       for(j_c1=0; j_c1<HILBERT_TAP_NUM; j_c1++)
       {
-        if(gain_shift >= 0)
+#ifdef ALL_GAIN_SHIFT
+        if(all_gain_shift >= 0)
         {
-          fft_q_s[j_c1] = (fft_samp[block_num][block_pos] << gain_shift);
-          fft_i_s[j_c1] = (fft_samp[block_num][block_pos+1] << gain_shift);
+          fft_q_s[j_c1] = (fft_samp[block_num][block_pos] << all_gain_shift);
+          fft_i_s[j_c1] = (fft_samp[block_num][block_pos+1] << all_gain_shift);
         }
         else
         {
-          fft_q_s[j_c1] = (fft_samp[block_num][block_pos] >> (-gain_shift));
-          fft_i_s[j_c1] = (fft_samp[block_num][block_pos+1] >> (-gain_shift));
+          fft_q_s[j_c1] = (fft_samp[block_num][block_pos] >> (-all_gain_shift));
+          fft_i_s[j_c1] = (fft_samp[block_num][block_pos+1] >> (-all_gain_shift));
         }
-
+#else
+        fft_q_s[j_c1] = fft_samp[block_num][block_pos];   
+        fft_i_s[j_c1] = fft_samp[block_num][block_pos+1];
+#endif
         block_pos+=3;
         if(block_pos >= BLOCK_NSAMP)
         {
