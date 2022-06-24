@@ -67,7 +67,11 @@ Hardware changes and notes:
 - Obs.: at the initial test video, I used only the RC output filter shown in the schematic, and for input filter, only what is already inside of the Softrock RXTX Ensemble.
 
 
-Last changes and notes:<br>
+Last changes and notes:<br><br>
+
+Jun24 2022
+- Few display corrections: central triangle, mode text overwriting.
+
 Jun10 2022
 - AGC uncommented and adapted to work.<br>
 	 The AGC is only used at the output audio, not for waterfall.
