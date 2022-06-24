@@ -128,7 +128,7 @@
 #define HMI_NVOX	4
 #define HMI_NBPF	5
 char hmi_o_menu[HMI_NSTATES][8] = {"Tune","Mode","AGC","Pre","VOX"};	// Indexed by hmi_state
-char hmi_o_mode[HMI_NMODE][8] = {"USB","LSB","AM","CW"};				// Indexed by hmi_sub[HMI_S_MODE]
+char hmi_o_mode[HMI_NMODE][8] = {"USB","LSB","AM","CW"};			// Indexed by hmi_sub[HMI_S_MODE]
 char hmi_o_agc [HMI_NAGC][8] = {"NoGC","Slow","Fast"};					// Indexed by hmi_sub[HMI_S_AGC]
 char hmi_o_pre [HMI_NPRE][8] = {"-30dB","-20dB","-10dB","0dB","+10dB"};	// Indexed by hmi_sub[HMI_S_PRE]
 char hmi_o_vox [HMI_NVOX][8] = {"NoVOX","VOX-L","VOX-M","VOX-H"};		// Indexed by hmi_sub[HMI_S_VOX]
@@ -449,7 +449,7 @@ void hmi_evaluate(void)
 
 
     //mode 
-    sprintf(s, "%s", hmi_o_mode[hmi_sub[HMI_S_MODE]]);
+    sprintf(s, "%s  ", hmi_o_mode[hmi_sub[HMI_S_MODE]]);
     tft_writexy_(2, TFT_GREEN, TFT_BLACK, 0,1,(uint8_t *)s);
   
     //freq

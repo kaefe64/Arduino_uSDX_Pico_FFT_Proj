@@ -234,9 +234,11 @@ void display_fft_graf(int16_t change)
     {
       case 0:  //USB
         tft.fillTriangle(display_WIDTH/2, Y_MIN_DRAW - 12, display_WIDTH/2, Y_MIN_DRAW - 30, (display_WIDTH/2)+8, Y_MIN_DRAW - 12, TFT_YELLOW);
+        tft.fillTriangle((display_WIDTH/2)-1, Y_MIN_DRAW - 12, display_WIDTH/2, Y_MIN_DRAW - 30, (display_WIDTH/2)-8, Y_MIN_DRAW - 12, TFT_BLACK);
         break;
       case 1:  //LSB
         tft.fillTriangle(display_WIDTH/2, Y_MIN_DRAW - 12, display_WIDTH/2, Y_MIN_DRAW - 30, (display_WIDTH/2)-8, Y_MIN_DRAW - 12, TFT_YELLOW);
+        tft.fillTriangle((display_WIDTH/2)+1, Y_MIN_DRAW - 12, display_WIDTH/2, Y_MIN_DRAW - 30, (display_WIDTH/2)+8, Y_MIN_DRAW - 12, TFT_BLACK);
         break;
       case 2:  //AM
         tft.fillTriangle((display_WIDTH/2)-8, Y_MIN_DRAW - 12, display_WIDTH/2, Y_MIN_DRAW - 30, (display_WIDTH/2)+8, Y_MIN_DRAW - 12, TFT_YELLOW);

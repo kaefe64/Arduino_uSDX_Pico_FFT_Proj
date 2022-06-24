@@ -88,19 +88,12 @@ bool vox(void);
  * The decay time is about 100x this value
  * Slow attack would be about 4096
  **************************************************************************************/
-//#define ALL_GAIN_SHIFT  1   //if consider some overall input sample gain other than 10x input signal
-                              //do not use!!  risk of overflow
-#ifdef ALL_GAIN_SHIFT         //all_gain_shift only works when the input signal is small and the samples use only few bits
-int16_t all_gain_shift = 2;   //overall extra gain, set by user, applies to overall including the waterfall
-                              //samples = 12bits  x 10 (from average) = 16bits   (FFF * 10 = 9FF6)
-                              //** sample variables = 16bits !!!
-#endif
 #define PEAK_AVG_SHIFT   5     //affects agc speed 
 volatile int32_t peak_avg_shifted=0;     // signal level detector = average of positive values
 volatile int16_t peak_avg_diff_accu=0;   // Log peak level integrator
 #define AGC_GAIN_SHIFT  5        //shift corresponding to AGC_GAIN_MAX
-#define AGC_GAIN_MAX    (1<<AGC_GAIN_SHIFT)       //max attenuation agc can do   signal * agc_gain / 32
-volatile int16_t agc_gain=0;     // AGC attenuation (right-shift value)
+#define AGC_GAIN_MAX    (1<<AGC_GAIN_SHIFT)       //max attenuation agc can do   signal * agc_gain / AGC_GAIN_MAX
+volatile int16_t agc_gain=(AGC_GAIN_MAX/2);     // AGC gain/attenuation
 #define AGC_REF		4 //6
 #define AGC_DECAY	8192
 #define AGC_FAST	64
@@ -620,18 +613,7 @@ void __not_in_flash_func(dma_handler)(void)
   {
     // low pass filter with the last samples average    4096 * 10  fits on  16 bits
     // (the signal should have freqs only < 8kHz  for use in the FIR low pass filter @16kHz sample freq)
-#ifdef ALL_GAIN_SHIFT
-    if(all_gain_shift >= 0)
-    {
-      adc_result[i_int] = adc_samp_sum[adc_samp_last_block_pos][i_int] << all_gain_shift; 
-    }
-    else
-    {
-      adc_result[i_int] = adc_samp_sum[adc_samp_last_block_pos][i_int] >> (-all_gain_shift); 
-    }
-#else
     adc_result[i_int] = adc_samp_sum[adc_samp_last_block_pos][i_int];   // = 10x input signal, 12bits x 10 = 16bits   (FFF * 10 = 9FF6)
-#endif
   }
   adc_result[2] = adc_samp_sum[adc_samp_last_block_pos][2] >> 3u;  // /8 instead of /10 = little gain
 
@@ -1464,21 +1446,8 @@ for (i_c1=0; i_c1<10000; i_c1++) {  j_c1++; }   //wait core0 to be ready
       // fill first samples to calculate the first Hilbert value
       for(j_c1=0; j_c1<HILBERT_TAP_NUM; j_c1++)
       {
-#ifdef ALL_GAIN_SHIFT
-        if(all_gain_shift >= 0)
-        {
-          fft_q_s[j_c1] = (fft_samp[block_num][block_pos] << all_gain_shift);
-          fft_i_s[j_c1] = (fft_samp[block_num][block_pos+1] << all_gain_shift);
-        }
-        else
-        {
-          fft_q_s[j_c1] = (fft_samp[block_num][block_pos] >> (-all_gain_shift));
-          fft_i_s[j_c1] = (fft_samp[block_num][block_pos+1] >> (-all_gain_shift));
-        }
-#else
         fft_q_s[j_c1] = fft_samp[block_num][block_pos];   
         fft_i_s[j_c1] = fft_samp[block_num][block_pos+1];
-#endif
         block_pos+=3;
         if(block_pos >= BLOCK_NSAMP)
         {
