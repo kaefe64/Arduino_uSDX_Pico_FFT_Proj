@@ -70,20 +70,20 @@ Hardware changes and notes:
 Last changes and notes:<br>
 Jun10 2022
 - AGC uncommented and adapted to work.<br>
-	 The AGC is only used at the output audio, not for waterfall.<br>
+	 The AGC is only used at the output audio, not for waterfall.
 - A visual scope was implemented to allow visualization of some internal variables.<br>
 	 The variables plotted are:<br>
 	 I, Q and MIC = ADC inputs<br>
 	 A = output audio<br>
 	 PEAK = average of absolute(A)<br>
-		 this gives an input signal level for AGC (min in the middle of the scope height, max at the top)<br>
+	 	 this gives an input signal level for AGC (min in the middle of the scope height, max at the top)<br>
 	 GAIN = AGC result. <br>
-		 If the PEAK is high for some time, it decreases the GAIN. With PEAK low, increases GAIN.<br>
-		 Gain has 32 steps:<br>
-		 1 = min AGC gain (almost in the middle of the scope height)  <br>
-		 32 = max AGC gain (limited to 25 at the top of scope)<br>
+	 	 If the PEAK is high for some time, it decreases the GAIN. With PEAK low, increases GAIN.<br>
+	 	 Gain has 32 steps:<br>
+	 	 1 = min AGC gain (almost in the middle of the scope height)  <br>
+	 	 32 = max AGC gain (limited to 25 at the top of scope)<br>
 	 Scope limits:    -25 < y < 25       0 < x < 100 (each 'x' dot time = 1/16kHz)<br>
-	 Variables are scaled to fit in the scope height.<br>
+	 Variables are scaled to fit in the scope height.
 - The signal level meter at the display does not change because it is fixed at the original code (the level depends on the software as well as the hardware).<br>
 
 
