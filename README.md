@@ -22,20 +22,20 @@ To implement the waterfall I have considered this:
 - There are 3 ADC inputs: I, Q and MIC  (if we remove the VOX function, we could remove the MIC ADC during reception, this will increase the ADC frequency for I and Q, improving the frequencies we can see at the display - for now I will keep it like the original).
 - The max ADC frequency is 500kHz, I have changed it to 480kHz (close to the original) to make the divisions "rounded".
 - The ADC for audio reception has frequency of 16kHz (close to the original). I have tested higher frequencies, but the time became critical, without so much benefit.
-- The max ADC frequency for each sample = 480kHz / 3 = 160kHz   (because there is only one internal ADC for 3 inputs).
+- The max ADC frequency for each sample = 480kHz / 3 = 160kHz   (because there is only one internal ADC used to read the 3 inputs in sequence).
 - With 160kHz of samples, we can see 80kHz range after the FFT, but if we apply Hilbert to get the lower band and the upper band, we get two bands of 80kHz, one above and one below the center frequency.
 - There is no time to process each sample at 160kHz and generate the "live" audio, so I use this method:
-    Set the DMA to receive 10 samples of each ADC input (10 x 3 = 30) and generate a interrupt.
+    Set the DMA to receive 10 samples of each ADC input (10 x 3 = 30) and generate an interrupt.
     So, we get 16kHz interrupts with 10 x 3 samples to deal. 
-    For audio, we need only one at each interruption of 16kHz, but to improve the signal, I made an average from the last 10 samples to deliver to audio (this is also a low pass filter).
-    For FFT, we need all samples, so they are copied to a FFT buffer for later use.
-- There is also no time to process the samples and the receiver part at 16kHz, so I chose to split it, the interrupt and buffer/average part is done at Core1, and the audio original reception is in the Core0.
+    For audio, we need only one sample at each interruption of 16kHz, but to improve the signal, I made an average from the last 10 samples to deliver to audio (this is also a low pass filter).
+    For FFT, we need all samples (raw samples), so they are copied to a FFT buffer for later use.
+- There is also no time to process the samples and run the receiver part at 16kHz, so I chose to split it, the interrupt and buffer/average part is done at Core1, and the audio original reception is in the Core0.
 - Every 16kHz interrupt, after average the I, Q and MIC audio samples are passed to Core0.
-- For FFT, when we have received 320 I and Q samples, it stops of filling the buffer and indicates to the Core1 main loop to process a new FFT and waterfall graphic.
+- For FFT, when we have received 320 I and Q samples, it stops filling the buffer and indicates to the Core1 main loop to process a new FFT and waterfall line graphic.
 - The original processes run at Core0, every 100ms.
 - There is a digital low pass filter FIR implemented at the code (in the original too) that will give the passband we want for audio.
   This filter was calculated with the help of this site:  http://t-filter.engineerjs.com/
-  The dificulty is that the number of taps could not be high (there is no much time to spend), so the filter must be chosen carefully.
+  The dificulty is that the number of filter taps could not be high (there is no much time to process it), so the filter must be chosen carefully.
 - Block diagram at "Arduino uSDR Pico FFT.png".
 
 
@@ -59,10 +59,10 @@ Arduino IDE setup and notes:
 - Board: "RaspberryPiPico"  >  Arduino Mbed OS RP2040 Boards  >  RaspberryPiPico
 - The code files have cpp type, but the code itself is in C (cpp type is used to help in some compiler issues).
 
-Hardware, changes and notes:
+Hardware changes and notes:
 - Inclusion of ILI9341 on free pins, using SPI1, and removing the LCD display.
 - Schematic diagram at "FFT_LCD_pico.png".
-- I noticed that changing the signal in one ADC input, changes the other inputs signal through the resistors for setting half Vref. To solve this, I changed the circuit to have a separate resistor divider for each ADC input.
+- I noticed that changing the signal in one ADC input, changed the other inputs signal through the resistors for setting half Vref. To solve this, I changed the circuit to have a separate resistor divider for each ADC input.
 - Use input/output filters for Nyquist considerations (see above). 
 - Obs.: at the initial test video, I used only the RC output filter shown in the schematic, and for input filter, only what is already inside of the Softrock RXTX Ensemble.
 
@@ -70,13 +70,25 @@ Hardware, changes and notes:
 Last changes and notes:
 Jun10 2022
 - AGC uncommented and adapted to work.
+	The AGC is only used at the output audio, not for waterfall.
 - A visual scope was implemented to allow visualization of some internal variables.
+	The variables plotted are:
+	I, Q and MIC = ADC inputs
+	A = output audio
+	PEAK = average of absolute(A)
+		this gives an input signal level for AGC (min in the middle of the scope height, max at the top)
+	GAIN = AGC result. 
+		If the PEAK is high for some time, it decreases the GAIN. With PEAK low, increases GAIN.
+		Gain has 32 steps:
+		1 = min AGC gain (almost in the middle of the scope height)  
+		32 = max AGC gain (limited to 25 at the top of scope)
+	Scope limits:    -25 < y < 25       0 < x < 100 (each 'x' dot time = 1/16kHz)
+	Variables are scaled to fit in the scope height.
 - The signal level meter at the display does not change because it is fixed at the original code (the level depends on the software as well as the hardware).
 
 
 To do list:
-- There is some noise on ADC readings with nothing connected, so I will try some capacitors on Vref and each ADC input.
+- The waterfall needs a gain adjust to help with signals visualization.
 - Write to the display only when something changes.
 - Tests: reception/transmission SSB...  menus...  switches/debounce...   display appearance
-- Try to improve the suppression of not desired audio and waterfall bands
 
