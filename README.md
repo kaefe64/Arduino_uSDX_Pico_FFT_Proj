@@ -71,6 +71,8 @@ If we deliver an audio signal at 16kHz (sample frequency), we need a hardware lo
 - Use input/output filters for Nyquist considerations (see above). 
 - Obs.: at the initial test video, I used only the RC output filter shown in the schematic, and for input filter, only what is already inside of the Softrock RXTX Ensemble.
 
+![Hardware Modification](FFT_LCD_pico_MOD.png)
+
 
 ## Last changes and notes:<br>
 
