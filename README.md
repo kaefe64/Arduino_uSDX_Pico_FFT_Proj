@@ -1,13 +1,13 @@
 # Arduino_uSDX_Pico_FFT_Proj
-## Hamradio SDR transceiver software
-## by Klaus Fensterseifer - PY2KLA
+## Hamradio SDR Transceiver Software
+### by Klaus Fensterseifer - PY2KLA
 
 ![uSDR-PICO FFT](Pict1.png)
 
 This project is based on  Arjan te Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico
  . I strongly recommend you to take a look there before trying to follow this one.
 
-My intention was to include a waterfall or panadapter to the uSDR-pico project, for this, I included an ILI9341 240x320, without touch, to the project, and also, changed the software to generate the waterfall.
+My intention was to include a waterfall or panadapter to the uSDR-pico project, for this, I included an ILI9341 240x320 without touch, and also, changed the software to generate the waterfall.
 
 Initially, I have used Visual Studio, but after some considerations, I ported all code to Arduino IDE. So, to compile and run this code you need the Arduino IDE installed for a Raspberry Pi Pico project.
 
@@ -60,7 +60,7 @@ If we deliver an audio signal at 16kHz (sample frequency), we need a hardware lo
 - Lib used: TFT_eSPI by Bodmer
 - There are some comments at beginning of  .ino  file.  I use them to "adjust" the library files to the project.
 - Boards Manager:  Arduino Mbed OS RP2040 Boards. My version is 3.0.1 (If I update it, I will need to adjust the library files again, so I will leave it for later).
-- Do not use EarlePhilhower library (it is just conflitant with Mbed)
+- Do not include EarlePhilhower library (it is just conflitant with Mbed)
 - Board: "RaspberryPiPico"  >  Arduino Mbed OS RP2040 Boards  >  RaspberryPiPico
 - The code files have cpp type, but the code itself is in C (cpp type is used to help in some compiler issues).
 
