@@ -139,7 +139,7 @@ uint8_t hmi_pre[5] = {REL_ATT_30, REL_ATT_20, REL_ATT_10, REL_ATT_00, REL_PRE_10
 uint8_t hmi_bpf[5] = {REL_LPF2, REL_BPF6, REL_BPF12, REL_BPF24, REL_BPF40};
 
 uint8_t  hmi_state, hmi_option;											// Current state and option selection
-uint8_t  hmi_sub[HMI_NSTATES] = {4,0,2,3,0,2};							// Stored option selection per state
+uint8_t  hmi_sub[HMI_NSTATES] = {4,1,2,3,0,2};							// Stored option selection per state
 bool	 hmi_update;
 
 uint32_t hmi_freq;														// Frequency from Tune state
@@ -147,7 +147,7 @@ uint32_t hmi_step[7] = {10000000, 1000000, 100000, 10000, 1000, 100, 50};	// Fre
 #define HMI_MAXFREQ		30000000
 #define HMI_MINFREQ		     100
 #define HMI_MULFREQ          1			// Factor between HMI and actual frequency
-																		// Set to 2 or 4 for certain types of mixer
+																		// Set to 1, 2 or 4 for certain types of mixer
 
 #define PTT_DEBOUNCE	3											// Nr of cycles for debounce
 int ptt_state;															// Debounce counter
@@ -380,6 +380,9 @@ void hmi_init(void)
 }
 
 
+#define REC_LEVEL_SHIFT   4
+int32_t rec_level_shifted;
+
 
 
 /*
@@ -390,8 +393,7 @@ void hmi_evaluate(void)
 {
 	char s[32];
   static bool tx_enabled_old = true;  //save the actual state (true to force te first print to display)
-
-
+  int16_t rec_level;
   
   /* PTT debouncing */
   if (hmi_sub[HMI_S_VOX] == 0)            // No VOX active
@@ -459,9 +461,17 @@ void hmi_evaluate(void)
     s[(hmi_option>4?6:hmi_option)+1] = 0;
     //tft_cursor(3, TFT_YELLOW, 2+(hmi_option>4?6:hmi_option), 2);
     tft_cursor_2(3, TFT_YELLOW, 2+(hmi_option>4?6:hmi_option), 0, 2, 20);
-  
+
+    // 3.3Vpp = (2^12)-1 ADC steps
+    //rec_level = ((sample_peak_avg_shifted>>SAMPLE_PEAK_AVG_SHIFT)*3300L)>>12;
+//    rec_level = ((peak_avg_shifted>>PEAK_AVG_SHIFT) * agc_gain_back[agc_gain])>>4;
+//    rec_level = (peak_avg_shifted>>PEAK_AVG_SHIFT);
+
+    rec_level_shifted += ((((peak_avg_shifted>>PEAK_AVG_SHIFT) * agc_gain_back[agc_gain])>>4) - (rec_level_shifted>>REC_LEVEL_SHIFT));  
+    rec_level = ((rec_level_shifted>>REC_LEVEL_SHIFT)*3300L)>>12;
+    
     //T or R  (using letters instead of arrow used on original project)
-    sprintf(s, "%c%3d", (tx_enabled?'T':'R'), (tx_enabled?0:920));
+    sprintf(s, "%c%d  ", (tx_enabled?'T':'R'), (tx_enabled?0:rec_level));
     tft_writexy_(2, TFT_GREEN, TFT_BLACK, 0,2,(uint8_t *)s);
 
   	//menu 
