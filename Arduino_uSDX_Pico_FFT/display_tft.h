@@ -107,8 +107,8 @@ extern uint8_t vet_graf_fft[GRAPH_NUM_LINES][GRAPH_NUM_COLS];    // [NL][NCOL]
 
 //void tft_setup(void);
 //void tft_writexy(uint8_t x, uint8_t y, uint8_t *s);
-void tft_writexy_(uint16_t font, uint16_t color, uint16_t color_back, uint8_t x, uint8_t y, uint8_t *s);
-void tft_writexy_2(uint16_t font, uint16_t color, uint16_t color_back, uint8_t x, uint8_t x_plus, uint8_t y, uint8_t y_plus, uint8_t *s);
+void tft_writexy_(uint16_t font, uint16_t color, uint16_t color_back, uint16_t x, uint16_t y, uint8_t *s);
+void tft_writexy_2(uint16_t font, uint16_t color, uint16_t color_back, uint16_t x, uint16_t x_plus, uint16_t y, uint16_t y_plus, uint8_t *s);
 void tft_cursor(uint16_t font, uint16_t color, uint8_t x, uint8_t y);
 void tft_cursor_2(uint16_t font, uint16_t color, uint8_t x, uint8_t x_plus, uint8_t y, uint8_t y_plus);
 uint16_t tft_color565(uint16_t r, uint16_t g, uint16_t b);
