@@ -89,6 +89,11 @@ change the pins for I2C0 and include the pins for I2C1:
 #define I2C_SCL      (digitalPinToPinName(PIN_WIRE_SCL))
 #define I2C_SDA1      (digitalPinToPinName(PIN_WIRE_SDA1))
 #define I2C_SCL1      (digitalPinToPinName(PIN_WIRE_SCL1))
+
+
+Check on hmi.cpp:
+#define HMI_MULFREQ          1      // Factor between HMI and actual frequency
+                                    // Set to 2 or 4 for certain types of mixer
 */
 
 #include "uSDR.h"
