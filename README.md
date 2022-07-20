@@ -1,9 +1,10 @@
 # Arduino_uSDX_Pico_FFT_Proj
-Hamradio SDR transceiver software   -  by Klaus Fensterseifer - PY2KLA
+##Hamradio SDR transceiver software
+##by Klaus Fensterseifer - PY2KLA
 
+![uSDR-PICO FFT](Pict1.png)
 
-
-This project is based on  Arjante Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico
+This project is based on  Arjan te Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico
  . I strongly recommend you to take a look there before trying to follow this one.
 
 My intention was to include a waterfall or panadapter to the uSDR-pico project, for this, I included an ILI9341 240x320, without touch, to the project, and also, changed the software to generate the waterfall.
@@ -12,12 +13,14 @@ Initially, I have used Visual Studio, but after some considerations, I ported al
 
 I also, chose not to change the original software as much as possible, and focused on the waterfall implementation, mostly in the dsp.c.
 
+I used the word "uSDX" instead of "uSDR" to name some files. This was a mistake. My intention was to follow Arjan's project with the same names, and not to mix with the excelent uSDX project from Guido PE1NNZ (https://github.com/threeme3/usdx).
 
-Initial tests video:  https://youtu.be/0zGAnkRjizE
+
+Initial tests video:  https://youtu.be/0zGAnkRjizE<br>
 AGC and Visual Scope video: https://youtu.be/BiaS002xZfw
 
 
-To implement the waterfall I have considered this:
+###To implement the waterfall I considered this:
 
 - There are 3 ADC inputs: I, Q and MIC  (if we remove the VOX function, we could remove the MIC ADC during reception, this will increase the ADC frequency for I and Q, improving the frequencies we can see at the display - for now I will keep it like the original).
 - The max ADC frequency is 500kHz, I have changed it to 480kHz (close to the original) to make the divisions "rounded".
@@ -38,19 +41,21 @@ To implement the waterfall I have considered this:
   The dificulty is that the number of filter taps could not be high (there is no much time to process it), so the filter must be chosen carefully.
 - Block diagram at "Arduino uSDR Pico FFT.png".
 
+![Block diagram](Arduino uSDR Pico FFT.png)
 
-Nyquist considerations:
+
+###Nyquist considerations:
 If we sample each signal I, Q and MIC at 160kHz, it is necessary to have a hardware low pass filter for max 80kHz on each input (anti-aliasing filter).
 If we deliver an audio signal at 16kHz (sample frequency), we need a hardware low pass filter for less than 8kHz at the output (the sample frequency will be present and need to be removed as it is an audio frequency).
 
 
-Microcontroller RP2040 notes:
+###Microcontroller RP2040 notes:
 - Core0 and Core1 are too much connected and affect each other. This made me lose some painful hours...
 - There are only 3 ADC ports available.
 - There are some reports at internet about the low quality of the RP2040 ADC readings.
 
 
-Arduino IDE setup and notes:
+###Arduino IDE setup and notes:
 - I am using Arduino IDE version 1.8.19 in Linux/Ubuntu
 - Lib used: TFT_eSPI by Bodmer
 - There are some comments at beginning of  .ino  file.  I use them to "adjust" the library files to the project.
@@ -59,7 +64,7 @@ Arduino IDE setup and notes:
 - Board: "RaspberryPiPico"  >  Arduino Mbed OS RP2040 Boards  >  RaspberryPiPico
 - The code files have cpp type, but the code itself is in C (cpp type is used to help in some compiler issues).
 
-Hardware changes and notes:
+###Hardware changes and notes:
 - Inclusion of ILI9341 on free pins, using SPI1, and removing the LCD display.
 - Schematic diagram at "FFT_LCD_pico.png".
 - I noticed that changing the signal in one ADC input, changed the other inputs signal through the resistors for setting half Vref. To solve this, I changed the circuit to have a separate resistor divider for each ADC input.
@@ -67,7 +72,13 @@ Hardware changes and notes:
 - Obs.: at the initial test video, I used only the RC output filter shown in the schematic, and for input filter, only what is already inside of the Softrock RXTX Ensemble.
 
 
-Last changes and notes:<br><br>
+###Last changes and notes:<br>
+
+Jul20 2022
+- Waterfall: Changed to fall instead of going up
+- Waterfall: Frequency scale moving with main frequency
+- Waterfall: Shadow indicating the reception zone
+- AGC attach faster
 
 Jun24 2022
 - Few display corrections: central triangle, mode text overwriting.
@@ -80,19 +91,18 @@ Jun10 2022
 	 - I, Q and MIC = ADC inputs<br>
 	 - A = output audio<br>
 	 - PEAK = average of absolute(A)<br>
-	 	 this gives an input signal level for AGC (min in the middle of the scope height, max at the top)<br>
+	 This gives an input signal level for AGC (min in the middle of the scope height, max at the top)<br>
 	 - GAIN = AGC result. <br>
-	 	 If the PEAK is high for some time, it decreases the GAIN. With PEAK low, increases GAIN.<br>
-	 	 Gain has 32 steps:<br>
-	 	 1 = min AGC gain (almost in the middle of the scope height)  <br>
-	 	 32 = max AGC gain (limited to 25 at the top of scope)<br>
+	 If the PEAK is high for some time, it decreases the GAIN. With PEAK low, increases GAIN.<br>
+	 Gain has 32 steps:<br>
+	 1 = min AGC gain (almost in the middle of the scope height)  <br>
+	 32 = max AGC gain (limited to 25 at the top of scope)<br>
 	 - Obs.: Scope limits:    -25 < y < 25       0 < x < 100 (each 'x' dot time = 1/16kHz)<br>
 	 - Obs.: Variables are scaled to fit in the scope height.
 - The signal level meter at the display does not change because it is fixed at the original code (the level depends on the software as well as the hardware).<br>
 
 
-To do list:
-- The waterfall needs a gain adjust to help with signals visualization.
+###To do list:
 - Write to the display only when something changes.
 - Tests: reception/transmission SSB...  menus...  switches/debounce...   display appearance
 
