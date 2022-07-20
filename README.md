@@ -20,7 +20,7 @@ Initial tests video:  https://youtu.be/0zGAnkRjizE<br>
 AGC and Visual Scope video: https://youtu.be/BiaS002xZfw
 
 
-## To implement the waterfall I considered this:
+### To implement the waterfall I considered this:
 
 - There are 3 ADC inputs: I, Q and MIC  (if we remove the VOX function, we could remove the MIC ADC during reception, this will increase the ADC frequency for I and Q, improving the frequencies we can see at the display - for now I will keep it like the original).
 - The max ADC frequency is 500kHz, I have changed it to 480kHz (close to the original) to make the divisions "rounded".
@@ -78,7 +78,8 @@ Jul20 2022
 - Waterfall: Changed to fall instead of going up
 - Waterfall: Frequency scale moving with main frequency
 - Waterfall: Shadow indicating the reception zone
-- AGC attach faster
+- AGC attack faster
+- It shows the reception signal level implemented from audio output and gain
 
 Jun24 2022
 - Few display corrections: central triangle, mode text overwriting.
