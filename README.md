@@ -1,6 +1,6 @@
 # Arduino_uSDX_Pico_FFT_Proj
-##Hamradio SDR transceiver software
-##by Klaus Fensterseifer - PY2KLA
+## Hamradio SDR transceiver software
+## by Klaus Fensterseifer - PY2KLA
 
 ![uSDR-PICO FFT](Pict1.png)
 
@@ -20,7 +20,7 @@ Initial tests video:  https://youtu.be/0zGAnkRjizE<br>
 AGC and Visual Scope video: https://youtu.be/BiaS002xZfw
 
 
-###To implement the waterfall I considered this:
+## To implement the waterfall I considered this:
 
 - There are 3 ADC inputs: I, Q and MIC  (if we remove the VOX function, we could remove the MIC ADC during reception, this will increase the ADC frequency for I and Q, improving the frequencies we can see at the display - for now I will keep it like the original).
 - The max ADC frequency is 500kHz, I have changed it to 480kHz (close to the original) to make the divisions "rounded".
@@ -39,23 +39,23 @@ AGC and Visual Scope video: https://youtu.be/BiaS002xZfw
 - There is a digital low pass filter FIR implemented at the code (in the original too) that will give the passband we want for audio.
   This filter was calculated with the help of this site:  http://t-filter.engineerjs.com/
   The dificulty is that the number of filter taps could not be high (there is no much time to process it), so the filter must be chosen carefully.
-- Block diagram at "Arduino uSDR Pico FFT.png".
+- Block diagram at "Arduino_uSDR_Pico_FFT.png".
 
-![Block diagram](Arduino uSDR Pico FFT.png)
+![Block diagram](Arduino_uSDR_Pico_FFT.png)
 
 
-###Nyquist considerations:
+### Nyquist considerations:
 If we sample each signal I, Q and MIC at 160kHz, it is necessary to have a hardware low pass filter for max 80kHz on each input (anti-aliasing filter).
 If we deliver an audio signal at 16kHz (sample frequency), we need a hardware low pass filter for less than 8kHz at the output (the sample frequency will be present and need to be removed as it is an audio frequency).
 
 
-###Microcontroller RP2040 notes:
+## Microcontroller RP2040 notes:
 - Core0 and Core1 are too much connected and affect each other. This made me lose some painful hours...
 - There are only 3 ADC ports available.
 - There are some reports at internet about the low quality of the RP2040 ADC readings.
 
 
-###Arduino IDE setup and notes:
+## Arduino IDE setup and notes:
 - I am using Arduino IDE version 1.8.19 in Linux/Ubuntu
 - Lib used: TFT_eSPI by Bodmer
 - There are some comments at beginning of  .ino  file.  I use them to "adjust" the library files to the project.
@@ -64,7 +64,7 @@ If we deliver an audio signal at 16kHz (sample frequency), we need a hardware lo
 - Board: "RaspberryPiPico"  >  Arduino Mbed OS RP2040 Boards  >  RaspberryPiPico
 - The code files have cpp type, but the code itself is in C (cpp type is used to help in some compiler issues).
 
-###Hardware changes and notes:
+## Hardware changes and notes:
 - Inclusion of ILI9341 on free pins, using SPI1, and removing the LCD display.
 - Schematic diagram at "FFT_LCD_pico.png".
 - I noticed that changing the signal in one ADC input, changed the other inputs signal through the resistors for setting half Vref. To solve this, I changed the circuit to have a separate resistor divider for each ADC input.
@@ -72,7 +72,7 @@ If we deliver an audio signal at 16kHz (sample frequency), we need a hardware lo
 - Obs.: at the initial test video, I used only the RC output filter shown in the schematic, and for input filter, only what is already inside of the Softrock RXTX Ensemble.
 
 
-###Last changes and notes:<br>
+## Last changes and notes:<br>
 
 Jul20 2022
 - Waterfall: Changed to fall instead of going up
@@ -102,7 +102,7 @@ Jun10 2022
 - The signal level meter at the display does not change because it is fixed at the original code (the level depends on the software as well as the hardware).<br>
 
 
-###To do list:
+## To do list:
 - Write to the display only when something changes.
 - Tests: reception/transmission SSB...  menus...  switches/debounce...   display appearance
 
