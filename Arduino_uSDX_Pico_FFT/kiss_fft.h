@@ -23,7 +23,7 @@ extern "C" {
   in the tools/ directory.
 */
 
-#define FIXED_POINT  16  //para usar kiss_fft_scalar = int16
+#define FIXED_POINT  16  //to use kiss_fft_scalar = int16
 
 
 
