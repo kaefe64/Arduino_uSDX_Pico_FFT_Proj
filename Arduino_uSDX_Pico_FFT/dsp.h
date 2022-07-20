@@ -76,6 +76,14 @@ extern volatile uint16_t fft_display_graf_new;
 extern volatile int16_t aud_samp[AUD_NUM_VAR][AUD_NUM_SAMP];  //samples buffer for FFT and waterfall    only 0-1 used for I and Q  (3=MIC)  [NL][NCOL]
 extern volatile uint16_t aud_samples_state;
 
+#define PEAK_AVG_SHIFT   2     //affects agc speed 
+extern volatile int32_t peak_avg_shifted;     // signal level detector after AGC = average of positive values
+
+//#define SAMPLE_PEAK_AVG_SHIFT   13     //average level
+//extern volatile uint32_t sample_peak_avg_shifted;     // raw samples signal level detector = average of positive values
+extern int16_t agc_gain_back[65];
+extern volatile int16_t agc_gain;
+
 extern volatile bool tx_enabled;
 #define DSP_SETPTT(on)			tx_enabled = (on)
 

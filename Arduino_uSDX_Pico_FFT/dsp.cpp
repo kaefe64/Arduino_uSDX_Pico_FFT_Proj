@@ -88,16 +88,18 @@ bool vox(void);
  * The decay time is about 100x this value
  * Slow attack would be about 4096
  **************************************************************************************/
-#define PEAK_AVG_SHIFT   5     //affects agc speed 
-volatile int32_t peak_avg_shifted=0;     // signal level detector = average of positive values
+//volatile uint32_t sample_peak_avg_shifted=0;     // raw samples signal level detector = average of positive values
+volatile int32_t peak_avg_shifted=0;     // signal level detector after AGC = average of positive values
 volatile int16_t peak_avg_diff_accu=0;   // Log peak level integrator
-#define AGC_GAIN_SHIFT  5        //shift corresponding to AGC_GAIN_MAX
+#define AGC_GAIN_SHIFT  6        //shift corresponding to AGC_GAIN_MAX
 #define AGC_GAIN_MAX    (1<<AGC_GAIN_SHIFT)       //max attenuation agc can do   signal * agc_gain / AGC_GAIN_MAX
-volatile int16_t agc_gain=(AGC_GAIN_MAX/2);     // AGC gain/attenuation
+// agc gain back to calculate the a_sample without attenuation from agc -> used to display the input level = (64/i)*16
+int16_t agc_gain_back[65] = { 1024, 1024, 512, 341, 256, 204, 170, 146, 128, 113, 102, 93, 85, 79, 73, 68, 64, 60, 57, 54, 51, 49, 46, 44, 43, 41, 39, 38, 37, 35, 34, 33, 32, 31, 30, 29, 28, 28, 27, 26, 26, 25, 24, 24, 23, 23, 22, 22, 21, 21, 20, 20, 20, 19, 19, 19, 18, 18, 18, 17, 17, 17, 16, 16, 16 };
+volatile int16_t agc_gain=((AGC_GAIN_MAX/2)+1);   // AGC gain/attenuation
 #define AGC_REF		4 //6
 #define AGC_DECAY	8192
-#define AGC_FAST	64
-#define AGC_SLOW	4096
+#define AGC_ATTACK_FAST	32  //64
+#define AGC_ATTACK_SLOW	1024  //4096
 #define AGC_OFF		32766
 volatile uint16_t agc_decay  = AGC_OFF;
 volatile uint16_t agc_attack = AGC_OFF;
@@ -106,11 +108,11 @@ void dsp_setagc(int agc)
 	switch(agc)
 	{
 	case 1:		//SLOW, for values see hmi.c
-		agc_attack = AGC_SLOW;
+		agc_attack = AGC_ATTACK_SLOW;
 		agc_decay  = AGC_DECAY;
 		break;
 	case 2:		//FAST
-		agc_attack = AGC_FAST;
+		agc_attack = AGC_ATTACK_FAST;
 		agc_decay  = AGC_DECAY;
 		break;
 	default: 	//OFF
@@ -806,6 +808,9 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
 */
 
 
+  // raw samples peak average gives an idea of received signal level (before AGC and filter)
+//  sample_peak_avg_shifted += ((uint32_t)MAG(q_sample, i_sample) - (sample_peak_avg_shifted>>SAMPLE_PEAK_AVG_SHIFT));  
+
 
     
 	/*
@@ -815,7 +820,7 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
 	 */
 
 	/*
-	 * Shift with AGC feedback from AUDIO GENERATION stage
+	 * Attenuate with AGC feedback from AUDIO GENERATION stage
 	 * This behavior in essence is exponential, complementing the logarithmic peak detector
 	 */
     q_sample = ((int32_t)agc_gain * (int32_t)q_sample)>>AGC_GAIN_SHIFT;
@@ -907,7 +912,7 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
 	 */
   // average method, results ave_x4 = average value x 4
   // int ave_x4 += new_value - (ave_x4/4)
-  peak_avg_shifted += (ABS(a_sample) - (peak_avg_shifted>>PEAK_AVG_SHIFT));  
+  peak_avg_shifted += ((uint16_t)ABS(a_sample) - (peak_avg_shifted>>PEAK_AVG_SHIFT));  
   
   k=0; i=(peak_avg_shifted>>PEAK_AVG_SHIFT);     
 	if (i&0xff00) {k+=8; i>>=8;}				// Logarithmic peak detection
@@ -922,9 +927,13 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
  
 	if (peak_avg_diff_accu > agc_attack)						// Attack time, gain correction in case of high level
 	{
-    if(agc_gain>1)
+    if(agc_gain>2u)
     {
-      agc_gain--;               // Decrease gain
+      agc_gain-=2u;               // Decrease gain
+    }
+    else
+    {
+      agc_gain = 1u;
     }
 		peak_avg_diff_accu -= agc_attack;						// Reset integrator
 	} 
@@ -932,7 +941,11 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
 	{
     if(agc_gain<AGC_GAIN_MAX) 
     {
-      agc_gain++;               // Increase gain
+      agc_gain+=2u;               // Increase gain
+    }
+    else
+    {
+      agc_gain = AGC_GAIN_MAX;
     }
 		peak_avg_diff_accu += agc_decay;						// Reset integrator
 	}
@@ -958,7 +971,7 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
   if(aud_samples_state == AUD_STATE_SAMP_IN)
   {
     aud_samp[AUD_SAMP_A][aud_samp_block_pos] = a_sample>>1;
-    aud_samp[AUD_SAMP_PEAK][aud_samp_block_pos] = peak_avg_shifted>>PEAK_AVG_SHIFT;
+    aud_samp[AUD_SAMP_PEAK][aud_samp_block_pos] = k;  //peak_avg_shifted>>PEAK_AVG_SHIFT;
     aud_samp[AUD_SAMP_GAIN][aud_samp_block_pos] = agc_gain;
 
     if(++aud_samp_block_pos >= AUD_NUM_SAMP)
