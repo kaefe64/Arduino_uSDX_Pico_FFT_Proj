@@ -84,6 +84,7 @@ Ago05 2022
 - Writing to display and programming Si5351 only when necessary (finally)
 - PTT debounce reduced to allow CW TX (** it needs a 100nF capacitor from PTT pin to ground **)
 
+
 ![Hardware Modification](FFT_LCD_pico_MOD2.png)
 
 
@@ -119,9 +120,11 @@ Jun10 2022
 ## Wish list:
 - Improve the S meter, at least to show the AD input signal level.
 - The AGC needs to be improved as the audio still saturate at beginnig of strong signal
+- Include RIT (receiver incremental tuning)
+- Reduce the minimum step to change the frequency to 50Hz or less
 - Verify why the switches do not work some times (at least for me)
 - Check the trasmission on all modes
-- Storage the last state to recover it at the nest power up
+- Storage the last state to recover it at the nest power up (SD card? Internal Flash needs to stop interrupts)
 - Band selection with setup for each one (correspondence to the filter bands)
 - Tests: reception/transmission SSB...  menus...  switches/debounce...   display appearance
 
