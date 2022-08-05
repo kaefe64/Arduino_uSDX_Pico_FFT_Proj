@@ -1153,8 +1153,8 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
 		 * AM demodulate: sqrt(sqr(i)+sqr(q))
 		 * Approximated with MAG(i,q)
 		 */
-//		a_sample = MAG(i_s[(HILBERT_TAP_NUM-1)], q_s[(HILBERT_TAP_NUM-1)]);  //MAG from the last filtered I Q sample
-    a_sample = i_sample;  //MAG from the last filtered I Q sample
+		a_sample = MAG(i_s[(HILBERT_TAP_NUM-1)], q_s[(HILBERT_TAP_NUM-1)]);  //MAG from the last filtered I Q sample
+    //a_sample = i_sample;  //MAG from the last filtered I Q sample
 		break;
   case MODE_CW:                     // CW
     /*
