@@ -4,7 +4,7 @@
  * Created: Jan 2020
  * Author: Arjan
  * May2022: adapted by Klaus Fensterseifer 
- * https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj) 
+ * https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj
 
 Si5351 principle:
 =================
@@ -184,6 +184,7 @@ Control Si5351 (see AN619):
 
 
 
+//#define SI_XTAL_FREQ  (25000000UL-250UL)  // Replace with measured crystal frequency of XTAL for CL = 10pF (default)
 #define SI_XTAL_FREQ	25001414UL	// Replace with measured crystal frequency of XTAL for CL = 10pF (default)
 #define SI_MSN_LO		((0.6e9)/SI_XTAL_FREQ)
 #define SI_MSN_HI		((0.9e9)/SI_XTAL_FREQ)

@@ -4,7 +4,7 @@
  * Created: Mar 2021
  * Author: Arjan te Marvelde 
  * May2022: adapted by Klaus Fensterseifer 
- * https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj)
+ * https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj
  * 
  * The main loop of the application.
  * This initializes the units that do the actual work, and then loops in the background. 
@@ -64,24 +64,19 @@ void uSDR_setup(void)  //main
 
 #define LOOP_MS    100u  //miliseconds
 
-
 void uSDR_loop(void)
 { 
 
-  
-  if((tim_count - tim_loc) >= LOOP_MS)  //wait 100ms
+  if((uint16_t)(tim_count - tim_loc) >= LOOP_MS)  //run the tasks every 100ms 
   {
-    //gpio_set_mask(1<<14);
-  
     hmi_evaluate();               // Refresh HMI
     si_evaluate();                // Refresh VFO settings
     mon_evaluate();               // Check monitor input
     dsp_loop();  //spend more time here for FFT and graphic
     display_tft_loop();           // Refresh display
-       
-    tim_loc += LOOP_MS;
+    //it takes 50ms for the tasks (most in hmi_evaluate() to plot the waterfall)
     
-    //gpio_clr_mask(1<<14);
+    tim_loc += LOOP_MS;
   }
 
 }
