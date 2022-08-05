@@ -17,7 +17,7 @@ extern "C" {
 
 
 #define FSAMP 480000UL  // freq AD sample / 3 channels = 160kHz
-#define FSAMP_AUDIO 16000UL  // audio freq sample   32kHz=critical time
+#define FSAMP_AUDIO 16000U  // audio freq sample   32kHz=critical time
 #define ADC_CLOCK_DIV ((uint16_t)(48000000UL/FSAMP))  //48Mhz / 480Khz = 100 
 #define FRES      500u    //Hz resolucao de frequencias desejado para cada bin
 #define FFT_NSAMP      ((((uint16_t)((FSAMP / 3u) / FRES))+1u) & (~(uint16_t)1u))  // must be even  160k / 500 = 320
@@ -79,9 +79,8 @@ extern volatile uint16_t aud_samples_state;
 #define PEAK_AVG_SHIFT   2     //affects agc speed 
 extern volatile int32_t peak_avg_shifted;     // signal level detector after AGC = average of positive values
 
-//#define SAMPLE_PEAK_AVG_SHIFT   13     //average level
-//extern volatile uint32_t sample_peak_avg_shifted;     // raw samples signal level detector = average of positive values
-extern int16_t agc_gain_back[65];
+#define AGC_GAIN_SHIFT  6        //shift corresponding to AGC_GAIN_MAX
+#define AGC_GAIN_MAX    (1<<AGC_GAIN_SHIFT)       //max attenuation agc can do   signal * agc_gain / AGC_GAIN_MAX
 extern volatile int16_t agc_gain;
 
 extern volatile bool tx_enabled;

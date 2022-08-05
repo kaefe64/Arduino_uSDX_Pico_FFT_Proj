@@ -4,7 +4,7 @@
  * Created: Mar 2021
  * Author: Arjan te Marvelde
  * May2022: adapted by Klaus Fensterseifer 
- * https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj)
+ * https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj
  * 
  * Signal processing of RX and TX branch, to be run on the second processor core.
  * Each branch has a dedicated routine that must run on set times.
@@ -28,28 +28,14 @@
  * - Push I and Q to QSE output DACs
  *
  */
-/*
-#include "pico/stdlib.h"
-#include "pico/multicore.h"
-#include "hardware/pwm.h"
-#include "hardware/adc.h"
-#include "hardware/irq.h"
-#include "hardware/timer.h"
-#include "hardware/clocks.h"
-*/
+
 #include "Arduino.h"
-//#include "SPI.h"
-//#include "TFT_eSPI.h"
-//#include "dma.h"
 #include "pwm.h"
 #include "adc.h"
 #include "irq.h"
-//#include "time.h"
 #include "hardware/dma.h"
 #include "pico/multicore.h"
 #include "hmi.h"
-//#include "hardware/gpio.h"
-//#include "pico/stdlib.h"
 #include "hardware/structs/bus_ctrl.h"
 #include "uSDR.h"
 #include "dsp.h"
@@ -59,15 +45,30 @@
 #include "display_tft.h"
 
 
-#define LOW_PASS_FITER    1   //use the low pass for I q and MIC (otherwise only the DMA average low pass filter)
 
 
 #define ADC0_IRQ_FIFO 		22		// FIFO IRQ number
 #define GP_PTT				    15		// PTT pin 20 (GPIO 15)
 
-
+int dma_chan;
 
 volatile uint16_t tim_count = 0;
+volatile uint16_t tim_count_loc = 0;
+
+
+
+volatile uint16_t dac_iq, dac_audio;
+volatile bool tx_enabled; //, vox_active;
+
+
+
+
+/**************************************************************************************
+ * Some macro's
+ * See Alpha Max plus Beta Min algorithm for MAG (vector length)
+ **************************************************************************************/
+#define ABS(x)    ((x)<0?-(x):(x))
+#define MAG(i,q)  (ABS(i)>ABS(q) ? ABS(i)+((3*ABS(q))>>3) : ABS(q)+((3*ABS(i))>>3))
 
 
 
@@ -79,104 +80,268 @@ bool tx(void);
 bool vox(void);
 
 
-/**************************************************************************************
- * AGC reference level is log2(0x40) = 6, where 0x40 is the MSB of half DAC_RANGE
- * 1/AGC_DECAY and 1/AGC_ATTACK are multipliers before agc_gain value integrator
- * These values should ultimately be set by the HMI.
- * The time it takes to a gain change is the ( (Set time)/(signal delta) ) / samplerate
- * So when delta is 1, and attack is 64, the time is 64/15625 = 4msec (fast attack)
- * The decay time is about 100x this value
- * Slow attack would be about 4096
- **************************************************************************************/
-//volatile uint32_t sample_peak_avg_shifted=0;     // raw samples signal level detector = average of positive values
-volatile int32_t peak_avg_shifted=0;     // signal level detector after AGC = average of positive values
-volatile int16_t peak_avg_diff_accu=0;   // Log peak level integrator
-#define AGC_GAIN_SHIFT  6        //shift corresponding to AGC_GAIN_MAX
-#define AGC_GAIN_MAX    (1<<AGC_GAIN_SHIFT)       //max attenuation agc can do   signal * agc_gain / AGC_GAIN_MAX
-// agc gain back to calculate the a_sample without attenuation from agc -> used to display the input level = (64/i)*16
-int16_t agc_gain_back[65] = { 1024, 1024, 512, 341, 256, 204, 170, 146, 128, 113, 102, 93, 85, 79, 73, 68, 64, 60, 57, 54, 51, 49, 46, 44, 43, 41, 39, 38, 37, 35, 34, 33, 32, 31, 30, 29, 28, 28, 27, 26, 26, 25, 24, 24, 23, 23, 22, 22, 21, 21, 20, 20, 20, 19, 19, 19, 18, 18, 18, 17, 17, 17, 16, 16, 16 };
-volatile int16_t agc_gain=((AGC_GAIN_MAX/2)+1);   // AGC gain/attenuation
-#define AGC_REF		4 //6
-#define AGC_DECAY	8192
-#define AGC_ATTACK_FAST	32  //64
-#define AGC_ATTACK_SLOW	1024  //4096
-#define AGC_OFF		32766
-volatile uint16_t agc_decay  = AGC_OFF;
-volatile uint16_t agc_attack = AGC_OFF;
-void dsp_setagc(int agc)
-{
-	switch(agc)
-	{
-	case 1:		//SLOW, for values see hmi.c
-		agc_attack = AGC_ATTACK_SLOW;
-		agc_decay  = AGC_DECAY;
-		break;
-	case 2:		//FAST
-		agc_attack = AGC_ATTACK_FAST;
-		agc_decay  = AGC_DECAY;
-		break;
-	default: 	//OFF
-		agc_attack = AGC_OFF;
-		agc_decay  = AGC_OFF;
-		break;
-	}
-}
-
-/**************************************************************************************
- * MODE is modulation/demodulation 
- * This setting steers the signal processing branch chosen
- **************************************************************************************/
-volatile uint16_t dsp_mode;				// For values see hmi.c, assume {USB,LSB,AM,CW}
-void dsp_setmode(int mode)
-{
-	dsp_mode = (uint16_t)mode;
-}
-
-int dsp_getmode(void)
-{
-  return(dsp_mode);
-}
 
 
-/**************************************************************************************
- * VOX LINGER is the number of 16us cycles to wait before releasing TX mode
- * The level of detection is related to the maximum ADC range.
- **************************************************************************************/
-#define VOX_LINGER		500000/16
-#define VOX_HIGH		ADC_BIAS/2
-#define VOX_MEDIUM		ADC_BIAS/4
-#define VOX_LOW			ADC_BIAS/16
-#define VOX_OFF			0
-volatile uint16_t vox_count;
-volatile uint16_t vox_level = VOX_OFF;
-void dsp_setvox(int vox)
-{
-	switch(vox)
-	{
-	case 1:
-		vox_level = VOX_LOW;
-		break;
-	case 2:
-		vox_level = VOX_MEDIUM;
-		break;
-	case 3:
-		vox_level = VOX_HIGH;
-		break;
-	default: 
-		vox_level = VOX_OFF;
-		vox_count = 0;
-		break;
-	}
-}
 
 
-/* 
- * Low pass filters Fc=3, 7 and 15 kHz (see http://t-filter.engineerjs.com/)
- * Settings: sample rates 62500, 31250 or 15625 Hz, stopband -40dB, passband ripple 5dB
- * Note: 8 bit precision, so divide sum by 256 (this could be improved when 32bit accumulator)
- */
-//int16_t lpf3_62[15] =  {  3,  3,  5,  7,  9, 10, 11, 11, 11, 10,  9,  7,  5,  3,  3};	// Pass: 0-3000, Stop: 6000-31250
-                                        // Calculate only every fourth sample.  So effective sample rate will be 15625Hz
+
+
+
+
+#if 0
+
+
+/*
+
+FIR filter designed with
+http://t-filter.appspot.com
+
+sampling frequency: 8000 Hz
+
+fixed point precision: 16 bits
+
+* 0 Hz - 300 Hz
+  gain = 0
+  desired attenuation = -40 dB
+  actual attenuation = n/a
+
+* 500 Hz - 800 Hz
+  gain = 1
+  desired ripple = 5 dB
+  actual ripple = n/a
+
+* 1000 Hz - 4000 Hz
+  gain = 0
+  desired attenuation = -40 dB
+  actual attenuation = n/a
+
+*/
+#define CW_BPF_TAP_NUM  57      // band pass filter for CW
+
+static int16_t cw_bpf_taps[CW_BPF_TAP_NUM] = {
+  125,
+  -73,
+  -79,
+  -78,
+  -56,
+  -23,
+  -5,
+  -36,
+  -133,
+  -275,
+  -397,
+  -407,
+  -222,
+  180,
+  731,
+  1264,
+  1564,
+  1436,
+  796,
+  -269,
+  -1499,
+  -2525,
+  -2982,
+  -2643,
+  -1517,
+  133,
+  1857,
+  3153,
+  3634,
+  3153,
+  1857,
+  133,
+  -1517,
+  -2643,
+  -2982,
+  -2525,
+  -1499,
+  -269,
+  796,
+  1436,
+  1564,
+  1264,
+  731,
+  180,
+  -222,
+  -407,
+  -397,
+  -275,
+  -133,
+  -36,
+  -5,
+  -23,
+  -56,
+  -78,
+  -79,
+  -73,
+  125
+};
+
+
+
+#endif
+
+
+
+#if 0
+
+/*
+
+FIR filter designed with
+http://t-filter.appspot.com
+
+sampling frequency: 8000 Hz
+
+fixed point precision: 16 bits
+
+* 0 Hz - 200 Hz
+  gain = 0
+  desired attenuation = -40 dB
+  actual attenuation = n/a
+
+* 500 Hz - 800 Hz
+  gain = 1
+  desired ripple = 5 dB
+  actual ripple = n/a
+
+* 1100 Hz - 4000 Hz
+  gain = 0
+  desired attenuation = -40 dB
+  actual attenuation = n/a
+
+*/
+
+#define CW_BPF_TAP_NUM 31
+
+static int cw_bpf_taps[CW_BPF_TAP_NUM] = {
+  56,
+  488,
+  737,
+  986,
+  948,
+  498,
+  -370,
+  -1475,
+  -2479,
+  -2985,
+  -2693,
+  -1544,
+  225,
+  2124,
+  3577,
+  4120,
+  3577,
+  2124,
+  225,
+  -1544,
+  -2693,
+  -2985,
+  -2479,
+  -1475,
+  -370,
+  498,
+  948,
+  986,
+  737,
+  488,
+  56
+};
+
+
+
+#endif
+
+
+//#if 0
+
+/*
+
+FIR filter designed with
+http://t-filter.appspot.com
+
+sampling frequency: 8000 Hz
+
+fixed point precision: 16 bits
+
+* 0 Hz - 300 Hz
+  gain = 0
+  desired attenuation = -40 dB
+  actual attenuation = n/a
+
+* 550 Hz - 750 Hz
+  gain = 1
+  desired ripple = 5 dB
+  actual ripple = n/a
+
+* 1000 Hz - 4000 Hz
+  gain = 0
+  desired attenuation = -40 dB
+  actual attenuation = n/a
+
+*/
+
+#define CW_BPF_TAP_NUM   49     // band pass filter for CW
+
+static int16_t cw_bpf_taps[CW_BPF_TAP_NUM] = {
+  99,
+  27,
+  20,
+  -48,
+  -197,
+  -385,
+  -515,
+  -487,
+  -245,
+  194,
+  734,
+  1218,
+  1461,
+  1311,
+  715,
+  -240,
+  -1317,
+  -2196,
+  -2570,
+  -2259,
+  -1285,
+  119,
+  1572,
+  2658,
+  3059,
+  2658,
+  1572,
+  119,
+  -1285,
+  -2259,
+  -2570,
+  -2196,
+  -1317,
+  -240,
+  715,
+  1311,
+  1461,
+  1218,
+  734,
+  194,
+  -245,
+  -487,
+  -515,
+  -385,
+  -197,
+  -48,
+  20,
+  27,
+  99
+};
+
+
+
+
+//#endif
+
+
+
 
 
 #if 0
@@ -250,7 +415,7 @@ fixed point precision: 16 bits
 
 #define LPF_TAP_NUM 15
 
-static int lpf_taps[LPF_TAP_NUM] = {
+static int16_t lpf_taps[LPF_TAP_NUM] = {
   -695,
   -1627,
   -2278,
@@ -298,9 +463,9 @@ fixed point precision: 16 bits
 
 */
 
-#define LPF_TAP_NUM 17
+#define SSB_LPF_TAP_NUM 17
 
-static int lpf_taps[LPF_TAP_NUM] = {
+static int16_t ssb_lpf_taps[SSB_LPF_TAP_NUM] = {
   398,
   344,
   -574,
@@ -351,7 +516,7 @@ fixed point precision: 16 bits
 
 #define LPF_TAP_NUM 17
 
-static int lpf_taps[LPF_TAP_NUM] = {
+static int16_t lpf_taps[LPF_TAP_NUM] = {
   843,
   1742,
   1498,
@@ -377,30 +542,186 @@ static int lpf_taps[LPF_TAP_NUM] = {
 
 
 
+/*
+
+FIR filter designed with
+http://t-filter.appspot.com
+
+sampling frequency: 16000 Hz
+
+fixed point precision: 16 bits
+
+* 0 Hz - 4000 Hz
+  gain = 1
+  desired ripple = 5 dB
+  actual ripple = n/a
+
+* 5000 Hz - 8000 Hz
+  gain = 0
+  desired attenuation = -40 dB
+  actual attenuation = n/a
+
+*/
+
+#define AM_LPF_TAP_NUM 19
+
+static int16_t am_lpf_taps[AM_LPF_TAP_NUM] = {
+  422,
+  -380,
+  -2325,
+  -1917,
+  1341,
+  1276,
+  -3105,
+  -1395,
+  10293,
+  17806,
+  10293,
+  -1395,
+  -3105,
+  1276,
+  1341,
+  -1917,
+  -2325,
+  -380,
+  422
+};
+
+
+
+
+
+
 
 
 // Obs.:  LPF time critical, use max 25 filter taps
 // Obs.:  The input signal ADC should be previous filthered to < half sampling frequency
 
+#define FILTER_SHIFT  16  // 16 bits coef 
+
+
+// Obs.: *** i_s_raw[], q_s_raw[] and a_s_raw  need to use the size like the filter with the more taps
+// CW_BPF_TAP_NUM  or  AM_LPF_TAP_NUM  or  SBB_LPF_TAP_NUM  ->   CW_BPF_TAP_NUM
+volatile int16_t i_s_raw[CW_BPF_TAP_NUM], q_s_raw[CW_BPF_TAP_NUM];      // Raw I/Q samples minus DC bias
+volatile int16_t a_s_raw[CW_BPF_TAP_NUM];             // Raw samples, minus DC bias
 
 
 
 
-#define LPF_SHIFT 16  // 16 bits coef 
-
-volatile uint16_t dac_iq, dac_audio;
-volatile bool tx_enabled; //, vox_active;
 
 
-volatile uint16_t tim_count_loc;
+
+
 
 
 /**************************************************************************************
- * Some macro's
- * See Alpha Max plus Beta Min algorithm for MAG (vector length)
+ * AGC reference level is log2(0x40) = 6, where 0x40 is the MSB of half DAC_RANGE
+ * 1/AGC_DECAY and 1/AGC_ATTACK are multipliers before agc_gain value integrator
+ * These values should ultimately be set by the HMI.
+ * The time it takes to a gain change is the ( (Set time)/(signal delta) ) / samplerate
+ * So when delta is 1, and attack is 64, the time is 64/15625 = 4msec (fast attack)
+ * The decay time is about 100x this value
+ * Slow attack would be about 4096
  **************************************************************************************/
-#define ABS(x)		((x)<0?-(x):(x))
-#define MAG(i,q)	(ABS(i)>ABS(q) ? ABS(i)+((3*ABS(q))>>3) : ABS(q)+((3*ABS(i))>>3))
+volatile int32_t peak_avg_shifted=0;     // signal level detector after AGC = average of positive values
+volatile int16_t peak_avg_diff_accu=0;   // Log peak level integrator
+volatile int16_t agc_gain=((AGC_GAIN_MAX/2)+1);   // AGC gain/attenuation
+#define AGC_REF		3 //6
+#define AGC_DECAY	8192
+#define AGC_ATTACK_FAST	32  //64
+#define AGC_ATTACK_SLOW	128  //4096
+#define AGC_OFF		32766
+volatile uint16_t agc_decay  = AGC_OFF;
+volatile uint16_t agc_attack = AGC_OFF;
+void dsp_setagc(int agc)
+{
+	switch(agc)
+	{
+	case 1:		//SLOW, for values see hmi.c
+		agc_attack = AGC_ATTACK_SLOW;
+		agc_decay  = AGC_DECAY;
+		break;
+	case 2:		//FAST
+		agc_attack = AGC_ATTACK_FAST;
+		agc_decay  = AGC_DECAY;
+		break;
+	default: 	//OFF
+		agc_attack = AGC_OFF;
+		agc_decay  = AGC_OFF;
+		break;
+	}
+}
+
+
+
+
+uint16_t mode_filter_tap_num = CW_BPF_TAP_NUM;
+int16_t *mode_filter_taps = cw_bpf_taps;
+
+/**************************************************************************************
+ * MODE is modulation/demodulation 
+ * This setting steers the signal processing branch chosen
+ **************************************************************************************/
+uint16_t dsp_mode;				// For values see hmi.c, assume {USB,LSB,AM,CW}
+void dsp_setmode(int mode)  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
+{
+	dsp_mode = (uint16_t)mode;
+
+  //mode filter selection
+  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
+  if(dsp_mode < 2)  //SSB
+  {
+    mode_filter_tap_num = SSB_LPF_TAP_NUM;      // band pass filter for SSB
+    mode_filter_taps = ssb_lpf_taps;
+  }
+  else if(dsp_mode == MODE_AM)  //AM
+  {
+    mode_filter_tap_num = AM_LPF_TAP_NUM;      // band pass filter for AM
+    mode_filter_taps = am_lpf_taps;
+  }
+  else  //CW
+  {
+    mode_filter_tap_num = CW_BPF_TAP_NUM;      // band pass filter for CW
+    mode_filter_taps = cw_bpf_taps;
+  }
+}
+
+int dsp_getmode(void)
+{
+  return(dsp_mode);
+}
+
+
+/**************************************************************************************
+ * VOX LINGER is the number of 16us cycles to wait before releasing TX mode
+ * The level of detection is related to the maximum ADC range.
+ **************************************************************************************/
+#define VOX_LINGER		500000/16
+#define VOX_HIGH		ADC_BIAS/2
+#define VOX_MEDIUM		ADC_BIAS/4
+#define VOX_LOW			ADC_BIAS/16
+#define VOX_OFF			0
+volatile uint16_t vox_count;
+volatile uint16_t vox_level = VOX_OFF;
+void dsp_setvox(int vox)
+{
+	switch(vox)
+	{
+	case 1:
+		vox_level = VOX_LOW;
+		break;
+	case 2:
+		vox_level = VOX_MEDIUM;
+		break;
+	case 3:
+		vox_level = VOX_HIGH;
+		break;
+	default: 
+		vox_level = VOX_OFF;
+		vox_count = 0;
+		break;
+	}
+}
 
 
 
@@ -408,26 +729,8 @@ volatile uint16_t tim_count_loc;
 
 
 
-/*
-#define TAMSUB  8u
-#define TAMSUB_EXTRA  2u
-int16_t vetsub[TAMSUB+TAMSUB_EXTRA] = {  0, -15, -30, -15, 0, 15, 30, 15, 0, -15 };
-uint16_t possub = 0;
-*/
-/*
-#define TAMSUB  10u
-#define TAMSUB_EXTRA  3u
-int16_t vetsub[TAMSUB+TAMSUB_EXTRA] = {  0, -5, -10, -10, -5, 0, 5, 10, 10, 5, 0, -5, -10 };
-uint16_t possub = 0;
-*/
-#define TAMSUB  4u
-#define TAMSUB_EXTRA  1u
-int16_t vetsub[TAMSUB+TAMSUB_EXTRA] = {  0, -5, 0, 5,  0};
-uint16_t possub = 1;
 
 
-
-int dma_chan;
 
 //the AD sample frequency is as high as possible to get information for FFT bandwidth
 //there shoud be a hardware low pass filter 
@@ -449,12 +752,14 @@ int dma_chan;
 #define BLOCK_NSAMP    (FSAMP/FSAMP_AUDIO)    //block = 480k / 16k = 30 samples
 #define BLOCK_NSET     (BLOCK_NSAMP/3)        //block = 10 sets of 3 samples
 #define NBLOCK       ((FFT_NSAMP+(BLOCK_NSET-1)) / BLOCK_NSET)  // number of blocks necessary for FFT  320 / 30 = 10.666  =11
-#define ADC_NUM_BLOCK  (2u)  //save last 1 blocks + 1 partial = average for 10 + 6 = 16 samples
+#define ADC_NUM_BLOCK  (2u)  //save last 2 blocks
 #define ADC_NUM_BLOCK_MASK  (1u)  // 0 - 1
-volatile int16_t adc_samp[ADC_NUM_BLOCK][BLOCK_NSAMP];  //samples buffer    0-1 used for I and Q  3=MIC=VOX  [NL][NCOL]
+//#define ADC_NUM_BLOCK  (4u)  //save last 4 blocks
+//#define ADC_NUM_BLOCK_MASK  (3u)  // 0 - 3
+volatile int16_t adc_samp[ADC_NUM_BLOCK][BLOCK_NSAMP] = { 0 };  //samples buffer    0-1 used for I and Q  3=MIC=VOX  [NL][NCOL]
 volatile uint16_t adc_samp_block_pos = 0;       //actual sample block reading by ADC and DMA
 volatile uint16_t adc_samp_last_block_pos = 0;  //last sample block read
-volatile int16_t adc_samp_sum[ADC_NUM_BLOCK][3];  //save the sum of each block  12 bits = 0-4095 * 10  must fit in 16 bits
+volatile int16_t adc_samp_sum[ADC_NUM_BLOCK][3] = { 0 };  //save the sum of each block  12 bits = 0-4095 * 10  must fit in 16 bits
 
 //bias = samples average = DC component, used to remome the DC from the samples
 #define AVG_BIAS_SHIFT  8  //16   
@@ -471,7 +776,7 @@ volatile int16_t aud_samp[AUD_NUM_VAR][AUD_NUM_SAMP];  //samples buffer for FFT 
 volatile uint16_t aud_samp_block_pos = 0;    
 volatile uint16_t aud_samples_state = AUD_STATE_SAMP_IN;  //filling buffer
 
-volatile uint16_t i_int, j_int;
+volatile uint16_t i_int, j_int, cw_st_int=0;  //used to count 2 times the 16kHz int to generate the 8kHz for CW
 /************************************************************************************** 
  * CORE1:  DMA IRQ
  * dma handler - IRQ when a block of samples was read
@@ -487,55 +792,11 @@ void __not_in_flash_func(dma_handler)(void)
 
   // Clear the interrupt request.
   dma_hw->ints0 = 1u << dma_chan;
-  // Give the channel a new wave table entry to read from, and re-trigger it
+  // Give the channel a new wave table entry to write to, and re-trigger it
   dma_channel_set_write_addr(dma_chan, &adc_samp[adc_samp_block_pos][0], true);
-//  dma_channel_set_write_addr(dma_chan, &adc_samp[adc_samp_block_pos][0], true);
   
 
-  gpio_set_mask(1<<14);
-
-
-#if 0
-
-//generating triangle wave for test
-
-  j_int = 0;
-  for(i_int=0; i_int<BLOCK_NSAMP; )
-  {  
-    adc_samp[adc_samp_last_block_pos][i_int] = (vetsub[j_int]) + ADC_BIAS;
-    i_int++;
-    adc_samp[adc_samp_last_block_pos][i_int] = (vetsub[j_int+TAMSUB_EXTRA]) + ADC_BIAS;
-    i_int++;
-    adc_samp[adc_samp_last_block_pos][i_int] = j_int; //adc_samp_last_block_pos;   //(ADC_BIAS - (BLOCK_NSAMP/2)) + i_sampl1;
-    i_int++;
-    j_int++;
-  }
-
-
-#endif
-
-#if 0
-
-  
-  // 5 sets of 3 samples @ 160kHz
-  j_int = 0;
-  for(i_int=0; i_int<BLOCK_NSAMP; )
-  {  
-    adc_samp[adc_samp_last_block_pos][i_int] = (vetsub[possub]) + ADC_BIAS;
-    i_int++;
-    adc_samp[adc_samp_last_block_pos][i_int] = (vetsub[possub+TAMSUB_EXTRA]) + ADC_BIAS;
-    i_int++;
-    adc_samp[adc_samp_last_block_pos][i_int] = possub; //adc_samp_last_block_pos;   //(ADC_BIAS - (BLOCK_NSAMP/2)) + i_sampl1;
-    i_int++;
-
-    //generating triangle wave for test
-    if(++possub >= TAMSUB)  possub = 0;
-  }
-  
-
-#endif
-
-
+  gpio_set_mask(1<<14);   //GP14
 
 
 
@@ -609,32 +870,63 @@ void __not_in_flash_func(dma_handler)(void)
     adc_samp_sum[adc_samp_last_block_pos][2] += adc_samp[adc_samp_last_block_pos][i_int]; //block samples sum to subsample at lower frequency (it is a low pass filter too)
     i_int++;
   }
- 
-  // result = sum of last samples = average = low pass filter
-  for(i_int=0; i_int<2; i_int++)
+
+  //choose between 8kHz and 16kHz for audio process
+  if((dsp_mode != MODE_CW) ||  //for SSB and AM  run the audio @ 16kHz
+     (tx_enabled == true))     //run CW TX @16kHz  (good for side tone @16kHz with same output audio filter)  
   {
+    // result = sum of last samples = average = low pass filter
     // low pass filter with the last samples average    4096 * 10  fits on  16 bits
     // (the signal should have freqs only < 8kHz  for use in the FIR low pass filter @16kHz sample freq)
-    adc_result[i_int] = adc_samp_sum[adc_samp_last_block_pos][i_int];   // = 10x input signal, 12bits x 10 = 16bits   (FFF * 10 = 9FF6)
-  }
-  adc_result[2] = adc_samp_sum[adc_samp_last_block_pos][2] >> 3u;  // /8 instead of /10 = little gain
-
-
-/*
-possub++;
-possub &= TAMSUB_MASK;
-adc_result[0] = vetsub[possub];
-adc_result[1] = vetsub[(possub+(TAMSUB/4u))&TAMSUB_MASK];
-*/
-
-
-  // invoque FIFO IRQ on Core0 to use the adc_result[] audio sample (there is no time for all in one core)
-  multicore_fifo_push_blocking(FIFO_IQ_SAMPLE);
-
-
-
-
+    adc_result[0] = adc_samp_sum[adc_samp_last_block_pos][0];   // = 10x input signal, 12bits x 10 = 16bits   (FFF * 10 = 9FF6)
+    adc_result[1] = adc_samp_sum[adc_samp_last_block_pos][1];   // = 10x input signal, 12bits x 10 = 16bits   (FFF * 10 = 9FF6)
+    adc_result[2] = adc_samp_sum[adc_samp_last_block_pos][2] >> 3u;  // /8 instead of /10 = little gain
   
+    // invoque FIFO IRQ on Core0 to use the adc_result[] audio sample (there is no time for all in one core)
+    multicore_fifo_push_blocking(FIFO_IQ_SAMPLE);
+  }
+  else  // for CW RX run the audio @ 8kHz  (to give more time for narrow filter with many taps  and also reduce the number of taps)
+  {    
+  
+    if(cw_st_int == 0)   //first of two blocks for CW @ 8kHz
+    {
+      cw_st_int = 1;
+    }
+    else   //second block for CW @ 8kHz
+    {
+      // result = sum of last samples = average = low pass filter
+      // low pass filter with the last samples average    4096 * 10  fits on  16 bits
+
+      // average from last 2 blocks
+      adc_result[0] = (int16_t)((int32_t)(adc_samp_sum[0][0]) + 
+                                (int32_t)(adc_samp_sum[1][0]))>>1;
+      // average from last 2 blocks
+      adc_result[1] = (int16_t)((int32_t)(adc_samp_sum[0][1]) + 
+                                (int32_t)(adc_samp_sum[1][1]))>>1;
+/*      
+      // average from last 4 blocks
+      adc_result[0] = (uint16_t)((uint32_t)(adc_samp_sum[0][0]) + 
+                                 (uint32_t)(adc_samp_sum[1][0]) +
+                                 (uint32_t)(adc_samp_sum[2][0]) +
+                                 (uint32_t)(adc_samp_sum[3][0]))>>2;
+      // average from last 4 blocks
+      adc_result[1] = (uint16_t)((uint32_t)(adc_samp_sum[0][1]) + 
+                                 (uint32_t)(adc_samp_sum[1][1]) +
+                                 (uint32_t)(adc_samp_sum[2][1]) +
+                                 (uint32_t)(adc_samp_sum[3][1]))>>2;
+*/
+      adc_result[2] = adc_samp_sum[adc_samp_last_block_pos][2] >> 3u;  // /8 instead of /10 = little gain  (mic not used in CW)
+    
+      // invoque FIFO IRQ on Core0 to use the adc_result[] audio sample (there is no time for all in one core)
+      multicore_fifo_push_blocking(FIFO_IQ_SAMPLE); 
+  
+      cw_st_int = 0;
+    }
+
+  }
+
+
+  //collect FFT raw samples
   if(fft_samples_ready == 0)  //receiving the samples
   {
     //copy new samples to FFT buffer  (raw adc sample values for FFT)
@@ -656,39 +948,29 @@ adc_result[1] = vetsub[(possub+(TAMSUB/4u))&TAMSUB_MASK];
   }
   else if(fft_samples_ready == 1)  //waiting FFT to end
   {
-
+       //just wait
   }
   else // fft_samples_ready == 2  ready with graphic
   {
-  //start filling FFT samples buffer over again
-  fft_samp_block_pos = 0;
-  fft_samples_ready = 0;
+    //start filling FFT samples buffer over again
+    fft_samp_block_pos = 0;
+    fft_samples_ready = 0;
   }
 
 
 
 
   //prepare next block position
-  //avg_num_block_pos++;
-  //avg_num_block_pos&=AVG_NUM_BLOCK_MASK;
-
   adc_samp_last_block_pos = adc_samp_block_pos;
   adc_samp_block_pos++;   // = avg_num_block_pos;
   adc_samp_block_pos&=ADC_NUM_BLOCK_MASK;
-/*  
-  adc_samp_block_pos++;  
-  if(adc_samp_block_pos >= ADC_NUM_BLOCK)
-  {
-    adc_samp_block_pos = 0;
-  }
-*/
 
 
 
   //time counter
   if(++tim_count_loc >= (FSAMP_AUDIO/1000u))   // DMA 16kHz / 16 = 1kHz = 1ms
   {
-    tim_count++;
+    tim_count++;       // 1ms time counter
     tim_count_loc = 0;
   }
 
@@ -776,15 +1058,12 @@ void core0_irq_handler()
  * No ADC sample interleaving, read both I and Q channels.
  * The delay is only 2us per conversion, which causes less distortion than interpolation of samples.
  **************************************************************************************/
-volatile int16_t i_s_raw[LPF_TAP_NUM], q_s_raw[LPF_TAP_NUM];			// Raw I/Q samples minus DC bias
 volatile int16_t i_s[HILBERT_TAP_NUM], q_s[HILBERT_TAP_NUM];					// Filtered I/Q samples
 volatile int16_t i_dc, q_dc; 						// DC bias for I/Q channel
-//volatile int rx_cnt=0;								// Decimation counter
 //bool rx() __attribute__ ((section (".scratch_x.")));
 volatile int16_t q_sample, i_sample, a_sample;
 bool rx(void) 
 {
-//	int16_t q_sample, i_sample, a_sample;
   int16_t out_sample;
 	int32_t q_accu, i_accu;
 	int16_t qh;
@@ -793,66 +1072,43 @@ bool rx(void)
 
 //  gpio_set_mask(1<<LED_BUILTIN);
 
-  
-
-	/*** SAMPLING ***/
-	
-	q_sample = adc_result[0];		// Take last ADC 0 result, connected to Q input  (16 bits size)
-	i_sample = adc_result[1];		// Take last ADC 1 result, connected to I input  (16 bits size)
-/*
-if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphic
-  {
-    aud_samp[AUD_SAMP_I][aud_samp_block_pos] = i_sample>>4;
-    aud_samp[AUD_SAMP_Q][aud_samp_block_pos] = q_sample>>4;
-  }
-*/
-
-
-  // raw samples peak average gives an idea of received signal level (before AGC and filter)
-//  sample_peak_avg_shifted += ((uint32_t)MAG(q_sample, i_sample) - (sample_peak_avg_shifted>>SAMPLE_PEAK_AVG_SHIFT));  
-
-
-    
 	/*
-	 * Store new sample
-	 * IIR filter: dc = a*sample + (1-a)*dc  where a = 1/128
-	 * Amplitude of samples should fit inside [-2048, 2047]
-	 */
-
-	/*
+   * Store new sample
 	 * Attenuate with AGC feedback from AUDIO GENERATION stage
 	 * This behavior in essence is exponential, complementing the logarithmic peak detector
 	 */
-    q_sample = ((int32_t)agc_gain * (int32_t)q_sample)>>AGC_GAIN_SHIFT;
-    i_sample = ((int32_t)agc_gain * (int32_t)i_sample)>>AGC_GAIN_SHIFT;
+  // Take last ADC 0 result, connected to Q input  (16 bits size)
+  q_sample = ((int32_t)agc_gain * (int32_t)adc_result[0])>>AGC_GAIN_SHIFT;
+  // Take last ADC 1 result, connected to I input  (16 bits size)
+  i_sample = ((int32_t)agc_gain * (int32_t)adc_result[1])>>AGC_GAIN_SHIFT;
 
 
-#ifdef LOW_PASS_FITER
-	/* 
-	 * Shift-in I and Q raw samples 
-	 */
-	for (i=0; i<(LPF_TAP_NUM-1); i++)
-	{
-		q_s_raw[i] = q_s_raw[i+1];					// Q raw samples shift register
-		i_s_raw[i] = i_s_raw[i+1];					// I raw samples shift register
-	}
-	q_s_raw[(LPF_TAP_NUM-1)] = q_sample;							// Store in shift registers
-	i_s_raw[(LPF_TAP_NUM-1)] = i_sample;
+  /*
+   * IIR filter: dc = a*sample + (1-a)*dc  where a = 1/128
+   * Amplitude of samples should fit inside [-2048, 2047]
+   */
+  /* 
+   * Shift-in I and Q raw samples 
+   */
+  for (i=0; i<(mode_filter_tap_num-1); i++)
+  {
+    q_s_raw[i] = q_s_raw[i+1];          // Q raw samples shift register
+    i_s_raw[i] = i_s_raw[i+1];          // I raw samples shift register
+  }
+  q_s_raw[(mode_filter_tap_num-1)] = q_sample;              // Store in shift registers
+  i_s_raw[(mode_filter_tap_num-1)] = i_sample;
 
 
-	q_accu = 0;										// Initialize accumulators
-	i_accu = 0;
-	for (i=0; i<LPF_TAP_NUM; i++)							// Low pass FIR filter
-	{
-		q_accu += (int32_t)q_s_raw[i]*lpf_taps[i];
-		i_accu += (int32_t)i_s_raw[i]*lpf_taps[i];
-	}
-	q_accu = q_accu >> LPF_SHIFT;
-	i_accu = i_accu >> LPF_SHIFT;
-#else
-  q_accu = q_sample;
-  i_accu = i_sample;
-#endif
+  q_accu = 0;                   // Initialize accumulators
+  i_accu = 0;
+  for (i=0; i<mode_filter_tap_num; i++)             // Low pass FIR filter
+  {
+    q_accu += (int32_t)q_s_raw[i]*mode_filter_taps[i];
+    i_accu += (int32_t)i_s_raw[i]*mode_filter_taps[i];
+  }
+  q_accu = q_accu >> FILTER_SHIFT;
+  i_accu = i_accu >> FILTER_SHIFT;
+
 
   for (i=0; i<(HILBERT_TAP_NUM-1); i++)               // Shift decimated samples
   {
@@ -871,34 +1127,44 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
 
 
 	/*** DEMODULATION ***/
+  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
 	switch (dsp_mode)
 	{
-	case 0:											//USB
+	case MODE_USB:											//USB
 		/* 
 		 * USB demodulate: I[7] - Qh,
 		 * Qh is Classic Hilbert transform 15 taps, 12 bits (see Iowa Hills calculator)
 		 */	
 		q_accu = (q_s[0]-q_s[14])*315L + (q_s[2]-q_s[12])*440L + (q_s[4]-q_s[10])*734L + (q_s[6]-q_s[ 8])*2202L;
-		qh = q_accu >> 11;  //12;  // / 4096L;	
-		a_sample = i_s[7] - qh;
+		qh = q_accu >> 12;  // / 4096L;	
+		a_sample = i_s[7] - qh;  // 7 = (HILBERT_TAP_NUM-1)/2
 		break;
-	case 1:											//LSB
+	case MODE_LSB:											//LSB
 		/* 
 		 * LSB demodulate: I[7] + Qh,
 		 * Qh is Classic Hilbert transform 15 taps, 12 bits (see Iowa Hills calculator)
 		 */	
 		q_accu = (q_s[0]-q_s[14])*315L + (q_s[2]-q_s[12])*440L + (q_s[4]-q_s[10])*734L + (q_s[6]-q_s[ 8])*2202L;
-		qh = q_accu >> 11;  //12;  // / 4096L;	
-		a_sample = i_s[7] + qh;
+		qh = q_accu >> 12;  // / 4096L;	
+		a_sample = i_s[7] + qh;  // 7 = (HILBERT_TAP_NUM-1)/2
 		break;
-	case 2:											//AM
+	case MODE_AM:											//AM
 		/*
 		 * AM demodulate: sqrt(sqr(i)+sqr(q))
 		 * Approximated with MAG(i,q)
 		 */
-		a_sample = MAG(i_s[(HILBERT_TAP_NUM-1)], q_s[(HILBERT_TAP_NUM-1)]);
+//		a_sample = MAG(i_s[(HILBERT_TAP_NUM-1)], q_s[(HILBERT_TAP_NUM-1)]);  //MAG from the last filtered I Q sample
+    a_sample = i_sample;  //MAG from the last filtered I Q sample
 		break;
-	default:
+  case MODE_CW:                     // CW
+    /*
+     * Rx CW = LSB
+     */	
+    q_accu = (q_s[0]-q_s[14])*315L + (q_s[2]-q_s[12])*440L + (q_s[4]-q_s[10])*734L + (q_s[6]-q_s[ 8])*2202L;
+    qh = q_accu >> 12;  // / 4096L;  
+    a_sample = i_s[7] + qh;  // 7 = (HILBERT_TAP_NUM-1)/2     
+    break;
+  default:
 		break;
 	}
 
@@ -912,7 +1178,7 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
 	 */
   // average method, results ave_x4 = average value x 4
   // int ave_x4 += new_value - (ave_x4/4)
-  peak_avg_shifted += ((uint16_t)ABS(a_sample) - (peak_avg_shifted>>PEAK_AVG_SHIFT));  
+  peak_avg_shifted += ((int16_t)ABS(a_sample) - (int16_t)(peak_avg_shifted>>PEAK_AVG_SHIFT));  
   
   k=0; i=(peak_avg_shifted>>PEAK_AVG_SHIFT);     
 	if (i&0xff00) {k+=8; i>>=8;}				// Logarithmic peak detection
@@ -939,7 +1205,7 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
 	} 
 	else if (peak_avg_diff_accu < -(agc_decay))		// Decay time, gain correction in case of low level
 	{
-    if(agc_gain<AGC_GAIN_MAX) 
+    if(agc_gain<(AGC_GAIN_MAX-2u)) 
     {
       agc_gain+=2u;               // Increase gain
     }
@@ -1005,7 +1271,6 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
  * The VOX function is called separately every cycle, to check audio level.
  * Execute TX branch signal processing when tx enabled
  **************************************************************************************/
-volatile int16_t a_s_raw[LPF_TAP_NUM]; 						// Raw samples, minus DC bias
 volatile int16_t a_level=0;							// Average level of raw sample stream
 volatile int16_t a_s[HILBERT_TAP_NUM];							// Filtered and decimated samples
 volatile int16_t a_dc;								// DC level
@@ -1026,7 +1291,7 @@ bool vox(void)
   //store variables for scope graphic
   if(aud_samples_state == AUD_STATE_SAMP_IN)  
   {
-    aud_samp[AUD_SAMP_MIC][aud_samp_block_pos] = vox_sample;
+    aud_samp[AUD_SAMP_MIC][aud_samp_block_pos] = vox_sample>>3;
   }
 
  
@@ -1035,42 +1300,58 @@ bool vox(void)
 	 * Store new raw sample
 	 * IIR filter: dc = a*sample + (1-a)*dc  where a = 1/128
 	 */
-
-#ifdef LOW_PASS_FITER  
-	for (i=0; i<(LPF_TAP_NUM-1); i++) 							//   and store in shift register
+  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
+	for (i=0; i<(mode_filter_tap_num-1); i++) 							//   and store in shift register
 		a_s_raw[i] = a_s_raw[i+1];
-#endif
-	a_s_raw[14] = vox_sample;
+	a_s_raw[(mode_filter_tap_num-1)] = vox_sample;
 
 
-	/*
-	 * Detect level of audio signal
-	 * Return true if VOX enabled and:
-	 * - Audio level higher than threshold 
-	 * - Linger time sill active 
-	 */
-  vox_sample = ABS(vox_sample);   // Absolute value
-	//a_level += (vox_sample - a_level)/128;			//   running average, 16usec * 128 = 2msec
-  a_level += (vox_sample - a_level)>>7u;      //   running average, 16usec * 128 = 2msec
 
-	if (vox_level != VOX_OFF)						// Only when VOX is enabled
-	{
-		if (a_level > vox_level)
-		{
-			vox_count = VOX_LINGER;					// While audio present, reset linger timer
-			return(true);							//  and keep TX active
-		}
-		if (vox_count>0)
-		{
-			vox_count--;							// No audio; decrement linger timer
-			return(true);							//  but keep TX active
-		}
-	}
+  if(dsp_mode != MODE_CW)   //no vox at CW
+  {
+  	/*
+  	 * Detect level of audio signal
+  	 * Return true if VOX enabled and:
+  	 * - Audio level higher than threshold 
+  	 * - Linger time sill active 
+  	 */
+    vox_sample = ABS(vox_sample);   // Absolute value
+  	//a_level += (vox_sample - a_level)/128;			//   running average, 16usec * 128 = 2msec
+    a_level += (vox_sample - a_level)>>7u;      //   running average, 16usec * 128 = 2msec
+  
+  	if (vox_level != VOX_OFF)						// Only when VOX is enabled
+  	{
+  		if (a_level > vox_level)
+  		{
+  			vox_count = VOX_LINGER;					// While audio present, reset linger timer
+  			return(true);							//  and keep TX active
+  		}
+  		if (vox_count>0)
+  		{
+  			vox_count--;							// No audio; decrement linger timer
+  			return(true);							//  but keep TX active
+  		}
+  	}
+  }
 
  
 	return(false);									// All other cases: no TX
 }
 
+
+
+
+
+
+
+
+
+
+// 666Hz cw tone @ 16kHz sample freq 
+#define CW_TONE_NUM  24
+int16_t cw_tone_pos = 0;
+// ADC_RANGE 4096  >>4 = DAC_RANGE 256
+int16_t cw_tone[CW_TONE_NUM] = {0,  529, 1023,  1447,  1773,  1977,  2047,  1977,  1773,  1447,  1023,  529, -1,  -530,  -1024, -1448, -1774, -1978, -2048, -1978, -1774, -1448, -1024, -530}; 
 
 
 /************************************************************************************** 
@@ -1088,53 +1369,73 @@ bool tx(void)
   /*** RAW Audio SAMPLES from VOX function ***/
   /*** Low pass filter ***/
 
-#ifdef LOW_PASS_FITER
-  //sample already saved at vox()
-  a_accu = 0;                   // Initialize accumulator
-  for (i=0; i<LPF_TAP_NUM; i++)              // Low pass FIR filter, using raw samples
-    a_accu += (int32_t)a_s_raw[i]*lpf_taps[i];    
-#endif
-  for (i=0; i<(HILBERT_TAP_NUM-1); i++)              // Shift decimated samples
-    a_s[i] = a_s[i+1];
-#ifdef LOW_PASS_FITER
-  a_s[(HILBERT_TAP_NUM-1)] = a_accu >> LPF_SHIFT;             // Store rescaled accumulator
-#else
-  a_s[(HILBERT_TAP_NUM-1)] = a_s_raw[14];
-#endif
+  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
+  if(dsp_mode != MODE_CW)  //no filter for CW  - direct generated
+  {
+    //sample already saved at vox()
+    a_accu = 0;                   // Initialize accumulator
+    for (i=0; i<mode_filter_tap_num; i++)              // Low pass FIR filter, using raw samples
+      a_accu += (int32_t)a_s_raw[i]*mode_filter_taps[i];    
+    for (i=0; i<(HILBERT_TAP_NUM-1); i++)              // Shift decimated samples
+      a_s[i] = a_s[i+1];
+    a_s[(HILBERT_TAP_NUM-1)] = a_accu >> FILTER_SHIFT;             // Store rescaled accumulator
+  }
 
+  
 	/*** MODULATION ***/
+  //mode_USB=0 mode_LSB=1  mode_AM=2  mode_CW=3
 	switch (dsp_mode)
 	{
-	case 0:											// USB
+	case MODE_USB:											// USB
 		/* 
 		 * qh is Classic Hilbert transform 15 taps, 12 bits (see Iowa Hills calculator)
 		 */	
 		q_accu = (a_s[0]-a_s[14])*315L + (a_s[2]-a_s[12])*440L + (a_s[4]-a_s[10])*734L + (a_s[6]-a_s[ 8])*2202L;
-		qh = -(q_accu / 4096L);						// USB: sign is negative
+		qh = -(q_accu >> 12);   // / 4096L; 						// USB: sign is negative
 		break;
-	case 1:											// LSB
+	case MODE_LSB:											// LSB
 		/* 
 		 * qh is Classic Hilbert transform 15 taps, 12 bits (see Iowa Hills calculator)
 		 */	
 		q_accu = (a_s[0]-a_s[14])*315L + (a_s[2]-a_s[12])*440L + (a_s[4]-a_s[10])*734L + (a_s[6]-a_s[ 8])*2202L;
-		qh = q_accu / 4096L;						// LSB: sign is positive
+		qh = (q_accu >> 12);     // / 4096L; 						// LSB: sign is positive
 		break;
-	case 2:											// AM
+	case MODE_AM:											// AM
 		/*
 		 * I and Q values are identical
 		 */
 		qh = a_s[7];
 		break;
+  case MODE_CW:                     // CW
+    /*
+     * Tx CW I=0 Q=tone
+     */
+    cw_tone_pos++;
+    if(cw_tone_pos >= CW_TONE_NUM)
+    {
+      cw_tone_pos = 0;
+    }
+    qh = cw_tone[cw_tone_pos];
+    i = cw_tone_pos + (CW_TONE_NUM/4);  // 90 degrees
+    if(i >= CW_TONE_NUM)
+    {
+      i -= CW_TONE_NUM;
+    }
+    a_s[7] = cw_tone[i];
+
+    //audio side tone
+    pwm_set_chan_level(dac_audio, PWM_CHAN_A, (cw_tone[cw_tone_pos]>>8)+DAC_BIAS);
+    break;
 	default:
 		break;
 	}
 
 	/* 
 	 * Write I and Q to QSE DACs, phase is 7 samples back.
-	 * Need to multiply AC with DAC_RANGE/ADC_RANGE (appr 1/8)
+	 * Need to multiply AC with DAC_RANGE/ADC_RANGE (appr 1/16)
 	 * Any case: clip to range
 	 */
-	a_accu = DAC_BIAS - (qh/8);
+	a_accu = DAC_BIAS - (qh>>4);  //(qh/16);
 	if (a_accu<0)
 		q_dac = 0;
 	else if (a_accu>(DAC_RANGE-1))
@@ -1142,7 +1443,7 @@ bool tx(void)
 	else
 		q_dac = a_accu;
 	
-	a_accu = DAC_BIAS + (a_s[7]/8);
+	a_accu = DAC_BIAS + (a_s[7]>>4);  //(a_s[7]/16);
 	if (a_accu<0)
 		i_dac = 0;
 	else if (a_accu>(DAC_RANGE-1))
@@ -1220,7 +1521,6 @@ void dsp_core1_setup_and_loop()
   adc_gpio_init(28);                // GP28 is ADC 2  MIC
   adc_init();                       // Initialize ADC to known state
   adc_select_input(0);              // Start with ADC0  (AINSEL = 0)
-//for (i_c1=0; i_c1<100; i_c1++) { }   
 
   adc_set_round_robin(0x01+0x02+0x04);      // Sequence ADC 0-1-2 (GP 26, 27, 28) free running
   adc_fifo_setup(     // IRQ for every result (fifo threshold = 1)
@@ -1232,19 +1532,9 @@ void dsp_core1_setup_and_loop()
     //true     // Shift each sample to 8 bits when pushing to FIFO
     );
   adc_set_clkdiv(ADC_CLOCK_DIV);    // 480k / 3 channels = 160 kSps
-//  adc_next = 0;
 
 
-  //adc_init();                       // Initialize ADC to known state
-//for (i_c1=0; i_c1<100; i_c1++) { }   
-//  adc_select_input(0);              // Start with ADC0
-
-
-  //irq_set_exclusive_handler(ADC0_IRQ_FIFO, adc_handler);
-  //adc_irq_set_enabled(true);
   irq_set_enabled(ADC0_IRQ_FIFO, true);
-//for (i_c1=0; i_c1<1000; i_c1++) { }   
-
 
 
 
@@ -1284,74 +1574,11 @@ void dsp_core1_setup_and_loop()
 
 
 
-
-  //adc_run(false);
-  //adc_select_input(0);              // Start with ADC0
-  //adc_fifo_drain();
-  //delay(50);  
-for (i_c1=0; i_c1<10000; i_c1++) {  j_c1++; }   //wait core0 to be ready
+  for (i_c1=0; i_c1<10000; i_c1++) {  j_c1++; }   //wait core0 to be ready
   
   adc_run(true);
 
   
-
-
-
-/*
-  block_num = 0;
-  block_pos = 0;
-  
-  Serialx.print("\n====== FFT =======\n");
-  for(j=0; j<FFT_NSAMP; j++)
-  {
-
-    fft_samp[block_num][block_pos] = 10;
-    fft_samp[block_num][block_pos+1] = block_num;
-    fft_samp[block_num][block_pos+2] = block_pos;
-   
- 
-    block_pos+=3;
-    if(block_pos >= BLOCK_NSAMP)
-    {
-      block_num++;
-      block_pos = 0; 
-    }          
-  }
-
-
-  block_num = 0;
-  block_pos = 0;
-  
-  Serialx.print("\n====== FFT =======\n");
-  for(j=0; j<FFT_NSAMP; j++)
-  {
-    
-    Serialx.print((int)j, DEC);
-    Serialx.print(",");
-    Serialx.print((int)(fft_samp[block_num][block_pos]), DEC);
-    Serialx.print(",");
-    Serialx.print((int)(fft_samp[block_num][block_pos+1]), DEC);
-    Serialx.print(",");
-    Serialx.print((int)(fft_samp[block_num][block_pos+2]), DEC);
-    Serialx.print(" ");
-    Serialx.print("\n");    
-  
-  
-  
-    block_pos+=3;
-    if(block_pos >= BLOCK_NSAMP)
-    {
-      block_num++;
-      block_pos = 0; 
-    }          
-  }
-  
-  Serialx.print("====== fim =======\n");
-
-*/
-
-
-
 
 
   //**************
@@ -1369,7 +1596,6 @@ for (i_c1=0; i_c1<10000; i_c1++) {  j_c1++; }   //wait core0 to be ready
     if((fft_samples_ready == 1) && //ready to start FFT with last samples
        (fft_display_graf_new == 0))
     {
-
 
 #if 0  //send FFT samples to serial
 
@@ -1600,7 +1826,8 @@ for (i_c1=0; i_c1<10000; i_c1++) {  j_c1++; }   //wait core0 to be ready
       fft_display_graf_new = 1;
 
 //#endif
-  
+
+
     }
 
 
@@ -1616,7 +1843,7 @@ for (i_c1=0; i_c1<10000; i_c1++) {  j_c1++; }   //wait core0 to be ready
 }
 
 
-//int16_t test1, test2, test3;
+
 
 
 /************************************************************************************** 
@@ -1668,11 +1895,6 @@ void dsp_init()
 
 
 
-  //pwm_set_chan_level(dac_audio, PWM_CHAN_A, 10);
-  //pwm_set_gpio_level(22, DAC_BIAS);
-
-
-
     
   delay(500);  //required to run core1 - after tests
   multicore_launch_core1(dsp_core1_setup_and_loop);        // Start processing on core1
@@ -1690,18 +1912,6 @@ void dsp_init()
   // enable interrupt
   irq_set_enabled(SIO_IRQ_PROC0, true);
 
-/*  test for  negative numbers shift  -  it works
-test1 = -20;
-test2 = test1 << 2;
-test3 = test1 >> 2;
-
-                  Serialx.print("   test1=");
-                  Serialx.print(test1, DEC);   
-                  Serialx.print("  <<2 test2=");
-                  Serialx.print(test2, DEC);   
-                  Serialx.print("  >>2 test3=");
-                  Serialx.println(test3, DEC); 
-*/
 }
 
 
@@ -1715,47 +1925,6 @@ void dsp_loop()
 
 //    gpio_set_mask(1<<14);
     
-//gpio_xor_mask(1<<LED_BUILTIN);
-
-
-
-/*
-                  Serialx.print("   q_sample=");
-                  Serialx.print(q_sample, DEC);   
-                  Serialx.print("   i_sample=");
-                  Serialx.print(i_sample, DEC);   
-                  Serialx.print("   a_sample=");
-                  Serialx.print(a_sample, DEC);   
-                  Serialx.print("   peak_avg_diff_accu=");
-                  Serialx.print(peak_avg_diff_accu, DEC);   
-                  Serialx.print("   agc_gain=");
-                  Serialx.println(agc_gain, DEC); 
-*/
-/*
-  if(subindo == 1)
-  {
-    if(++contsub >= 5)
-    {
-      subindo = 0;
-    }
-  }
-  else
-  {
-    if(++contsub <= -5)
-    {
-      subindo = 1;
-    }    
-  }
-
-
-  //pwm_set_chan_level(dac_audio, PWM_CHAN_A, a_sample);
-  pwm_set_gpio_level(22, ((contsub*5) + DAC_BIAS));
-
-*/
-
-
-
-
 
 
 
