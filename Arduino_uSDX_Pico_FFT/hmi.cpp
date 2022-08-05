@@ -441,6 +441,7 @@ void hmi_evaluate(void)
     dsp_setmode(hmi_sub[HMI_S_MODE]);  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
     sprintf(s, "%s  ", hmi_o_mode[hmi_sub[HMI_S_MODE]]);
     tft_writexy_(2, TFT_GREEN, TFT_BLACK, 0,1,(uint8_t *)s);
+    display_fft_graf_top();  //scale freqs, mode changes the triangle
     hmi_sub_old[HMI_S_MODE] = hmi_sub[HMI_S_MODE];
   }
   if(hmi_sub_old[HMI_S_VOX] != hmi_sub[HMI_S_VOX])
