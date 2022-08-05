@@ -4,7 +4,7 @@
  * Created: Apr 2021
  * Author: Arjan te Marvelde
  * May2022: adapted by Klaus Fensterseifer 
- * https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj)
+ * https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj
  * 
  * This file contains the HMI driver, processing user inputs.
  * It will also do the logic behind these, and write feedback to the LCD.
@@ -64,20 +64,20 @@
 /*
  * GPIO assignments
  */
-#define GP_ENC_A	2
-#define GP_ENC_B	3
+#define GP_ENC_A	2               // Encoder clock
+#define GP_ENC_B	3               // Encoder direction
 #define GP_AUX_0	6								// Enter, Confirm
 #define GP_AUX_1	7								// Escape, Cancel
 #define GP_AUX_2	8								// Left move
 #define GP_AUX_3	9								// Right move
 #define GP_PTT		15
 #define GP_MASK_IN	((1<<GP_ENC_A)|(1<<GP_ENC_B)|(1<<GP_AUX_0)|(1<<GP_AUX_1)|(1<<GP_AUX_2)|(1<<GP_AUX_3)|(1<<GP_PTT))
-#define GP_MASK_PTT	(1<<GP_PTT)
+//#define GP_MASK_PTT	(1<<GP_PTT)
 
 /*
  * Event flags
  */
-#define GPIO_IRQ_ALL		(GPIO_IRQ_LEVEL_LOW|GPIO_IRQ_LEVEL_HIGH|GPIO_IRQ_EDGE_FALL|GPIO_IRQ_EDGE_RISE)
+//#define GPIO_IRQ_ALL		(GPIO_IRQ_LEVEL_LOW|GPIO_IRQ_LEVEL_HIGH|GPIO_IRQ_EDGE_FALL|GPIO_IRQ_EDGE_RISE)
 #define GPIO_IRQ_EDGE_ALL	(GPIO_IRQ_EDGE_FALL|GPIO_IRQ_EDGE_RISE)
 
 /*
@@ -119,7 +119,10 @@
 #define HMI_E_RIGHT			6
 #define HMI_E_PTTON			7
 #define HMI_E_PTTOFF		8
-#define HMI_NEVENTS			9
+#define HMI_PTT_ON      9
+#define HMI_PTT_OFF     10
+#define HMI_NEVENTS			11
+//#define HMI_NEVENTS      9
 
 /* Sub menu option string sets */
 #define HMI_NMODE	4
@@ -129,6 +132,7 @@
 #define HMI_NBPF	5
 char hmi_o_menu[HMI_NSTATES][8] = {"Tune","Mode","AGC","Pre","VOX"};	// Indexed by hmi_state
 char hmi_o_mode[HMI_NMODE][8] = {"USB","LSB","AM","CW"};			// Indexed by hmi_sub[HMI_S_MODE]
+                                                              //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
 char hmi_o_agc [HMI_NAGC][8] = {"NoGC","Slow","Fast"};					// Indexed by hmi_sub[HMI_S_AGC]
 char hmi_o_pre [HMI_NPRE][8] = {"-30dB","-20dB","-10dB","0dB","+10dB"};	// Indexed by hmi_sub[HMI_S_PRE]
 char hmi_o_vox [HMI_NVOX][8] = {"NoVOX","VOX-L","VOX-M","VOX-H"};		// Indexed by hmi_sub[HMI_S_VOX]
@@ -140,26 +144,21 @@ uint8_t hmi_bpf[5] = {REL_LPF2, REL_BPF6, REL_BPF12, REL_BPF24, REL_BPF40};
 
 uint8_t  hmi_state, hmi_option;											// Current state and option selection
 uint8_t  hmi_sub[HMI_NSTATES] = {4,1,2,3,0,2};							// Stored option selection per state
+uint8_t  hmi_sub_old[HMI_NSTATES];          // Stored last option selection per state
 bool	 hmi_update;
 
 uint32_t hmi_freq;														// Frequency from Tune state
 uint32_t hmi_step[7] = {10000000, 1000000, 100000, 10000, 1000, 100, 50};	// Frequency digit increments
 #define HMI_MAXFREQ		30000000
 #define HMI_MINFREQ		     100
-#define HMI_MULFREQ          1			// Factor between HMI and actual frequency
+//#define HMI_MULFREQ          4			// Factor between HMI and actual frequency
+#define HMI_MULFREQ          1      // Factor between HMI and actual frequency
 																		// Set to 1, 2 or 4 for certain types of mixer
-
 #define PTT_DEBOUNCE	3											// Nr of cycles for debounce
 int ptt_state;															// Debounce counter
 bool ptt_active;														// Resulting state
 
 
-#define HMI_DISPLAY_CHANGE_MASK_TX     1u
-#define HMI_DISPLAY_CHANGE_MASK_MENU   2u
-#define HMI_DISPLAY_CHANGE_MASK_FREQ   4u
-#define HMI_DISPLAY_CHANGE_MASK_MODE   8u
-#define HMI_DISPLAY_CHANGE_MASK_LEVEL  16u
-uint16_t hmi_display_change = 0;    //to indicate something changed and the display needs refresh
 
 
 
@@ -181,12 +180,24 @@ uint16_t hmi_display_change = 0;    //to indicate something changed and the disp
 void hmi_handler(uint8_t event)
 {
 	/* Special case for TUNE state */
-	if (hmi_state == HMI_S_TUNE)
+	if (hmi_state == HMI_S_TUNE)  //on main tune
 	{
+
+    if (event==HMI_PTT_ON)    
+    {
+      ptt_active = true;
+    }
+    if (event==HMI_PTT_OFF)   
+    {
+      ptt_active = false;
+    }
+
+/* I don't think this is needed (and I don't like to call I2C from the interrupt handler
 		if (event==HMI_E_ENTER)											// Commit current value
 		{
 			SI_SETFREQ(0, HMI_MULFREQ*hmi_freq);						// Commit frequency
 		}
+*/ 
 		if (event==HMI_E_ESCAPE)										// Enter submenus
 		{
 			hmi_sub[hmi_state] = hmi_option;							// Store selection (i.e. digit)
@@ -204,72 +215,74 @@ void hmi_handler(uint8_t event)
 				hmi_freq -= hmi_step[hmi_option];						// Decrement selected digit
 		}
 		if (event==HMI_E_RIGHT)
-		{
 			hmi_option = (hmi_option<6)?hmi_option+1:6;					// Digit to the right
-		}
 		if (event==HMI_E_LEFT)
-		{
 			hmi_option = (hmi_option>0)?hmi_option-1:0;					// Digit to the left
-		}
-		return;															// Early bail-out
+		//return;															// Early bail-out   changed to "else"
 	}
-	
-	/* Submenu states */
-	switch(hmi_state)
-	{
-	case HMI_S_MODE:
-		if (event==HMI_E_INCREMENT)
-			hmi_option = (hmi_option<HMI_NMODE-1)?hmi_option+1:HMI_NMODE-1;
-		if (event==HMI_E_DECREMENT)
-			hmi_option = (hmi_option>0)?hmi_option-1:0;
-		break;
-	case HMI_S_AGC:
-		if (event==HMI_E_INCREMENT)
-			hmi_option = (hmi_option<HMI_NAGC-1)?hmi_option+1:HMI_NAGC-1;
-		if (event==HMI_E_DECREMENT)
-			hmi_option = (hmi_option>0)?hmi_option-1:0;
-		break;
-	case HMI_S_PRE:
-		if (event==HMI_E_INCREMENT)
-			hmi_option = (hmi_option<HMI_NPRE-1)?hmi_option+1:HMI_NPRE-1;
-		if (event==HMI_E_DECREMENT)
-			hmi_option = (hmi_option>0)?hmi_option-1:0;
-		break;
-	case HMI_S_VOX:
-		if (event==HMI_E_INCREMENT)
-			hmi_option = (hmi_option<HMI_NVOX-1)?hmi_option+1:HMI_NVOX-1;
-		if (event==HMI_E_DECREMENT)
-			hmi_option = (hmi_option>0)?hmi_option-1:0;
-		break;
-	case HMI_S_BPF:
-		if (event==HMI_E_INCREMENT)
-			hmi_option = (hmi_option<HMI_NBPF-1)?hmi_option+1:HMI_NBPF-1;
-		if (event==HMI_E_DECREMENT)
-			hmi_option = (hmi_option>0)?hmi_option-1:0;
-		break;
-	}
-	
-	/* General actions for submenus */
-	if (event==HMI_E_ENTER)
-	{
-		hmi_sub[hmi_state] = hmi_option;							// Store selected option	
-		hmi_update = true;											// Mark HMI updated
-	}
-	if (event==HMI_E_ESCAPE)
-	{
-		hmi_state = HMI_S_TUNE;										// Leave submenus
-		hmi_option = hmi_sub[hmi_state];							// Restore selection of new state
-	}
-	if (event==HMI_E_RIGHT)
-	{
-		hmi_state = (hmi_state<HMI_NSTATES-1)?(hmi_state+1):1;		// Change submenu
-		hmi_option = hmi_sub[hmi_state];							// Restore selection of new state
-	}
-	if (event==HMI_E_LEFT)
-	{
-		hmi_state = (hmi_state>1)?(hmi_state-1):HMI_NSTATES-1;		// Change submenu
-		hmi_option = hmi_sub[hmi_state];							// Restore selection of new state
-	}
+  else  //in submenus
+  {
+  	/* Submenu states */
+  	switch(hmi_state)
+  	{
+  	case HMI_S_MODE:
+  		if (event==HMI_E_INCREMENT)
+      {
+  			hmi_option = (hmi_option<HMI_NMODE-1)?hmi_option+1:HMI_NMODE-1;
+      }
+  		if (event==HMI_E_DECREMENT)
+  			hmi_option = (hmi_option>0)?hmi_option-1:0;
+  		break;
+  	case HMI_S_AGC:
+  		if (event==HMI_E_INCREMENT)
+  			hmi_option = (hmi_option<HMI_NAGC-1)?hmi_option+1:HMI_NAGC-1;
+  		if (event==HMI_E_DECREMENT)
+  			hmi_option = (hmi_option>0)?hmi_option-1:0;
+  		break;
+  	case HMI_S_PRE:
+  		if (event==HMI_E_INCREMENT)
+  			hmi_option = (hmi_option<HMI_NPRE-1)?hmi_option+1:HMI_NPRE-1;
+  		if (event==HMI_E_DECREMENT)
+  			hmi_option = (hmi_option>0)?hmi_option-1:0;
+  		break;
+  	case HMI_S_VOX:
+  		if (event==HMI_E_INCREMENT)
+  			hmi_option = (hmi_option<HMI_NVOX-1)?hmi_option+1:HMI_NVOX-1;
+  		if (event==HMI_E_DECREMENT)
+  			hmi_option = (hmi_option>0)?hmi_option-1:0;
+  		break;
+  	case HMI_S_BPF:
+  		if (event==HMI_E_INCREMENT)
+  			hmi_option = (hmi_option<HMI_NBPF-1)?hmi_option+1:HMI_NBPF-1;
+  		if (event==HMI_E_DECREMENT)
+  			hmi_option = (hmi_option>0)?hmi_option-1:0;
+  		break;
+  	}
+  	
+  	/* General actions for all submenus */
+  	if (event==HMI_E_ENTER)
+  	{
+  		hmi_sub[hmi_state] = hmi_option;				// Store selected option	
+      hmi_update = true;                      // Mark HMI updated
+  	}
+  	if (event==HMI_E_ESCAPE)
+  	{
+  		hmi_state = HMI_S_TUNE;										// Leave submenus
+  		hmi_option = hmi_sub[hmi_state];							// Restore selection of new state
+  	}
+  	if (event==HMI_E_RIGHT)
+  	{
+  		hmi_state = (hmi_state<HMI_NSTATES-1)?(hmi_state+1):1;		// Change submenu
+  		hmi_option = hmi_sub[hmi_state];							// Restore selection of new state
+  	}
+  	if (event==HMI_E_LEFT)
+  	{
+  		hmi_state = (hmi_state>1)?(hmi_state-1):HMI_NSTATES-1;		// Change submenu
+  		hmi_option = hmi_sub[hmi_state];							// Restore selection of new state
+  	}
+
+  }
+  
 }
 
 /*
@@ -286,37 +299,44 @@ void hmi_callback(uint gpio, uint32_t events)
 		if (events&GPIO_IRQ_EDGE_FALL)
     {
 			evt = gpio_get(GP_ENC_B)?HMI_E_INCREMENT:HMI_E_DECREMENT;
-      hmi_display_change = HMI_DISPLAY_CHANGE_MASK_FREQ;    //something changed and the display needs refresh
+    } 
+    else if (events&GPIO_IRQ_EDGE_RISE)  //included to change freq at each encoder step (EC11)
+    {       //one step GP_ENC_A goes UP with GP_ENC_B low, next step A goes down with B high (and the oposit in other direction)
+      evt = gpio_get(GP_ENC_B)?HMI_E_DECREMENT:HMI_E_INCREMENT;
     }
 		break;
 	case GP_AUX_0:									// Enter
 		if (events&GPIO_IRQ_EDGE_FALL)
     {
 			evt = HMI_E_ENTER;
-      hmi_display_change = HMI_DISPLAY_CHANGE_MASK_MENU;    //something changed and the display needs refresh
     }
 		break;
 	case GP_AUX_1:									// Escape
 		if (events&GPIO_IRQ_EDGE_FALL)
     {
 			evt = HMI_E_ESCAPE;
-      hmi_display_change = HMI_DISPLAY_CHANGE_MASK_MENU;    //something changed and the display needs refresh
     }
 		break;
 	case GP_AUX_2:									// Previous
 		if (events&GPIO_IRQ_EDGE_FALL)
     {
 			evt = HMI_E_LEFT;
-      hmi_display_change = HMI_DISPLAY_CHANGE_MASK_MENU;    //something changed and the display needs refresh
     }
 		break;
 	case GP_AUX_3:									// Next
 		if (events&GPIO_IRQ_EDGE_FALL)
     {
 			evt = HMI_E_RIGHT;
-      hmi_display_change = HMI_DISPLAY_CHANGE_MASK_MENU;    //something changed and the display needs refresh
     }
 		break;
+
+  case GP_PTT:                  // Next
+    if (events&GPIO_IRQ_EDGE_FALL)
+    {
+      evt = gpio_get(GP_PTT)?HMI_PTT_OFF:HMI_PTT_ON;
+    }
+    break;
+
 	default:
 		return;
 	}
@@ -355,7 +375,8 @@ void hmi_init(void)
 	gpio_set_irq_enabled(GP_AUX_1, GPIO_IRQ_EDGE_ALL, true);
 	gpio_set_irq_enabled(GP_AUX_2, GPIO_IRQ_EDGE_ALL, true);
 	gpio_set_irq_enabled(GP_AUX_3, GPIO_IRQ_EDGE_ALL, true);
-	gpio_set_irq_enabled(GP_PTT, GPIO_IRQ_EDGE_ALL, false);
+//	gpio_set_irq_enabled(GP_PTT, GPIO_IRQ_EDGE_ALL, false);
+  gpio_set_irq_enabled(GP_PTT, GPIO_IRQ_EDGE_ALL, true);
 
 	// Set callback, one for all GPIO, not sure about correctness!
 	gpio_set_irq_enabled_with_callback(GP_ENC_A, GPIO_IRQ_EDGE_ALL, true, hmi_callback);
@@ -371,17 +392,16 @@ void hmi_init(void)
 	ptt_state = 0;
 	ptt_active = false;
 	
-	dsp_setmode(hmi_sub[HMI_S_MODE]);
+	dsp_setmode(hmi_sub[HMI_S_MODE]);  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
 	dsp_setvox(hmi_sub[HMI_S_VOX]);
 	dsp_setagc(hmi_sub[HMI_S_AGC]);	
 	relay_setattn(hmi_pre[hmi_sub[HMI_S_PRE]]);
 	relay_setband(hmi_bpf[hmi_sub[HMI_S_BPF]]);
-	hmi_update = false;
+	//hmi_update = false;   //hmi needs update after hardware devices updated
+
 }
 
 
-#define REC_LEVEL_SHIFT   4
-int32_t rec_level_shifted;
 
 
 
@@ -392,94 +412,106 @@ int32_t rec_level_shifted;
 void hmi_evaluate(void)
 {
 	char s[32];
-  static bool tx_enabled_old = true;  //save the actual state (true to force te first print to display)
   int16_t rec_level;
   
-  /* PTT debouncing */
-  if (hmi_sub[HMI_S_VOX] == 0)            // No VOX active
-  {
-    gpio_set_dir(GP_PTT, false);          // PTT input
-    if (gpio_get(GP_PTT))             // Get PTT level
-    {
-      if (ptt_state<PTT_DEBOUNCE)         // Increment debounce counter when high
-        ptt_state++;
-    }
-    else 
-    {
-      if (ptt_state>0)              // Decrement debounce counter when low
-        ptt_state--;
-    }
-    if (ptt_state == PTT_DEBOUNCE)          // Reset PTT when debounced level high
-      ptt_active = false;
-    if (ptt_state == 0)               // Set PTT when debounced level low
-      ptt_active = true;
-  }
-  else
-  {
-    ptt_active = false;
-    gpio_set_dir(GP_PTT, true);           // PTT output
-  }
+  static uint32_t hmi_freq_old;
+  static bool tx_enable_old = true;
+  static uint8_t hmi_state_old;
+  static uint8_t hmi_option_old;
+  static int16_t agc_gain_old = 1;
 
-  if(tx_enabled != tx_enabled_old)  //check for TX RX changing
-  {
-    tx_enabled_old = tx_enabled;
-    hmi_display_change = HMI_DISPLAY_CHANGE_MASK_TX;    //something changed and the display needs refresh
-  }
+
    
 
-  hmi_display_change = 1;
-  
-  if(hmi_display_change != 0)  //write to the display just on changes
+  // Set parameters corresponding to latest entered option value 
+
+  if(hmi_freq_old != hmi_freq)
   {
-
-  
-    // Set parameters corresponding to latest entered option value 
     SI_SETFREQ(0, HMI_MULFREQ*hmi_freq);
-    dsp_setmode(hmi_sub[HMI_S_MODE]);
-    dsp_setvox(hmi_sub[HMI_S_VOX]);
-    dsp_setagc(hmi_sub[HMI_S_AGC]); 
-    if (hmi_update)
-    { 
-      dsp_setmode(hmi_sub[HMI_S_MODE]);
-      dsp_setvox(hmi_sub[HMI_S_VOX]);
-      dsp_setagc(hmi_sub[HMI_S_AGC]); 
-      relay_setband(hmi_bpf[hmi_sub[HMI_S_BPF]]);
-      sleep_ms(1);                  // I2C doesn't work without...
-      relay_setattn(hmi_pre[hmi_sub[HMI_S_PRE]]);
-      hmi_update = false;
-    }
-
-
-    //mode 
+    //freq  (from encoder)
+    sprintf(s, "%7.1f", (double)hmi_freq/1000.0);
+    tft_writexy_plus(3, TFT_YELLOW, TFT_BLACK, 2,0,2,20,(uint8_t *)s);
+    //cursor (writing the freq erase the cursor)
+    tft_cursor_plus(3, TFT_YELLOW, 2+(hmi_option>4?6:hmi_option), 0, 2, 20);
+    display_fft_graf_top();  //scale freqs
+    hmi_freq_old = hmi_freq;
+  }
+  if(hmi_sub_old[HMI_S_MODE] != hmi_sub[HMI_S_MODE])    //mode (SSB AM CW)
+  {
+    dsp_setmode(hmi_sub[HMI_S_MODE]);  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
     sprintf(s, "%s  ", hmi_o_mode[hmi_sub[HMI_S_MODE]]);
     tft_writexy_(2, TFT_GREEN, TFT_BLACK, 0,1,(uint8_t *)s);
+    hmi_sub_old[HMI_S_MODE] = hmi_sub[HMI_S_MODE];
+  }
+  if(hmi_sub_old[HMI_S_VOX] != hmi_sub[HMI_S_VOX])
+  {
+    dsp_setvox(hmi_sub[HMI_S_VOX]);
+    hmi_sub_old[HMI_S_VOX] = hmi_sub[HMI_S_VOX];
+  }
+  if(hmi_sub_old[HMI_S_AGC] != hmi_sub[HMI_S_AGC])
+  {
+    dsp_setagc(hmi_sub[HMI_S_AGC]); 
+    hmi_sub_old[HMI_S_AGC] = hmi_sub[HMI_S_AGC];
+  }
+  if(hmi_sub_old[HMI_S_BPF] != hmi_sub[HMI_S_BPF])
+  {
+    relay_setband(hmi_bpf[hmi_sub[HMI_S_BPF]]);
+    sleep_ms(1);                  // I2C doesn't work without...
+    hmi_sub_old[HMI_S_BPF] = hmi_sub[HMI_S_BPF];
+  }
+  if(hmi_sub_old[HMI_S_PRE] != hmi_sub[HMI_S_PRE])
+  {  
+    relay_setattn(hmi_pre[hmi_sub[HMI_S_PRE]]);
+    hmi_sub_old[HMI_S_PRE] = hmi_sub[HMI_S_PRE];
+  }
+
+
+
+  //T or R  (using letters instead of arrow used on original project)
+  if(tx_enable_old != tx_enabled)
+  {
+    if(tx_enabled == true)
+    {
+      sprintf(s, "T   ");
+      tft_writexy_(2, TFT_RED, TFT_BLACK, 0,2,(uint8_t *)s);
+    }
+    else
+    {
+      sprintf(s, "R");
+      tft_writexy_(2, TFT_GREEN, TFT_BLACK, 0,2,(uint8_t *)s);
+    }
+    agc_gain_old = agc_gain+1;
+
+  }
+  tx_enable_old = tx_enabled;
+
   
-    //freq
-    sprintf(s, "%7.1f", (double)hmi_freq/1000.0);
-    //tft_writexy_(3, TFT_YELLOW, TFT_BLACK, 2,2,(uint8_t *)s);
-    tft_writexy_2(3, TFT_YELLOW, TFT_BLACK, 2,0,2,20,(uint8_t *)s);
-    s[(hmi_option>4?6:hmi_option)+1] = 0;
-    //tft_cursor(3, TFT_YELLOW, 2+(hmi_option>4?6:hmi_option), 2);
-    tft_cursor_2(3, TFT_YELLOW, 2+(hmi_option>4?6:hmi_option), 0, 2, 20);
+   
+  //Smeter rec level
+  if(tx_enabled == false)
+  {
+    if(agc_gain_old != agc_gain)
+    {
+      rec_level = AGC_GAIN_MAX - agc_gain;
+      sprintf(s, "%d  ", rec_level);
+      tft_writexy_(2, TFT_GREEN, TFT_BLACK, 1,2,(uint8_t *)s);
+      agc_gain_old = agc_gain;
+    }
+  }
 
-    // 3.3Vpp = (2^12)-1 ADC steps
-    //rec_level = ((sample_peak_avg_shifted>>SAMPLE_PEAK_AVG_SHIFT)*3300L)>>12;
-//    rec_level = ((peak_avg_shifted>>PEAK_AVG_SHIFT) * agc_gain_back[agc_gain])>>4;
-//    rec_level = (peak_avg_shifted>>PEAK_AVG_SHIFT);
 
-    rec_level_shifted += ((((peak_avg_shifted>>PEAK_AVG_SHIFT) * agc_gain_back[agc_gain])>>4) - (rec_level_shifted>>REC_LEVEL_SHIFT));  
-    rec_level = ((rec_level_shifted>>REC_LEVEL_SHIFT)*3300L)>>12;
-    
-    //T or R  (using letters instead of arrow used on original project)
-    sprintf(s, "%c%d  ", (tx_enabled?'T':'R'), (tx_enabled?0:rec_level));
-    tft_writexy_(2, TFT_GREEN, TFT_BLACK, 0,2,(uint8_t *)s);
 
+
+  if((hmi_state_old != hmi_state) || (hmi_option_old != hmi_option))
+  {
   	//menu 
   	switch (hmi_state)
   	{
   	case HMI_S_TUNE:
   		sprintf(s, "%s   %s   %s", hmi_o_vox[hmi_sub[HMI_S_VOX]], hmi_o_agc[hmi_sub[HMI_S_AGC]], hmi_o_pre[hmi_sub[HMI_S_PRE]]);
       tft_writexy_(1, TFT_BLUE, TFT_BLACK,0,0,(uint8_t *)s);  
+      //cursor
+      tft_cursor_plus(3, TFT_YELLOW, 2+(hmi_option>4?6:hmi_option), 0, 2, 20);    
   		break;
   	case HMI_S_MODE:
   		sprintf(s, "Set Mode: %s        ", hmi_o_mode[hmi_option]);
@@ -504,7 +536,9 @@ void hmi_evaluate(void)
   		break;
   	}
    
-  }
+    hmi_state_old = hmi_state;
+    hmi_option_old = hmi_option;
+  } 
 
 
 
@@ -513,7 +547,7 @@ void hmi_evaluate(void)
   if (fft_display_graf_new == 1) //design a new graphic only when a new line is ready from FFT
   {
     //plot waterfall graphic     
-    display_fft_graf(hmi_display_change);
+    display_fft_graf();  // warefall 110ms
 
     fft_display_graf_new = 0;  
     fft_samples_ready = 2;  //ready to start new sample collect
@@ -530,10 +564,34 @@ void hmi_evaluate(void)
   }
 
 
+/*
 
+  
+  // PTT debouncing 
+  if (hmi_sub[HMI_S_VOX] == 0)            // No VOX active
+  {
+    gpio_set_dir(GP_PTT, false);          // PTT input
+    if (gpio_get(GP_PTT))             // Get PTT level
+    {
+      if (ptt_state<PTT_DEBOUNCE)         // Increment debounce counter when high
+        ptt_state++;
+    }
+    else 
+    {
+      if (ptt_state>0)              // Decrement debounce counter when low
+        ptt_state--;
+    }
+    if (ptt_state == PTT_DEBOUNCE)          // Reset PTT when debounced level high
+      ptt_active = false;
+    if (ptt_state == 0)               // Set PTT when debounced level low
+      ptt_active = true;
+  }
+  else
+  {
+    ptt_active = false;
+    gpio_set_dir(GP_PTT, true);           // PTT output
+  }
 
-
-
-  hmi_display_change = 0;  // changes already on display
+*/
 
 }
