@@ -124,7 +124,7 @@ Jun10 2022
 - Reduce the minimum step to change the frequency to 50Hz or less
 - Verify why the switches do not work some times (at least for me)
 - Check the trasmission on all modes
-- Storage the last state to recover it at the nest power up (SD card? Internal Flash needs to stop interrupts)
+- Storage the last state to recover it at the next power up (SD card? Internal Flash doesn't work, it needs to stop interrupts)
 - Band selection with setup for each one (correspondence to the filter bands)
 - Tests: reception/transmission SSB...  menus...  switches/debounce...   display appearance
 
