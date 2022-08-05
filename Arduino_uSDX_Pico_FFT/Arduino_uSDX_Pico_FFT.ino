@@ -5,7 +5,7 @@
  * 
  * Created: May 2022
  * Author: Klaus Fensterseifer
- * https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj) 
+ * https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj
  * 
  * 
 
@@ -74,27 +74,30 @@ For ILI9341 + RP2040,  try change  TFT_eSPI/TFT_Drivers/ILI9341_Defines.h
 In combination, you can try to change display_tft.h  #define ROTATION_SETUP  0    to 1
 
 --------------------------------------------------------------
-For Wire/I2C (thanks to Bob W9RAN for corrections)
-look pins at  pins_arduino.h
+For Wire/I2C look the pins at  pins_arduino.h (thanks to Bob W9RAN for corrections) 
 .arduino15/packages/arduino/hardware/mbed_rp2040/3.0.1/variants/RASPBERRY_PI_PICO
 change the pins for I2C0 and include the pins for I2C1:
 // Wire
-#define PIN_WIRE_SDA        (16u)
-#define PIN_WIRE_SCL        (17u)
-#define PIN_WIRE_SDA1       (18u)
-#define PIN_WIRE_SCL1       (19u)
+#define PIN_WIRE_SDA        (16u)  //I2C0
+#define PIN_WIRE_SCL        (17u)  //I2C0
+#define PIN_WIRE_SDA1       (18u)  //included I2C1
+#define PIN_WIRE_SCL1       (19u)  //included I2C1
 
-#define WIRE_HOWMANY    (2)  //default was 1
-#define I2C_SDA      (digitalPinToPinName(PIN_WIRE_SDA))
-#define I2C_SCL      (digitalPinToPinName(PIN_WIRE_SCL))
-#define I2C_SDA1      (digitalPinToPinName(PIN_WIRE_SDA1))
-#define I2C_SCL1      (digitalPinToPinName(PIN_WIRE_SCL1))
+#define WIRE_HOWMANY    (2)  //included I2C1   default was 1
+#define I2C_SDA       (digitalPinToPinName(PIN_WIRE_SDA))   //I2C0
+#define I2C_SCL       (digitalPinToPinName(PIN_WIRE_SCL))   //I2C0
+#define I2C_SDA1      (digitalPinToPinName(PIN_WIRE_SDA1))  //included I2C1
+#define I2C_SCL1      (digitalPinToPinName(PIN_WIRE_SCL1))  //included I2C1
 
 
 Check on hmi.cpp:
 #define HMI_MULFREQ          1      // Factor between HMI and actual frequency
-                                    // Set to 2 or 4 for certain types of mixer
+                                    // Set to 1, 2 or 4 for certain types of mixer
+
+Check on Si5351.cpp to set the correct Si5351 internal frequency:
+#define SI_XTAL_FREQ  25001414UL  // Replace with measured crystal frequency of XTAL for CL = 10pF (default)
 */
+
 
 #include "uSDR.h"
 
