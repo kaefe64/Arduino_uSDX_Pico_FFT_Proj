@@ -7,13 +7,13 @@
 This project is based on  Arjan te Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico
  . I strongly recommend you to take a look there before trying to follow this one.
 
-My intention was to include a waterfall or panadapter to the uSDR-pico project, for this, I included an ILI9341 240x320 without touch, and also, changed the software to generate the waterfall.
+My intention was to include a waterfall or panadapter to the uSDR-pico project, for this, I included an ILI9341 240x320 2.4" TFT display without touch, and also, changed the software to generate the waterfall.
 
 Initially, I have used Visual Studio, but after some considerations, I ported all code to Arduino IDE. So, to compile and run this code you need the Arduino IDE installed for a Raspberry Pi Pico project.
 
 I also, chose not to change the original software as much as possible, and focused on the waterfall implementation, mostly in the dsp.c.
 
-I used the word "uSDX" instead of "uSDR" to name some files. This was a mistake. My intention was to follow Arjan's project with the same names, and not to mix with the excelent uSDX project from Guido PE1NNZ (https://github.com/threeme3/usdx).
+I used the word "uSDX" instead of "uSDR" to name some files. This was a mistake. My intention was to follow Arjan's project with the same names, and not to mix with the Guido's PE1NNZ uSDX project (https://github.com/threeme3/usdx).
 
 
 Initial tests video:  https://youtu.be/0zGAnkRjizE<br>
@@ -30,15 +30,15 @@ AGC and Visual Scope video: https://youtu.be/BiaS002xZfw
 - There is no time to process each sample at 160kHz and generate the "live" audio, so I use this method:
     Set the DMA to receive 10 samples of each ADC input (10 x 3 = 30) and generate an interrupt.
     So, we get 16kHz interrupts with 10 x 3 samples to deal. 
-    For audio, we need only one sample at each interruption of 16kHz, but to improve the signal, I made an average from the last 10 samples to deliver to audio (this is also a low pass filter).
+    For audio, we need only one sample at each interruption of 16kHz, but to improve the signal, I made an average from the last 10 samples to deliver to audio task (this is also a low pass filter).
     For FFT, we need all samples (raw samples), so they are copied to a FFT buffer for later use.
-- There is also no time to process the samples and run the receiver part at 16kHz, so I chose to split it, the interrupt and buffer/average part is done at Core1, and the audio original reception is in the Core0.
-- Every 16kHz interrupt, after average the I, Q and MIC audio samples are passed to Core0.
+- There is also no time to process the samples and run the audio receiver part at 16kHz, so I chose to split it. The interrupt and buffer/average part is done at Core1, and the audio original reception is in the Core0.
+- Every 16kHz interrupt, after average the I, Q and MIC, these samples are passed to Core0 to follow the audio reception tasks.
 - For FFT, when we have received 320 I and Q samples, it stops filling the buffer and indicates to the Core1 main loop to process a new FFT and waterfall line graphic.
 - The original processes run at Core0, every 100ms.
 - There is a digital low pass filter FIR implemented at the code (in the original too) that will give the passband we want for audio.
   This filter was calculated with the help of this site:  http://t-filter.engineerjs.com/
-  The dificulty is that the number of filter taps could not be high (there is no much time to process it), so the filter must be chosen carefully.
+  The dificulty is that the number of filter taps can not be high (there is no much time to process it), so the filter must be chosen carefully.
 - Block diagram at "Arduino_uSDR_Pico_FFT.png".
 
 ![Block diagram](Arduino_uSDR_Pico_FFT.png)
@@ -76,6 +76,17 @@ If we deliver an audio signal at 16kHz (sample frequency), we need a hardware lo
 
 ## Last changes and notes:<br>
 
+Ago05 2022
+- Frequency changes at each encoder step (I am using EC11 encoder and it changed the frequency at every second step)
+- Plot to waterfall graphic improved to spend less time
+- Included separate audio filters for CW and AM  (AM does not look ok for me...)
+- Included side tone for CW TX
+- Writing to display and programming Si5351 only when necessary (finally)
+- PTT debounce reduced to allow CW TX (** it needs a 100nF capacitor from PTT pin to ground **)
+
+![Hardware Modification](FFT_LCD_pico_MOD2.png)
+
+
 Jul20 2022
 - Waterfall: Changed to fall instead of going up
 - Waterfall: Frequency scale moving with main frequency
@@ -105,7 +116,12 @@ Jun10 2022
 - The signal level meter at the display does not change because it is fixed at the original code (the level depends on the software as well as the hardware).<br>
 
 
-## To do list:
-- Write to the display only when something changes.
+## Wish list:
+- Improve the S meter, at least to show the AD input signal level.
+- The AGC needs to be improved as the audio still saturate at beginnig of strong signal
+- Verify why the switches does not work some times (at least for me)
+- Check the trasmission on all modes
+- Storage the last state to recover it at the nest power up
+- Band selection with setup for each one (correspondence to the filter bands)
 - Tests: reception/transmission SSB...  menus...  switches/debounce...   display appearance
 
