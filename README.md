@@ -77,9 +77,9 @@ If we deliver an audio signal at 16kHz (sample frequency), we need a hardware lo
 ## Last changes and notes:<br>
 
 Ago05 2022
-- Frequency changes at each encoder step (I am using EC11 encoder and it changed the frequency at every second step)
-- Plot to waterfall graphic improved to spend less time
-- Included separate audio filters for CW and AM  (AM does not look ok for me...)
+- Now the frequency changes at each encoder step (I am using EC11 encoder and it changed the frequency at every second step)
+- Plot to the waterfall improved to spend less time
+- Included separate audio filters for CW and AM
 - Included side tone for CW TX
 - Writing to display and programming Si5351 only when necessary (finally)
 - PTT debounce reduced to allow CW TX (** it needs a 100nF capacitor from PTT pin to ground **)
@@ -119,7 +119,7 @@ Jun10 2022
 ## Wish list:
 - Improve the S meter, at least to show the AD input signal level.
 - The AGC needs to be improved as the audio still saturate at beginnig of strong signal
-- Verify why the switches does not work some times (at least for me)
+- Verify why the switches do not work some times (at least for me)
 - Check the trasmission on all modes
 - Storage the last state to recover it at the nest power up
 - Band selection with setup for each one (correspondence to the filter bands)
