@@ -331,10 +331,21 @@ void hmi_callback(uint gpio, uint32_t events)
 		break;
 
   case GP_PTT:                  // Next
-    if (events&GPIO_IRQ_EDGE_FALL)
+/*
+    if (events&GPIO_IRQ_EDGE_ALL)
     {
       evt = gpio_get(GP_PTT)?HMI_PTT_OFF:HMI_PTT_ON;
     }
+*/
+    if (events&GPIO_IRQ_EDGE_FALL)
+    {
+      evt = HMI_PTT_ON;
+    }    
+    if (events&GPIO_IRQ_EDGE_RISE)
+    {
+      evt = HMI_PTT_OFF;
+    }    
+
     break;
 
 	default:
@@ -483,8 +494,8 @@ void hmi_evaluate(void)
     }
     agc_gain_old = agc_gain+1;
 
+    tx_enable_old = tx_enabled;
   }
-  tx_enable_old = tx_enabled;
 
   
    
