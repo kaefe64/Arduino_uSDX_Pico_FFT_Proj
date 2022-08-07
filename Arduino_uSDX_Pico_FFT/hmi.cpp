@@ -74,6 +74,18 @@
 #define GP_MASK_IN	((1<<GP_ENC_A)|(1<<GP_ENC_B)|(1<<GP_AUX_0)|(1<<GP_AUX_1)|(1<<GP_AUX_2)|(1<<GP_AUX_3)|(1<<GP_PTT))
 //#define GP_MASK_PTT	(1<<GP_PTT)
 
+#define ENCODER_FALL             10    //increment/decrement freq on falling of A encoder signal
+#define ENCODER_FALL_AND_RISE    22    //increment/decrement freq on falling and rising fo A encoder signal
+#define ENCODER_TYPE             ENCODER_FALL      //choose what encoder is used
+//#define ENCODER_TYPE             ENCODER_FALL_AND_RISE      //choose what encoder is used
+
+
+#define ENCODER_CW_A_FALL_B_LOW  10    //encoder type clockwise step when B low at falling of A
+#define ENCODER_CW_A_FALL_B_HIGH 22    //encoder type clockwise step when B high at falling of A
+#define ENCODER_DIRECTION        ENCODER_CW_A_FALL_B_HIGH   //direction related to B signal level
+//#define ENCODER_DIRECTION        ENCODER_CW_A_FALL_B_LOW    //direction related to B signal level
+
+
 /*
  * Event flags
  */
@@ -298,12 +310,22 @@ void hmi_callback(uint gpio, uint32_t events)
 	case GP_ENC_A:									// Encoder
 		if (events&GPIO_IRQ_EDGE_FALL)
     {
+#if ENCODER_DIRECTION == ENCODER_CW_A_FALL_B_HIGH
 			evt = gpio_get(GP_ENC_B)?HMI_E_INCREMENT:HMI_E_DECREMENT;
-    } 
-    else if (events&GPIO_IRQ_EDGE_RISE)  //included to change freq at each encoder step (EC11)
-    {       //one step GP_ENC_A goes UP with GP_ENC_B low, next step A goes down with B high (and the oposit in other direction)
+#else
       evt = gpio_get(GP_ENC_B)?HMI_E_DECREMENT:HMI_E_INCREMENT;
+#endif
+    } 
+#if ENCODER_TYPE == ENCODER_FALL_AND_RISE
+    else if (events&GPIO_IRQ_EDGE_RISE)
+    {  
+#if ENCODER_DIRECTION == ENCODER_CW_A_FALL_B_HIGH
+      evt = gpio_get(GP_ENC_B)?HMI_E_DECREMENT:HMI_E_INCREMENT;
+#else
+      evt = gpio_get(GP_ENC_B)?HMI_E_INCREMENT:HMI_E_DECREMENT;
+#endif
     }
+#endif
 		break;
 	case GP_AUX_0:									// Enter
 		if (events&GPIO_IRQ_EDGE_FALL)

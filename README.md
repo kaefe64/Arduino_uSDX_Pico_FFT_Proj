@@ -76,6 +76,16 @@ If we deliver an audio signal at 16kHz (sample frequency), we need a hardware lo
 
 ## Last changes and notes:<br>
 
+
+Ago07 2022
+- PTT input corrected. Now it uses the falling or rising to turn off and on the PTT.
+- The change to correct the encoder step for me make it wrong to others. Including options for encoder at hmi.cpp:
+  ENCODER_TYPE
+  ENCODER_DIRECTION
+
+![Encoder type](Encoder_selection.png)
+
+
 Ago05 2022
 - Now the frequency changes at each encoder step (I am using EC11 encoder and it changed the frequency at every second step)
 - Plot to the waterfall improved to spend less time
@@ -127,4 +137,9 @@ Jun10 2022
 - Storage the last state to recover it at the next power up (SD card? Internal Flash doesn't work, it needs to stop interrupts)
 - Band selection with setup for each one (correspondence to the filter bands)
 - Tests: reception/transmission SSB...  menus...  switches/debounce...   display appearance
+
+# Copyright notice
+**The code and electronic designs as well as the implementations presented in this repository can be copied and modified freely, for non-commercial use.
+Use for commercial purposes is allowed as well, as long as a reference to this repository is included in the product.**
+
 
