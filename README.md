@@ -79,9 +79,7 @@ If we deliver an audio signal at 16kHz (sample frequency), we need a hardware lo
 
 Ago07 2022
 - PTT input corrected. Now it uses the falling or rising to turn off and on the PTT.
-- The change to correct the encoder step for me make it wrong to others. Including options for encoder at hmi.cpp:
-  ENCODER_TYPE
-  ENCODER_DIRECTION
+- Including options for encoder at hmi.cpp:  ENCODER_TYPE  ENCODER_DIRECTION
 
 ![Encoder type](Encoder_selection.png)
 
