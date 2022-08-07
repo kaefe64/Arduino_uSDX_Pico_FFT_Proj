@@ -96,6 +96,12 @@ Check on hmi.cpp:
 
 Check on Si5351.cpp to set the correct Si5351 internal frequency:
 #define SI_XTAL_FREQ  25001414UL  // Replace with measured crystal frequency of XTAL for CL = 10pF (default)
+
+
+Check ENCODER selection at hmi.cpp (change if necessary)
+#define ENCODER_TYPE             ENCODER_FALL      //choose what encoder is used
+#define ENCODER_DIRECTION        ENCODER_CW_A_FALL_B_HIGH  //direction related to B signal level
+
 */
 
 
