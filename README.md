@@ -58,7 +58,7 @@ If we deliver an audio signal at 16kHz (sample frequency), we need a hardware lo
 ## Arduino IDE setup and notes:
 - I am using Arduino IDE version 1.8.19 in Linux/Ubuntu
 - Lib used: TFT_eSPI by Bodmer
-- There are some comments at beginning of  .ino  file.  I use them to "adjust" the library files to the project.
+- **Use the comments at beginning of  .ino  file to "adjust" the library files to the project.**
 - Boards Manager:  Arduino Mbed OS RP2040 Boards. My version is 3.0.1 (If I update it, I will need to adjust the library files again, so I will leave it for later).
 - Do not include EarlePhilhower library (it is just conflitant with Mbed)
 - Board: "RaspberryPiPico"  >  Arduino Mbed OS RP2040 Boards  >  RaspberryPiPico
@@ -136,7 +136,8 @@ Jun10 2022
 - Band selection with setup for each one (correspondence to the filter bands)
 - Tests: reception/transmission SSB...  menus...  switches/debounce...   display appearance
 
-# Copyright notice
+
+## Copyright notice
 **The code and electronic designs as well as the implementations presented in this repository can be copied and modified freely, for non-commercial use.
 Use for commercial purposes is allowed as well, as long as a reference to this repository is included in the product.**
 
