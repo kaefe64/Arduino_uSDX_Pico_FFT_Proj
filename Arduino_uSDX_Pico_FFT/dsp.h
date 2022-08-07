@@ -84,7 +84,7 @@ extern volatile int32_t peak_avg_shifted;     // signal level detector after AGC
 extern volatile int16_t agc_gain;
 
 extern volatile bool tx_enabled;
-#define DSP_SETPTT(on)			tx_enabled = (on)
+//#define DSP_SETPTT(x)			tx_enabled = (x)
 
 #define FIFO_START_FFT  10
 #define FIFO_FFT_READY  20
