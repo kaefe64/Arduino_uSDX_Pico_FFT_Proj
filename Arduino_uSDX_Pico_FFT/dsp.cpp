@@ -94,7 +94,7 @@ bool vox(void);
 /*
 
 FIR filter designed with
-http://t-filter.appspot.com
+http://t-filter.engineerjs.com/
 
 sampling frequency: 8000 Hz
 
@@ -189,7 +189,7 @@ static int16_t cw_bpf_taps[CW_BPF_TAP_NUM] = {
 /*
 
 FIR filter designed with
-http://t-filter.appspot.com
+http://t-filter.engineerjs.com/
 
 sampling frequency: 8000 Hz
 
@@ -258,7 +258,7 @@ static int cw_bpf_taps[CW_BPF_TAP_NUM] = {
 /*
 
 FIR filter designed with
-http://t-filter.appspot.com
+http://t-filter.engineerjs.com/
 
 sampling frequency: 8000 Hz
 
@@ -348,7 +348,7 @@ static int16_t cw_bpf_taps[CW_BPF_TAP_NUM] = {
 /**************************************************************************************
 
 FIR filter designed with
-http://t-filter.appspot.com
+http://t-filter.engineerjs.com/
 
 sampling frequency: 16000 Hz
 
@@ -395,7 +395,7 @@ static int16_t lpf_taps[LPF_TAP_NUM] = {
 /*
 
 FIR filter designed with
-http://t-filter.appspot.com
+http://t-filter.engineerjs.com/
 
 sampling frequency: 16000 Hz
 
@@ -445,7 +445,7 @@ static int16_t lpf_taps[LPF_TAP_NUM] = {
 /*
 
 FIR filter designed with
-http://t-filter.appspot.com
+http://t-filter.engineerjs.com/
 
 sampling frequency: 16000 Hz
 
@@ -496,7 +496,7 @@ static int16_t ssb_lpf_taps[SSB_LPF_TAP_NUM] = {
 /*
 
 FIR filter designed with
-http://t-filter.appspot.com
+http://t-filter.engineerjs.com/
 
 sampling frequency: 16000 Hz
 
@@ -540,12 +540,12 @@ static int16_t lpf_taps[LPF_TAP_NUM] = {
 #endif
 
 
-
+#if 0
 
 /*
 
 FIR filter designed with
-http://t-filter.appspot.com
+http://t-filter.engineerjs.com/
 
 sampling frequency: 16000 Hz
 
@@ -587,6 +587,55 @@ static int16_t am_lpf_taps[AM_LPF_TAP_NUM] = {
   422
 };
 
+
+#endif
+
+
+
+/*
+
+FIR filter designed with
+http://t-filter.engineerjs.com/
+
+sampling frequency: 16000 Hz
+
+fixed point precision: 16 bits
+
+* 0 Hz - 5000 Hz
+  gain = 1
+  desired ripple = 5 dB
+  actual ripple = n/a
+
+* 6000 Hz - 8000 Hz
+  gain = 0
+  desired attenuation = -40 dB
+  actual attenuation = n/a
+
+*/
+
+#define AM_LPF_TAP_NUM 19
+
+static int16_t am_lpf_taps[AM_LPF_TAP_NUM] = {
+  -1214,
+  -751,
+  2140,
+  866,
+  -1137,
+  2544,
+  447,
+  -4150,
+  9255,
+  22194,
+  9255,
+  -4150,
+  447,
+  2544,
+  -1137,
+  866,
+  2140,
+  -751,
+  -1214
+};
 
 
 
@@ -1092,13 +1141,13 @@ bool rx(void)
   /* 
    * Shift-in I and Q raw samples 
    */
-  for (i=0; i<(mode_filter_tap_num-1); i++)
+  for (i=0; i<(mode_filter_tap_num-1u); i++)
   {
     q_s_raw[i] = q_s_raw[i+1];          // Q raw samples shift register
     i_s_raw[i] = i_s_raw[i+1];          // I raw samples shift register
   }
-  q_s_raw[(mode_filter_tap_num-1)] = q_sample;              // Store in shift registers
-  i_s_raw[(mode_filter_tap_num-1)] = i_sample;
+  q_s_raw[(mode_filter_tap_num-1u)] = q_sample;              // Store in shift registers
+  i_s_raw[(mode_filter_tap_num-1u)] = i_sample;
 
 
   q_accu = 0;                   // Initialize accumulators
@@ -1112,13 +1161,13 @@ bool rx(void)
   i_accu = i_accu >> FILTER_SHIFT;
 
 
-  for (i=0; i<(HILBERT_TAP_NUM-1); i++)               // Shift decimated samples
+  for (i=0; i<(HILBERT_TAP_NUM-1u); i++)               // Shift decimated samples
   {
     q_s[i] = q_s[i+1];
     i_s[i] = i_s[i+1];
   }
-	q_s[(HILBERT_TAP_NUM-1)] = q_accu;
-	i_s[(HILBERT_TAP_NUM-1)] = i_accu;
+	q_s[(HILBERT_TAP_NUM-1u)] = q_accu;
+	i_s[(HILBERT_TAP_NUM-1u)] = i_accu;
 
 
 if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphic
@@ -1302,11 +1351,9 @@ bool vox(void)
 	 * Store new raw sample
 	 * IIR filter: dc = a*sample + (1-a)*dc  where a = 1/128
 	 */
-  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
-	for (i=0; i<(mode_filter_tap_num-1); i++) 							//   and store in shift register
+	for (i=0; i<(mode_filter_tap_num-1u); i++) 							//   and store in shift register
 		a_s_raw[i] = a_s_raw[i+1];
-	a_s_raw[(mode_filter_tap_num-1)] = vox_sample;
-
+	a_s_raw[mode_filter_tap_num-1u] = vox_sample;
 
 
   if(dsp_mode != MODE_CW)   //no vox at CW
