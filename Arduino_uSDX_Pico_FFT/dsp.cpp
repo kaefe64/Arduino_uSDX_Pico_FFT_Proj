@@ -600,10 +600,10 @@ static int16_t am_lpf_taps[AM_LPF_TAP_NUM] = {
 #define FILTER_SHIFT  16  // 16 bits coef 
 
 
-// Obs.: *** i_s_raw[], q_s_raw[] and a_s_raw  need to use the size like the filter with the more taps
+// Obs.: *** i_s_raw[], q_s_raw[] and a_s_raw  need to use the size from the filter with more taps
 // CW_BPF_TAP_NUM  or  AM_LPF_TAP_NUM  or  SBB_LPF_TAP_NUM  ->   CW_BPF_TAP_NUM
 volatile int16_t i_s_raw[CW_BPF_TAP_NUM], q_s_raw[CW_BPF_TAP_NUM];      // Raw I/Q samples minus DC bias
-volatile int16_t a_s_raw[CW_BPF_TAP_NUM];             // Raw samples, minus DC bias
+volatile int16_t a_s_raw[CW_BPF_TAP_NUM];             // Raw MIC samples, minus DC bias
 
 
 
@@ -626,11 +626,11 @@ volatile int16_t a_s_raw[CW_BPF_TAP_NUM];             // Raw samples, minus DC b
 volatile int32_t peak_avg_shifted=0;     // signal level detector after AGC = average of positive values
 volatile int16_t peak_avg_diff_accu=0;   // Log peak level integrator
 volatile int16_t agc_gain=((AGC_GAIN_MAX/2)+1);   // AGC gain/attenuation
-#define AGC_REF		3 //6
-#define AGC_DECAY	8192
-#define AGC_ATTACK_FAST	32  //64
-#define AGC_ATTACK_SLOW	128  //4096
-#define AGC_OFF		32766
+#define AGC_REF		3u //6
+#define AGC_DECAY	8192u
+#define AGC_ATTACK_FAST	32u  //64
+#define AGC_ATTACK_SLOW	128u  //4096
+#define AGC_OFF		32766u
 volatile uint16_t agc_decay  = AGC_OFF;
 volatile uint16_t agc_attack = AGC_OFF;
 void dsp_setagc(int agc)
@@ -1018,7 +1018,9 @@ void core0_irq_handler()
     //it must be treated as soon as possible
   
     //use audio samples
-    tx_enabled = ptt_active || vox();     // Sample audio and check level 
+    //tx_enabled = ptt_active || vox();  // Sample audio and check level - watch out - this way it does not run vox() if ptt_active is true
+    tx_enabled = vox();     // Sample audio and check level 
+    tx_enabled |= ptt_active;     //tx_enabled is used at next DMA int
   
     if (tx_enabled)
     {
@@ -1047,7 +1049,7 @@ void core0_irq_handler()
 
 
 
-#define HILBERT_TAP_NUM  15
+#define HILBERT_TAP_NUM  15u  //Hilbert filter 15 taps  fixed value   it uses values from 0 to 14
 
 
 
@@ -1381,7 +1383,7 @@ bool tx(void)
     a_s[(HILBERT_TAP_NUM-1)] = a_accu >> FILTER_SHIFT;             // Store rescaled accumulator
   }
 
-  
+
 	/*** MODULATION ***/
   //mode_USB=0 mode_LSB=1  mode_AM=2  mode_CW=3
 	switch (dsp_mode)
@@ -1415,13 +1417,13 @@ bool tx(void)
     {
       cw_tone_pos = 0;
     }
-    qh = cw_tone[cw_tone_pos];
+    qh = cw_tone[cw_tone_pos]>>2;
     i = cw_tone_pos + (CW_TONE_NUM/4);  // 90 degrees
     if(i >= CW_TONE_NUM)
     {
       i -= CW_TONE_NUM;
     }
-    a_s[7] = cw_tone[i];
+    a_s[7] = cw_tone[i]>>2;
 
     //audio side tone
     pwm_set_chan_level(dac_audio, PWM_CHAN_A, (cw_tone[cw_tone_pos]>>8)+DAC_BIAS);
