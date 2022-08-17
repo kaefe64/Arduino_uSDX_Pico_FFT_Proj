@@ -34,7 +34,7 @@ AGC and Visual Scope video: https://youtu.be/BiaS002xZfw
     For FFT, we need all samples (raw samples), so they are copied to a FFT buffer for later use.
 - There is also no time to process the samples and run the audio receiver part at 16kHz, so I chose to split it. The interrupt and buffer/average part is done at Core1, and the audio original reception is in the Core0.
 - Every 16kHz interrupt, after average the I, Q and MIC, these samples are passed to Core0 to follow the audio reception tasks.
-- For FFT, when we have received 320 I and Q samples, it stops filling the buffer and indicates to the Core1 main loop to process a new FFT and waterfall line graphic.
+- For the waterfall, when we have received 320 I and Q samples, it stops filling the buffer and indicates to the Core1 main loop to process FFT/Hilbert for a new graphic line.
 - The original processes run at Core0, every 100ms.
 - There is a digital low pass filter FIR implemented at the code (in the original too) that will give the passband we want for audio.
   This filter was calculated with the help of this site:  http://t-filter.engineerjs.com/
@@ -76,6 +76,9 @@ If we deliver an audio signal at 16kHz (sample frequency), we need a hardware lo
 
 ## Last changes and notes:<br>
 
+
+Ago17 2022
+- Included sketch folder uSDX_TX to test the Phase and Amplitude TX method.
 
 Ago07 2022
 - PTT input corrected. Now it uses the falling or rising to turn off and on the PTT.
