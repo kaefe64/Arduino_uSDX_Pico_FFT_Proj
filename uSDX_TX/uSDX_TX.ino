@@ -9,21 +9,22 @@
 
 
 
-
+//
 //      uSDX_TX.ino
+//
 // Sketch used to test the RF transmission using the Phase and Amplitude method running at PICO (preparing to be included at uSDR_PICO_FFT project)
-// It uses the TX code from uSDX project converted to run in RPI PICO in uSDX_PICO_FFT project  https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj
-// - same setup as uSDX_PICO_FFT
+// It uses the TX code from uSDX Guido's project converted to run in RPI PICO in uSDX_PICO_FFT project  https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj
+// - same Arduino IDE and library setup as uSDX_PICO_FFT
 // - same uSDX_PICO_FFT connections:
 //      Input: Microphone at GP28 = MIC
 //      Input: PTT TX = LOW  at GP15 = PTT
 //      Output: Phase at Si5351 CLK2
 //      Output: Amplitude at GP21 = I TX 
 //      Output: CW Side Tone at GP22 = Audio
-// It needs to be connected by USB to PC with the Serial Monitor running
+// - it needs the 1K pullup change on SCL SDA I2C in Si5351 board, similar to "Modifying SI 5351 Module:"  at https://antrak.org.tr/blog/usdx-a-compact-sota-ssb-sdr-transceiver-with-arduino/
+// - it needs to be connected by USB to PC with the Serial Monitor running
+// - it just tests the transmission, no display, no reception.
 //
-// It just tests the transmission, no display, no reception.
-
 
 
 
