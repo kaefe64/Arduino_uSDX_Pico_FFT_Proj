@@ -20,8 +20,10 @@
 //      Output: Phase at Si5351 CLK2
 //      Output: Amplitude at GP21 = I TX 
 //      Output: CW Side Tone at GP22 = Audio
+// It needs to be connected by USB to PC with the Serial Monitor running
 //
-//It just tests the transmission, no display, no reception.
+// It just tests the transmission, no display, no reception.
+
 
 
 
