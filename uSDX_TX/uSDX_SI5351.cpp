@@ -9,14 +9,21 @@
 
 
 #include "Arduino.h"
-#include "uSDX_TX_PhaseAmpl.h"
 #include "uSDX_I2C.h"
 #include "uSDX_SI5351.h"
+#include "uSDX_TX_PhaseAmpl.h"
 
 
 
 
-I2C i2c;
+
+
+
+#define BB0(x) ((uint8_t)(x))           // Bash byte x of int32_t
+#define BB1(x) ((uint8_t)((x)>>8))
+#define BB2(x) ((uint8_t)((x)>>16))
+
+
 
 
 
@@ -171,6 +178,3 @@ I2C i2c;
     SendRegister(149, 0);        // Disable spread spectrum enable
     SendRegister(183, 0b11010010);  // Internal CL = 10 pF (default)
   }
-
-
-SI5351 si5351;

@@ -10,9 +10,9 @@
 
 #include "Arduino.h"
 #include "pwm.h"
-#include "uSDX_TX_PhaseAmpl.h"
 #include "uSDX_I2C.h"
 #include "uSDX_SI5351.h"
+#include "uSDX_TX_PhaseAmpl.h"
 
 
 
@@ -32,6 +32,10 @@ volatile int16_t adc_result[3];
 volatile uint16_t dac_iq, dac_audio;
 
 
+
+
+I2C i2c;
+SI5351 si5351;
 
 
 
@@ -65,7 +69,6 @@ inline void _vox(bool trigger)
 #define _UA  600 //=(_FSAMP_TX)/8 //(_F_SAMP_TX)      //360  // unit angle; integer representation of one full circle turn or 2pi radials or 360 degrees, should be a integer divider of F_SAMP_TX and maximized to have higest precision
 #define MAX_DP  ((filt == 0) ? _UA : (filt == 3) ? _UA/4 : _UA/2)     //(_UA/2) // the occupied SSB bandwidth can be further reduced by restricting the maximum phase change (set MAX_DP to _UA/2).
 #define CARRIER_COMPLETELY_OFF_ON_LOW  1    // disable oscillator on low amplitudes, to prevent potential unwanted biasing/leakage through PA circuit
-#define MULTI_ADC  1  // multiple ADC conversions for more sensitive (+12dB) microphone input
 #define KEY_CLICK        1   // Reduce key clicks by envelope shaping
 
 //***********************************************************************
@@ -86,6 +89,11 @@ inline int16_t arctan3(int16_t q, int16_t i)  // error ~ 0.8 degree
   return (q < 0) ? -r : r;                        // arctan(-z) = -arctan(z)
 }
 
+
+
+
+
+
 #define magn(i, q) (abs(i) > abs(q) ? abs(i) + abs(q) / 4 : abs(q) + abs(i) / 4) // approximation of: magnitude = sqrt(i*i + q*q); error 0.95dB
 
 uint8_t lut[256];
@@ -97,9 +105,6 @@ volatile uint8_t vox_thresh = (1 << 2);
 volatile uint8_t vox_thresh = (1 << 1); //(1 << 2);
 #endif
 volatile uint8_t drive = 2;   // hmm.. drive>2 impacts cpu load..why?
-
-
-
 
 //***********************************************************************
 //
@@ -245,10 +250,14 @@ void dsp_tx_ssb()
 
 }
 
+
+
+
 volatile uint16_t acc;
 volatile uint32_t cw_offset;
 volatile uint8_t cw_tone = 1;
-const uint32_t tones[] = { F_MCU * 700ULL / 20000000, F_MCU * 600ULL / 20000000, F_MCU * 700ULL / 20000000};
+//const uint32_t tones[] = { F_MCU * 700ULL / 20000000, F_MCU * 600ULL / 20000000, F_MCU * 700ULL / 20000000};
+const uint32_t tones[] = { 700UL, 600UL, 700UL};
 
 volatile int8_t p_sin = 0;     // initialized with A*sin(0) = 0
 volatile int8_t n_cos = 448/4; // initialized with A*cos(t) = A
@@ -265,8 +274,9 @@ inline void process_minsky() // Minsky circle sample [source: https://www.cl.cam
 
 
 
+
 // CW Key-click shaping, ramping up/down amplitude with sample-interval of 60us. Tnx: Yves HB9EWY https://groups.io/g/ucx/message/5107
-const uint8_t ramp[] PROGMEM = { 255, 254, 252, 249, 245, 239, 233, 226, 217, 208, 198, 187, 176, 164, 152, 139, 127, 115, 102, 90, 78, 67, 56, 46, 37, 28, 21, 15, 9, 5, 2 }; // raised-cosine(i) = 255 * sq(cos(HALF_PI * i/32))
+const uint8_t ramp[31] PROGMEM = { 255, 254, 252, 249, 245, 239, 233, 226, 217, 208, 198, 187, 176, 164, 152, 139, 127, 115, 102, 90, 78, 67, 56, 46, 37, 28, 21, 15, 9, 5, 2 }; // raised-cosine(i) = 255 * sq(cos(HALF_PI * i/32))
 uint16_t i_ramp = 31;
 
 //***********************************************************************
@@ -301,6 +311,9 @@ void dsp_tx_cw()
   //RX_AUDIO_PWM = (p_sin >> (16 - volume)) + 128;  // RX audio PWM - side tone - TX audio monitoring
   pwm_set_chan_level(dac_audio, PWM_CHAN_A, ((p_sin >> (16 - volume)) + 128));  // RX audio PWM - side tone - TX audio monitoring
 }
+
+
+
 
 //***********************************************************************
 //
@@ -430,6 +443,8 @@ void uSDX_TX_PhaseAmpl_setup(void)
 
 
   si5351.freq(freq, 0, 90);  // freq needs to be set in order to use freq_calc_fast()
+
+
   
   gpio_set_function(20, GPIO_FUNC_PWM);     // GP20 is PWM for Q DAC (Slice 2, Channel A)
   gpio_set_function(PWM_AMPL_OUT_PIN, GPIO_FUNC_PWM);     // GP21 is PWM for I DAC (Slice 2, Channel B) - amp output

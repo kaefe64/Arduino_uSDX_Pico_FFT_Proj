@@ -12,8 +12,10 @@
 //
 //      uSDX_TX.ino
 //
-// Sketch used to test the RF transmission using the Phase and Amplitude method running at PICO (preparing to be included at uSDR_PICO_FFT project)
+// Arduino sketch used to test Phase and Amplitude RF transmission method running at PICO (preparing to be included at uSDR_PICO_FFT project)
 // It uses the TX code from uSDX Guido's project converted to run in RPI PICO in uSDX_PICO_FFT project  https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj
+//
+// - TX code from uSDX version "1.02x"
 // - same Arduino IDE and library setup as uSDX_PICO_FFT
 // - same uSDX_PICO_FFT connections:
 //      Input: Microphone at GP28 = MIC
@@ -25,9 +27,12 @@
 // - it needs to be connected by USB to PC with the Serial Monitor running
 // - it just tests the transmission, no display, no reception.
 //
+// Consider that there are some uSDX Guido's comments mixed with mine for PICO. 
+//
 
 
-
+#include "uSDX_I2C.h"
+#include "uSDX_SI5351.h"
 #include "uSDX_TX_PhaseAmpl.h"
 
 

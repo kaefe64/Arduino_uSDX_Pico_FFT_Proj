@@ -1,12 +1,14 @@
 #ifndef __USDX_SI5351_H__
 #define __USDX_SI5351_H__
-/*
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-*/
 
-#define SI5351_ADDR   0x60   // SI5351A I2C address: 0x60 for SI5351A-B-GT, Si5351A-B04771-GT, MS5351M; 0x62 for SI5351A-B-04486-GT; 0x6F for SI5351A-B02075-GT; see here for other variants: https://www.silabs.com/TimingUtility/timing-download-document.aspx?OPN=Si5351A-B02075-GT&OPNRevision=0&FileType=PublicAddendum
+
+
+#define SI5351_ADDR   0x60        // SI5351A I2C address: 0x60 for SI5351A-B-GT, Si5351A-B04771-GT, MS5351M; 0x62 for SI5351A-B-04486-GT; 0x6F for SI5351A-B02075-GT; see here for other variants: https://www.silabs.com/TimingUtility/timing-download-document.aspx?OPN=Si5351A-B02075-GT&OPNRevision=0&FileType=PublicAddendum
+#define F_XTAL        27005000UL  // 27MHz SI5351 crystal
 
 
 //TX CLK2
@@ -16,18 +18,11 @@ extern "C" {
 #define TX0RX0  0b11111111
 
 
-
-
-#define BB0(x) ((uint8_t)(x))           // Bash byte x of int32_t
-#define BB1(x) ((uint8_t)((x)>>8))
-#define BB2(x) ((uint8_t)((x)>>16))
-#define FAST __attribute__((optimize("Ofast")))
+#define FAST   __attribute__((optimize("Ofast")))
 enum ms_t { PLLA=0, PLLB=1, MSNA=-2, MSNB=-1, MS0=0, MS1=1, MS2=2, MS3=3, MS4=4, MS5=5 };
-#define SI_CLK_OE 3
+#define SI_CLK_OE  3
 
 
-
-extern  I2C i2c;
 
 
 //***********************************************************************
@@ -90,7 +85,6 @@ public:
 };
 
 
-extern SI5351 si5351;
 
 
 
@@ -108,9 +102,9 @@ extern SI5351 si5351;
 
 
 
-/*
+
 #ifdef __cplusplus
 }
 #endif
-*/
+
 #endif
