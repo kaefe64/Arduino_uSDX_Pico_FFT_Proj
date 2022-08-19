@@ -8,7 +8,8 @@ extern "C" {
 
 
 #define SI5351_ADDR   0x60        // SI5351A I2C address: 0x60 for SI5351A-B-GT, Si5351A-B04771-GT, MS5351M; 0x62 for SI5351A-B-04486-GT; 0x6F for SI5351A-B02075-GT; see here for other variants: https://www.silabs.com/TimingUtility/timing-download-document.aspx?OPN=Si5351A-B02075-GT&OPNRevision=0&FileType=PublicAddendum
-#define F_XTAL        27005000UL  // 27MHz SI5351 crystal
+//#define F_XTAL        27005000UL  // 27MHz SI5351 crystal
+#define F_XTAL        25005000UL  // 25MHz SI5351 crystal
 
 
 //TX CLK2

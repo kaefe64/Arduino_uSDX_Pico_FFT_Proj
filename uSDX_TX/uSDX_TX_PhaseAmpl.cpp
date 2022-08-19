@@ -18,10 +18,10 @@
 
 
 
-#define DAC_RANGE  256u
-#define DAC_BIAS  (DAC_RANGE/2u)
-#define ADC_RANGE 4096u
-#define ADC_BIAS  (ADC_RANGE/2u)
+#define DAC_RANGE  256
+#define DAC_BIAS  (DAC_RANGE/2)
+#define ADC_RANGE 4096
+#define ADC_BIAS  (ADC_RANGE/2)
 #define PWM_AMPL_OUT_PIN    21  // 21 = i_dac
 
 //  pwm_set_chan_level(dac_audio, PWM_CHAN_A, (cw_tone[cw_tone_pos]>>8)+DAC_BIAS);    //audio side tone
@@ -66,9 +66,9 @@ inline void _vox(bool trigger)
 
 
 
-#define _UA  600 //=(_FSAMP_TX)/8 //(_F_SAMP_TX)      //360  // unit angle; integer representation of one full circle turn or 2pi radials or 360 degrees, should be a integer divider of F_SAMP_TX and maximized to have higest precision
-#define MAX_DP  ((filt == 0) ? _UA : (filt == 3) ? _UA/4 : _UA/2)     //(_UA/2) // the occupied SSB bandwidth can be further reduced by restricting the maximum phase change (set MAX_DP to _UA/2).
-#define CARRIER_COMPLETELY_OFF_ON_LOW  1    // disable oscillator on low amplitudes, to prevent potential unwanted biasing/leakage through PA circuit
+#define _UA       600   //=(_FSAMP_TX)/8 //(_F_SAMP_TX)      //360  // unit angle; integer representation of one full circle turn or 2pi radials or 360 degrees, should be a integer divider of F_SAMP_TX and maximized to have higest precision
+#define MAX_DP    ((filt == 0) ? _UA : (filt == 3) ? _UA/4 : _UA/2)     //(_UA/2) // the occupied SSB bandwidth can be further reduced by restricting the maximum phase change (set MAX_DP to _UA/2).
+#define CARRIER_COMPLETELY_OFF_ON_LOW    1    // disable oscillator on low amplitudes, to prevent potential unwanted biasing/leakage through PA circuit
 #define KEY_CLICK        1   // Reduce key clicks by envelope shaping
 
 //***********************************************************************
@@ -98,7 +98,7 @@ inline int16_t arctan3(int16_t q, int16_t i)  // error ~ 0.8 degree
 
 uint8_t lut[256];
 volatile uint8_t amp;
-#define MORE_MIC_GAIN   1       // adds more microphone gain, improving overall SSB quality (when speaking further away from microphone)
+//#define MORE_MIC_GAIN   1       // adds more microphone gain, improving overall SSB quality (when speaking further away from microphone)
 #ifdef MORE_MIC_GAIN
 volatile uint8_t vox_thresh = (1 << 2);
 #else
@@ -445,10 +445,29 @@ void uSDX_TX_PhaseAmpl_setup(void)
   si5351.freq(freq, 0, 90);  // freq needs to be set in order to use freq_calc_fast()
 
 
+
+
+
+#define GP_PTT            15    // PTT pin 20 (GPIO 15)
+  gpio_init_mask(1<<GP_PTT);  
+  gpio_set_dir(GP_PTT, GPIO_IN); 
+  gpio_pull_up(GP_PTT);
+
+
+ 
+  // Initialize ADCs 
+  //adc_gpio_init(26);                // GP26 is ADC 0  Q
+  adc_gpio_init(27);                // GP27 is ADC 1  I
+  //adc_gpio_init(28);                // GP28 is ADC 2  MIC
+  adc_init();                       // Initialize ADC to known state
+  adc_select_input(1);              // Start with ADC1 
+
+
+
   
-  gpio_set_function(20, GPIO_FUNC_PWM);     // GP20 is PWM for Q DAC (Slice 2, Channel A)
+  gpio_set_function(PWM_AMPL_OUT_PIN, GPIO_FUNC_PWM);     // GP20 is PWM for Q DAC (Slice 2, Channel A)
   gpio_set_function(PWM_AMPL_OUT_PIN, GPIO_FUNC_PWM);     // GP21 is PWM for I DAC (Slice 2, Channel B) - amp output
-  dac_iq = pwm_gpio_to_slice_num(20);       // Get PWM slice for GP20 (Same for GP21)
+  dac_iq = pwm_gpio_to_slice_num(PWM_AMPL_OUT_PIN);       // Get PWM slice for GP20 (Same for GP21)
   pwm_set_clkdiv_int_frac (dac_iq, 1, 0);     // clock divide by 1 = 125MHz
   pwm_set_wrap(dac_iq, DAC_RANGE-1);        // Set cycle length; nr of counts until wrap, 125MHz / 255 = 490kHz
   pwm_set_enabled(dac_iq, true);            // Set the PWM running
@@ -460,6 +479,7 @@ void uSDX_TX_PhaseAmpl_setup(void)
   pwm_set_enabled(dac_audio, true);         // Set the PWM running
     
   old_time = micros();
+
 }
 
 
@@ -468,9 +488,22 @@ void uSDX_TX_PhaseAmpl_setup(void)
 
 
 
-//800Hz seno sampled @ 4800Hz    12bits = 4096  >>2  10 bits = 1024
-#define TAM_VET_AUDIO   6
-int16_t vet_audio[TAM_VET_AUDIO] = { (0>>2), (1773>>2), (1773>>2), (-1>>2), (-1774>>2), (-1774>>2) };
+
+
+
+//600Hz seno sampled @ 4800Hz    12 bits = 4096
+#define TAM_VET_AUDIO   8
+int16_t vet_audio[TAM_VET_AUDIO] = { 0/4,  1447/4,  2047/4,  1447/4,  -1/4,  -1448/4, -2048/4, -1448/4 };
+
+
+/*
+//600Hz + 800Hz seno sampled @ 4800Hz    12 bits = 4096
+#define TAM_VET_AUDIO   (8+6)
+int16_t vet_audio[TAM_VET_AUDIO] = { 0,  1447,  2047,  1447,  -1,  -1448, -2048, -1448, 0,  1773,  1773,  -1, -1774, -1774 );
+*/
+
+
+
 
 //***********************************************************************
 //
@@ -479,25 +512,106 @@ int16_t vet_audio[TAM_VET_AUDIO] = { (0>>2), (1773>>2), (1773>>2), (-1>>2), (-17
 void uSDX_TX_PhaseAmpl_loop(void)
 {
 static uint16_t pos_audio = 0;
+static uint16_t ampl_shift = 0;
+static uint16_t cont = 0;
+static uint16_t ptt, old_ptt = 22;
+
+
+
+  ptt = gpio_get(GP_PTT);  // Get PTT level
+  if (ptt!=old_ptt)           
+  {
+    old_ptt = ptt;
+    if(ptt==0)
+    {
+      si5351.SendRegister(SI_CLK_OE, TX1RX0);  // enable carrier
+
+      Serial.println("TX ON  ***   MIC = " + String(adc_read())); 
+    }
+    else
+    {
+      pwm_set_gpio_level(PWM_AMPL_OUT_PIN, DAC_BIAS);    // submit amplitude to PWM 
+      si5351.SendRegister(SI_CLK_OE, TX0RX0);    // disable carrier    
+        
+      Serial.println("TX OFF       MIC = " + String(adc_read())); 
+    }
+  }  
+  
+
+
 
   if(((unsigned long)(micros() - old_time)) > TIME_LOOP)
   {
-  gpio_set_mask(1<<LED_BUILTIN);  //high
+
+    old_time += TIME_LOOP;
+    cont++;
+    if(cont > 100)
+    {
+      cont = 0;
+      ampl_shift++;
+      if(ampl_shift>3)
+        ampl_shift = 0;
+    }
+
+
+
+gpio_set_mask(1<<LED_BUILTIN);  //high
+
+
+
+    if (ptt==0)   // TX
+    {
+      tx = 254;
+/*      
+      adc_result[2] = (vet_audio[pos_audio]>>(4+(pos_audio&ampl_shift)));   //audio sample  10bits + modulacao ampl
+//      adc_result[2] = vet_audio[pos_audio]>>4;   //audio sample  10bits + modulacao ampl
+      if(++pos_audio >= TAM_VET_AUDIO)  pos_audio = 0;
+*/
+
+      //read MIC
+      adc_result[2] = ((int16_t)adc_read() - ADC_BIAS);  //ADC MIC
+      for(uint16_t i=1; i<10; i++)
+      {
+        adc_result[2] += ((int16_t)adc_read() - ADC_BIAS);  //ADC MIC
+      }
+      adc_result[2] >>= 3;  //MIC average
+ 
+
 
     
-    old_time += TIME_LOOP;
-  
-    adc_result[2] = vet_audio[pos_audio];   //ADC MIC reading
-    if(++pos_audio >= TAM_VET_AUDIO)  pos_audio = 0;
-  
-    dsp_tx_ssb();
-    //dsp_tx_cw();
-    //dsp_tx_am();
-    //dsp_tx_fm();
+      dsp_tx_ssb();
+      //dsp_tx_cw();
+      //dsp_tx_am();
+      //dsp_tx_fm();
 
-  
-  gpio_clr_mask(1<<LED_BUILTIN);  //low
-  
+
+      //pwm_set_gpio_level(PWM_AMPL_OUT_PIN, adc_result[2]/4 + DAC_BIAS);    // submit amplitude to PWM register (actually this is done in advance (about 140us) of phase-change, so that phase-delays in key-shaping circuit filter can settle)
+
+
+
+/*
+  amp = adc_result[2]/4 + DAC_BIAS;
+
+  si5351.SendPLLRegisterBulk();       // submit frequency registers to SI5351 over 731kbit/s I2C (transfer takes 64/731 = 88us, then PLL-loopfilter probably needs 50us to stabalize)
+  //TX_AMPL_PWM = amp;                        // submit amplitude to PWM register (takes about 1/32125 = 31us+/-31us to propagate) -> amplitude-phase-alignment error is about 30-50us
+  pwm_set_gpio_level(PWM_AMPL_OUT_PIN, amp);       // submit amplitude to PWM register (takes about 1/32125 = 31us+/-31us to propagate) -> amplitude-phase-alignment error is about 30-50us
+  //int16_t adc = adc_result[2];  //ADC - 512; // current ADC sample 10-bits analog input, NOTE: first ADCL, then ADCH
+  int16_t df = adc_result[2]/4;  // convert analog input into phase-shifts (carrier out by periodic frequency shifts)
+  si5351.freq_calc_fast(df);           // calculate SI5351 registers based on frequency shift and carrier frequency
+*/
+
+
+ 
+    }
+    else
+    {
+      
+    }
+    
+gpio_clr_mask(1<<LED_BUILTIN);  //low
+
   }
-  
+
+
+
 }
