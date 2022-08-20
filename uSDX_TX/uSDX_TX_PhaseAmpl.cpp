@@ -530,7 +530,7 @@ static uint16_t ptt, old_ptt = 22;
     }
     else
     {
-      pwm_set_gpio_level(PWM_AMPL_OUT_PIN, DAC_BIAS);    // submit amplitude to PWM 
+      pwm_set_gpio_level(PWM_AMPL_OUT_PIN, 0);    // ampl out = 0   no TX 
       si5351.SendRegister(SI_CLK_OE, TX0RX0);    // disable carrier    
         
       Serial.println("TX OFF       MIC = " + String(adc_read())); 
