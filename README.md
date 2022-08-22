@@ -27,6 +27,8 @@ Initial msg: #15923 · May 26  2022<br>
 
 
 There is a **uSDX_TX** folder with code to test RF modulation using **phase and amplitude**, the same method used at the **uSDX project**. If the test works on Pico, it will be included as an option to the main project.
+<br>
+<br>
 
 
 
@@ -84,7 +86,8 @@ If we deliver an audio signal at 16kHz (sample frequency), we need a hardware lo
 
 ![Hardware Modification](FFT_LCD_pico_MOD.png)
 <br>
-
+<br>
+<br>
 
 
 ## Last changes and notes:<br>
