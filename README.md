@@ -19,6 +19,17 @@ I used the word "uSDX" instead of "uSDR" to name some files. This was a mistake.
 Initial tests video:  https://youtu.be/0zGAnkRjizE<br>
 AGC and Visual Scope video: https://youtu.be/BiaS002xZfw
 
+There are also some messages related to this project at:<br>
+https://groups.io/g/ucx<br>
+Subject: uSDR-pico on GitHUB<br>
+Initial msg: #15923 · May 26  2022<br>
+<br>
+
+
+There is a **uSDX_TX** folder with code to test RF modulation using **phase and amplitude**, the same method used at the **uSDX project**. If the test works on Pico, it will be included as an option to the main project.
+
+
+
 
 ### To implement the waterfall I considered this:
 
@@ -72,6 +83,8 @@ If we deliver an audio signal at 16kHz (sample frequency), we need a hardware lo
 - Obs.: at the initial test video, I used only the RC output filter shown in the schematic, and for input filter, only what is already inside of the Softrock RXTX Ensemble.
 
 ![Hardware Modification](FFT_LCD_pico_MOD.png)
+<br>
+
 
 
 ## Last changes and notes:<br>
@@ -97,6 +110,7 @@ Ago05 2022
 
 
 ![Hardware Modification](FFT_LCD_pico_MOD2.png)
+<br>
 
 
 Jul20 2022
