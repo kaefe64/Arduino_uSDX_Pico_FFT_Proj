@@ -55,9 +55,14 @@ volatile uint8_t filt = 0;
 //***********************************************************************
 inline void _vox(bool trigger)
 {
-  if(trigger){
+  if(trigger)  //if there is MIC audio
+  {
+    //if there is MIC audio and tx on, full time to wait between audio pauses
     tx = (tx) ? 254 : 255; // hangtime = 255 / 4402 = 58ms (the time that TX at least stays on when not triggered again). tx == 255 when triggered first, 254 follows for subsequent triggers, until tx is off.
-  } else {
+  } 
+  else  
+  {
+    //on MIC audio pause, count down to wait some time before disable the carrier
     if(tx) tx--;
   }
 }
@@ -102,9 +107,10 @@ volatile uint8_t amp;
 #ifdef MORE_MIC_GAIN
 volatile uint8_t vox_thresh = (1 << 2);
 #else
-volatile uint8_t vox_thresh = (1 << 1); //(1 << 2);
+volatile uint8_t vox_thresh = 50;  //(1 << 1); //(1 << 2);
 #endif
 volatile uint8_t drive = 2;   // hmm.. drive>2 impacts cpu load..why?
+//uint16_t _amp;  // -6dB gain (correction)
 
 //***********************************************************************
 //
@@ -130,6 +136,7 @@ inline int16_t ssb(int16_t in)
   q = ((v[0] - v[14]) * 2 + (v[2] - v[12]) * 8 + (v[4] - v[10]) * 21 + (v[6] - v[8]) * 16) / 64 + (v[6] - v[8]); // Hilbert transform, 40dB side-band rejection in 400..1900Hz (@4kSPS) when used in image-rejection scenario; (Hilbert transform require 5 additional bits)
 
   uint16_t _amp = magn(i / 2, q / 2);  // -6dB gain (correction)
+//  _amp = magn(i / 2, q / 2);  // -6dB gain (correction)
 
 
 #ifdef CARRIER_COMPLETELY_OFF_ON_LOW
@@ -256,7 +263,7 @@ void dsp_tx_ssb()
 volatile uint16_t acc;
 volatile uint32_t cw_offset;
 volatile uint8_t cw_tone = 1;
-//const uint32_t tones[] = { F_MCU * 700ULL / 20000000, F_MCU * 600ULL / 20000000, F_MCU * 700ULL / 20000000};
+//const uint32_t tones[] = { F_MCU * 700ULL / 20000000UL, F_MCU * 600ULL / 20000000UL, F_MCU * 700ULL / 20000000UL};
 const uint32_t tones[] = { 700UL, 600UL, 700UL};
 
 volatile int8_t p_sin = 0;     // initialized with A*sin(0) = 0
@@ -433,7 +440,7 @@ void uSDX_TX_PhaseAmpl_setup(void)
   for(i = 0; i != 1000; i++) 
     si5351.SendPLLRegisterBulk();
   t1 = micros();
-  uint32_t speed = (1000000 * 8 * 7) / (t1 - t0); // speed in kbit/s
+  uint32_t speed = (1000000UL * 8 * 7) / (t1 - t0); // speed in kbit/s
   
   //if(false) {    fatal(F("i2cspeed"), speed, 'k');  }
   Serial.println("Result i2c speed: " + String(speed) + "k\n"); 
@@ -490,11 +497,11 @@ void uSDX_TX_PhaseAmpl_setup(void)
 
 
 
-
-//600Hz seno sampled @ 4800Hz    12 bits = 4096
+/*
+//600Hz seno sampled @ 4800Hz    12 bits = 4096     /4 = 10 bits = 1024
 #define TAM_VET_AUDIO   8
 int16_t vet_audio[TAM_VET_AUDIO] = { 0/4,  1447/4,  2047/4,  1447/4,  -1/4,  -1448/4, -2048/4, -1448/4 };
-
+*/
 
 /*
 //600Hz + 800Hz seno sampled @ 4800Hz    12 bits = 4096
@@ -512,8 +519,6 @@ int16_t vet_audio[TAM_VET_AUDIO] = { 0,  1447,  2047,  1447,  -1,  -1448, -2048,
 void uSDX_TX_PhaseAmpl_loop(void)
 {
 static uint16_t pos_audio = 0;
-static uint16_t ampl_shift = 0;
-static uint16_t cont = 0;
 static uint16_t ptt, old_ptt = 22;
 
 
@@ -522,37 +527,31 @@ static uint16_t ptt, old_ptt = 22;
   if (ptt!=old_ptt)           
   {
     old_ptt = ptt;
-    if(ptt==0)
+    if(ptt==0)  //start TX
     {
+      tx = 254;
       si5351.SendRegister(SI_CLK_OE, TX1RX0);  // enable carrier
 
       Serial.println("TX ON  ***   MIC = " + String(adc_read())); 
     }
     else
     {
+      //tx = 0;
       pwm_set_gpio_level(PWM_AMPL_OUT_PIN, 0);    // ampl out = 0   no TX 
       si5351.SendRegister(SI_CLK_OE, TX0RX0);    // disable carrier    
         
+//      Serial.println("TX OFF       tx = " + String(tx) + "      _amp = " + String(_amp) ); 
       Serial.println("TX OFF       MIC = " + String(adc_read())); 
     }
   }  
   
 
 
-
+  //simulates an 4800Hz interrupt
   if(((unsigned long)(micros() - old_time)) > TIME_LOOP)
   {
 
     old_time += TIME_LOOP;
-    cont++;
-    if(cont > 100)
-    {
-      cont = 0;
-      ampl_shift++;
-      if(ampl_shift>3)
-        ampl_shift = 0;
-    }
-
 
 
 gpio_set_mask(1<<LED_BUILTIN);  //high
@@ -561,14 +560,8 @@ gpio_set_mask(1<<LED_BUILTIN);  //high
 
     if (ptt==0)   // TX
     {
-      tx = 254;
-/*      
-      adc_result[2] = (vet_audio[pos_audio]>>(4+(pos_audio&ampl_shift)));   //audio sample  10bits + modulacao ampl
-//      adc_result[2] = vet_audio[pos_audio]>>4;   //audio sample  10bits + modulacao ampl
-      if(++pos_audio >= TAM_VET_AUDIO)  pos_audio = 0;
-*/
 
-      //read MIC
+      //read MIC  8x  (similar to main software)
       adc_result[2] = ((int16_t)adc_read() - ADC_BIAS);  //ADC MIC
       for(uint16_t i=1; i<10; i++)
       {
@@ -576,37 +569,14 @@ gpio_set_mask(1<<LED_BUILTIN);  //high
       }
       adc_result[2] >>= 3;  //MIC average
  
-
-
     
       dsp_tx_ssb();
       //dsp_tx_cw();
       //dsp_tx_am();
       //dsp_tx_fm();
 
-
-      //pwm_set_gpio_level(PWM_AMPL_OUT_PIN, adc_result[2]/4 + DAC_BIAS);    // submit amplitude to PWM register (actually this is done in advance (about 140us) of phase-change, so that phase-delays in key-shaping circuit filter can settle)
-
-
-
-/*
-  amp = adc_result[2]/4 + DAC_BIAS;
-
-  si5351.SendPLLRegisterBulk();       // submit frequency registers to SI5351 over 731kbit/s I2C (transfer takes 64/731 = 88us, then PLL-loopfilter probably needs 50us to stabalize)
-  //TX_AMPL_PWM = amp;                        // submit amplitude to PWM register (takes about 1/32125 = 31us+/-31us to propagate) -> amplitude-phase-alignment error is about 30-50us
-  pwm_set_gpio_level(PWM_AMPL_OUT_PIN, amp);       // submit amplitude to PWM register (takes about 1/32125 = 31us+/-31us to propagate) -> amplitude-phase-alignment error is about 30-50us
-  //int16_t adc = adc_result[2];  //ADC - 512; // current ADC sample 10-bits analog input, NOTE: first ADCL, then ADCH
-  int16_t df = adc_result[2]/4;  // convert analog input into phase-shifts (carrier out by periodic frequency shifts)
-  si5351.freq_calc_fast(df);           // calculate SI5351 registers based on frequency shift and carrier frequency
-*/
-
-
- 
     }
-    else
-    {
-      
-    }
+
     
 gpio_clr_mask(1<<LED_BUILTIN);  //low
 
