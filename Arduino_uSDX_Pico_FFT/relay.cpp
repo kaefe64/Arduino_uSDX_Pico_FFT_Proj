@@ -51,7 +51,7 @@
 void relay_setband(uint8_t val)
 {
 	uint8_t data[2];
-	int ret;
+	//int ret;
 	
 	data[0] = val&0x1f;
 	if (i2c_write_blocking(i2c1, I2C_BPF, data, 1, false) < 0)
