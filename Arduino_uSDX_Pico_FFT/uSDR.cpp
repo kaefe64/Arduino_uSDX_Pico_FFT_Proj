@@ -44,9 +44,13 @@ void uSDR_setup(void)  //main
 	 * i2c0 is used for the si5351 interface
 	 * i2c1 is used for the LCD and all other interfaces
 	 */
-  Wire.begin();   //i2c0 master
-  Wire1.begin();  //i2c1
-	
+#if TX_METHOD == I_Q_QSE
+  Wire.begin();            //i2c0 master to Si5351
+  //Wire.setClock(200000);   // Set i2c0 clock speed (default=100k)
+#endif
+  Wire1.begin();           //i2c1
+
+  
 	/* Initialize units */
 	mon_init();										// Monitor shell on stdio
 	si_init();										// VFO control unit
