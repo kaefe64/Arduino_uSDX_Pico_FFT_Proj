@@ -13,6 +13,21 @@ extern "C" {
 #define Serialx   Serial1   //UART0  /dev/ttyUSB0
 
 
+
+
+#define PHASE_AMPLITUDE  11
+#define I_Q_QSE          22
+//
+//Here you can choose one of the two methods for uSDR_Pico transmission
+//
+#define TX_METHOD    I_Q_QSE            // uSDR_Pico original project generating I and Q signal to a QSE mixer
+//#define TX_METHOD    PHASE_AMPLITUDE    // DO NOT USE - is not ready - used for Class E RF amplifier - see description at: uSDX_TX_PhaseAmpl.cpp
+
+
+
+
+
+
 void uSDR_setup(void);
 void uSDR_loop(void);
 
