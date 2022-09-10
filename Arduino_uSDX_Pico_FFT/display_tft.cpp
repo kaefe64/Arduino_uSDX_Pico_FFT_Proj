@@ -215,7 +215,7 @@ int16_t triang_x_min, triang_x_max;
 *********************************************************/
 void display_fft_graf_top(void) 
 {
-  int16_t siz, i, j, x, y;
+  int16_t siz, j, x;  //i, y
   uint32_t freq_graf_ini;
   uint32_t freq_graf_fim;
 
@@ -292,7 +292,7 @@ void display_fft_graf_top(void)
          tft.drawFastVLine (x+1, Y_MIN_DRAW - 11, 10, TFT_WHITE);
     
          //write new freq values  on top of scale
-         sprintf(vet_char, "%d", freq_graf_ini);
+         sprintf(vet_char, "%lu", freq_graf_ini);
          siz = strlen(vet_char);
          if(x < (2*X_CHAR1))   //to much to left
          {
@@ -328,7 +328,7 @@ uint8_t vet_graf_fft[GRAPH_NUM_LINES][FFT_NSAMP];    // [NL][NCOL]
 *********************************************************/
 void display_fft_graf(void) 
 {
-  int16_t x, y;
+  uint16_t x, y;
   uint16_t extra_color;
 
 
@@ -473,7 +473,7 @@ int16_t x;
 *********************************************************/
 void display_tft_setup(void) {
 
-uint16_t x, y;
+//uint16_t x, y;
 char s[32];
   
   tft.init();
