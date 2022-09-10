@@ -44,6 +44,7 @@ extern "C" {
 
 //extern volatile uint16_t adc_audio_count;
 //extern volatile uint16_t adc_waterfall_count;
+extern volatile int16_t adc_result[3];   //
 
 
 
@@ -80,9 +81,10 @@ extern volatile uint16_t aud_samples_state;
 extern volatile int32_t peak_avg_shifted;     // signal level detector after AGC = average of positive values
 
 #define AGC_GAIN_SHIFT  6        //shift corresponding to AGC_GAIN_MAX
-#define AGC_GAIN_MAX    (1<<AGC_GAIN_SHIFT)       //max attenuation agc can do   signal * agc_gain / AGC_GAIN_MAX
-extern volatile int16_t agc_gain;
+#define AGC_GAIN_MAX    (1u<<AGC_GAIN_SHIFT)       //max attenuation agc can do   signal * agc_gain / AGC_GAIN_MAX
+extern volatile uint16_t agc_gain;
 
+extern volatile uint16_t dac_iq, dac_audio;
 extern volatile bool tx_enabled;
 //#define DSP_SETPTT(x)			tx_enabled = (x)
 
