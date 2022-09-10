@@ -44,6 +44,11 @@
 #include "TFT_eSPI.h"
 #include "display_tft.h"
 
+#if TX_METHOD == PHASE_AMPLITUDE    // uSDX TX method used for Class E RF amplifier
+#include "uSDX_I2C.h"
+#include "uSDX_SI5351.h"
+#include "uSDX_TX_PhaseAmpl.h"
+#endif
 
 
 
@@ -674,11 +679,12 @@ volatile int16_t a_s_raw[CW_BPF_TAP_NUM];             // Raw MIC samples, minus 
  **************************************************************************************/
 volatile int32_t peak_avg_shifted=0;     // signal level detector after AGC = average of positive values
 volatile int16_t peak_avg_diff_accu=0;   // Log peak level integrator
-volatile int16_t agc_gain=((AGC_GAIN_MAX/2)+1);   // AGC gain/attenuation
+volatile uint16_t agc_gain=((AGC_GAIN_MAX/2u)+1u);   // AGC gain/attenuation - starts at the middle
 #define AGC_REF		3u //6
 #define AGC_DECAY	8192u
-#define AGC_ATTACK_FAST	32u  //64
-#define AGC_ATTACK_SLOW	128u  //4096
+#define AGC_ATTACK_FAST	 32u  //64
+#define AGC_ATTACK_SLOW	 128u  //4096
+#define AGC_GAIN_STEP    1u
 #define AGC_OFF		32766u
 volatile uint16_t agc_decay  = AGC_OFF;
 volatile uint16_t agc_attack = AGC_OFF;
@@ -825,7 +831,11 @@ volatile int16_t aud_samp[AUD_NUM_VAR][AUD_NUM_SAMP];  //samples buffer for FFT 
 volatile uint16_t aud_samp_block_pos = 0;    
 volatile uint16_t aud_samples_state = AUD_STATE_SAMP_IN;  //filling buffer
 
-volatile uint16_t i_int, j_int, cw_st_int=0;  //used to count 2 times the 16kHz int to generate the 8kHz for CW
+volatile uint16_t i_int, j_int;
+volatile uint16_t cw_int_count=0;  //used to count 2 times the 16kHz int to generate the 8kHz for CW (only for CW reception)
+#if TX_METHOD == PHASE_AMPLITUDE    // uSDX TX method used for Class E RF amplifier
+volatile uint16_t st_int_count=0;
+#endif
 /************************************************************************************** 
  * CORE1:  DMA IRQ
  * dma handler - IRQ when a block of samples was read
@@ -920,10 +930,55 @@ void __not_in_flash_func(dma_handler)(void)
     i_int++;
   }
 
-  //choose between 8kHz and 16kHz for audio process
+
+
+
+
+  //choose between 8kHz and 16kHz(or 5333Hz) for audio process
   if((dsp_mode != MODE_CW) ||  //for SSB and AM  run the audio @ 16kHz
      (tx_enabled == true))     //run CW TX @16kHz  (good for side tone @16kHz with same output audio filter)  
   {
+    
+
+#if TX_METHOD == PHASE_AMPLITUDE    // uSDX TX method used for Class E RF amplifier
+
+    if(tx_enabled == true)     //TX uses uSDX method  
+    {
+      //run TX @5333Hz  (uSDX method)
+      st_int_count++;
+      if(st_int_count >= 3)  //16kHz / 3 = 5333.33Hz    (it is 4800Hz in uSDX)
+      {
+        st_int_count = 0;
+        
+        // result = sum of last samples = average = low pass filter
+        // low pass filter with the last samples average    4096 * 10  fits on  16 bits
+        // (the signal should have freqs only < 8kHz  for use in the FIR low pass filter @16kHz sample freq)
+        adc_result[0] = adc_samp_sum[adc_samp_last_block_pos][0];   // = 10x input signal, 12bits x 10 = 16bits   (FFF * 10 = 9FF6)
+        adc_result[1] = adc_samp_sum[adc_samp_last_block_pos][1];   // = 10x input signal, 12bits x 10 = 16bits   (FFF * 10 = 9FF6)
+        adc_result[2] = adc_samp_sum[adc_samp_last_block_pos][2] >> 3u;  // /8 instead of /10 = little gain
+      
+        // invoque FIFO IRQ on Core0 to use the adc_result[] audio sample (there is no time for all in one core)
+        multicore_fifo_push_blocking(FIFO_IQ_SAMPLE);    
+      }
+    }
+    else  //RX and not CW, audio = 16kHz
+    {
+      // result = sum of last samples = average = low pass filter
+      // low pass filter with the last samples average    4096 * 10  fits on  16 bits
+      // (the signal should have freqs only < 8kHz  for use in the FIR low pass filter @16kHz sample freq)
+      adc_result[0] = adc_samp_sum[adc_samp_last_block_pos][0];   // = 10x input signal, 12bits x 10 = 16bits   (FFF * 10 = 9FF6)
+      adc_result[1] = adc_samp_sum[adc_samp_last_block_pos][1];   // = 10x input signal, 12bits x 10 = 16bits   (FFF * 10 = 9FF6)
+      adc_result[2] = adc_samp_sum[adc_samp_last_block_pos][2] >> 3u;  // /8 instead of /10 = little gain
+    
+      // invoque FIFO IRQ on Core0 to use the adc_result[] audio sample (there is no time for all in one core)
+      multicore_fifo_push_blocking(FIFO_IQ_SAMPLE);
+    }
+
+#endif
+
+
+#if TX_METHOD == I_Q_QSE 
+
     // result = sum of last samples = average = low pass filter
     // low pass filter with the last samples average    4096 * 10  fits on  16 bits
     // (the signal should have freqs only < 8kHz  for use in the FIR low pass filter @16kHz sample freq)
@@ -933,13 +988,16 @@ void __not_in_flash_func(dma_handler)(void)
   
     // invoque FIFO IRQ on Core0 to use the adc_result[] audio sample (there is no time for all in one core)
     multicore_fifo_push_blocking(FIFO_IQ_SAMPLE);
+
+#endif
+
   }
   else  // for CW RX run the audio @ 8kHz  (to give more time for narrow filter with many taps  and also reduce the number of taps)
   {    
   
-    if(cw_st_int == 0)   //first of two blocks for CW @ 8kHz
+    if(cw_int_count == 0)   //first of two blocks for CW @ 8kHz
     {
-      cw_st_int = 1;
+      cw_int_count = 1;
     }
     else   //second block for CW @ 8kHz
     {
@@ -969,10 +1027,12 @@ void __not_in_flash_func(dma_handler)(void)
       // invoque FIFO IRQ on Core0 to use the adc_result[] audio sample (there is no time for all in one core)
       multicore_fifo_push_blocking(FIFO_IQ_SAMPLE); 
   
-      cw_st_int = 0;
+      cw_int_count = 0;
     }
 
   }
+
+
 
 
   //collect FFT raw samples
@@ -1073,14 +1133,25 @@ void core0_irq_handler()
   
     if (tx_enabled)
     {
-      if (vox_level != VOX_OFF)         // Only when vox is enabled
-        gpio_put(GP_PTT, false);      //     drive PTT low (active)
+      if (vox_level != VOX_OFF)       // vox enabled with some level
+      {
+        //set PTT as output ??
+        gpio_put(GP_PTT, false);      //drive PTT low (active)
+      }
+#if TX_METHOD == PHASE_AMPLITUDE    // uSDX TX method used for Class E RF amplifier
+      uSDX_TX_PhaseAmpl();
+#endif
+#if TX_METHOD == I_Q_QSE 
       tx();
+#endif
     }
     else
     {
-      if (vox_level != VOX_OFF)         // Only when vox is enabled
+      if (vox_level != VOX_OFF)         // vox enabled with some level
+      {
+        //set PTT as input ??
         gpio_put(GP_PTT, true);       //     drive PTT high (inactive)
+      }
       rx();
     }
 
@@ -1119,7 +1190,7 @@ bool rx(void)
 	int32_t q_accu, i_accu;
 	int16_t qh;
 	uint16_t i;
-	int16_t k;
+	uint16_t k;
 
 //  gpio_set_mask(1<<LED_BUILTIN);
 
@@ -1244,9 +1315,9 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
  
 	if (peak_avg_diff_accu > agc_attack)						// Attack time, gain correction in case of high level
 	{
-    if(agc_gain>2u)
+    if(agc_gain>AGC_GAIN_STEP)
     {
-      agc_gain-=2u;               // Decrease gain
+      agc_gain-=AGC_GAIN_STEP;               // Decrease gain
     }
     else
     {
@@ -1256,9 +1327,9 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
 	} 
 	else if (peak_avg_diff_accu < -(agc_decay))		// Decay time, gain correction in case of low level
 	{
-    if(agc_gain<(AGC_GAIN_MAX-2u)) 
+    if(agc_gain<(AGC_GAIN_MAX-AGC_GAIN_STEP))  //2u)) 
     {
-      agc_gain+=2u;               // Increase gain
+      agc_gain+=AGC_GAIN_STEP;               // Increase gain
     }
     else
     {
@@ -1273,7 +1344,7 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
 	 * Send to audio DAC output
 	 */
 	out_sample = a_sample + DAC_BIAS;			// Add bias level
-	if (out_sample > DAC_RANGE)						// Clip to DAC range
+	if (out_sample > (int16_t)DAC_RANGE)						// Clip to DAC range
 		out_sample = DAC_RANGE;
 	else if (out_sample<0)
 		out_sample = 0;
@@ -1331,7 +1402,7 @@ bool vox(void)
 {
 
 	int16_t vox_sample;
-	int i;
+	uint i;
 
 	/*
 	 * Get sample and shift into delay line
@@ -1398,9 +1469,9 @@ bool vox(void)
 
 // 666Hz cw tone @ 16kHz sample freq 
 #define CW_TONE_NUM  24
-int16_t cw_tone_pos = 0;
+int16_t cw_tone_to_play_pos = 0;
 // ADC_RANGE 4096  >>4 = DAC_RANGE 256
-int16_t cw_tone[CW_TONE_NUM] = {0,  529, 1023,  1447,  1773,  1977,  2047,  1977,  1773,  1447,  1023,  529, -1,  -530,  -1024, -1448, -1774, -1978, -2048, -1978, -1774, -1448, -1024, -530}; 
+int16_t cw_tone_to_play[CW_TONE_NUM] = {0,  529, 1023,  1447,  1773,  1977,  2047,  1977,  1773,  1447,  1023,  529, -1,  -530,  -1024, -1448, -1774, -1978, -2048, -1978, -1774, -1448, -1024, -530}; 
 
 
 /************************************************************************************** 
@@ -1411,8 +1482,8 @@ int16_t cw_tone[CW_TONE_NUM] = {0,  529, 1023,  1447,  1773,  1977,  2047,  1977
 bool tx(void) 
 {
   int32_t a_accu, q_accu;
-  int16_t qh;
-  int i;
+  int16_t qh=0;
+  uint i;
   uint16_t i_dac, q_dac;
     
   /*** RAW Audio SAMPLES from VOX function ***/
@@ -1459,21 +1530,21 @@ bool tx(void)
     /*
      * Tx CW I=0 Q=tone
      */
-    cw_tone_pos++;
-    if(cw_tone_pos >= CW_TONE_NUM)
+    cw_tone_to_play_pos++;
+    if(cw_tone_to_play_pos >= CW_TONE_NUM)
     {
-      cw_tone_pos = 0;
+      cw_tone_to_play_pos = 0;
     }
-    qh = cw_tone[cw_tone_pos]>>2;
-    i = cw_tone_pos + (CW_TONE_NUM/4);  // 90 degrees
+    qh = cw_tone_to_play[cw_tone_to_play_pos]>>2;
+    i = cw_tone_to_play_pos + (CW_TONE_NUM/4);  // 90 degrees
     if(i >= CW_TONE_NUM)
     {
       i -= CW_TONE_NUM;
     }
-    a_s[7] = cw_tone[i]>>2;
+    a_s[7] = cw_tone_to_play[i]>>2;
 
     //audio side tone
-    pwm_set_chan_level(dac_audio, PWM_CHAN_A, (cw_tone[cw_tone_pos]>>8)+DAC_BIAS);
+    pwm_set_chan_level(dac_audio, PWM_CHAN_A, (cw_tone_to_play[cw_tone_to_play_pos]>>8)+DAC_BIAS);
     break;
 	default:
 		break;
@@ -1487,7 +1558,7 @@ bool tx(void)
 	a_accu = DAC_BIAS - (qh>>4);  //(qh/16);
 	if (a_accu<0)
 		q_dac = 0;
-	else if (a_accu>(DAC_RANGE-1))
+	else if (a_accu>(int16_t)(DAC_RANGE-1u))
 		q_dac = DAC_RANGE-1;
 	else
 		q_dac = a_accu;
@@ -1495,7 +1566,7 @@ bool tx(void)
 	a_accu = DAC_BIAS + (a_s[7]>>4);  //(a_s[7]/16);
 	if (a_accu<0)
 		i_dac = 0;
-	else if (a_accu>(DAC_RANGE-1))
+	else if (a_accu>(int16_t)(DAC_RANGE-1u))
 		i_dac = DAC_RANGE-1;
 	else
 		i_dac = a_accu;
@@ -1798,7 +1869,7 @@ void dsp_core1_setup_and_loop()
       // fill line for graphic  -band to 0
       for(i_c1=0; i_c1<FFT_NUMFREQ; i_c1++)
       {
-        if(MAG(fft_out[i_c1].r, fft_out[i_c1].i) > 1u)
+        if(MAG(fft_out[i_c1].r, fft_out[i_c1].i) > 1)
         {
           vet_graf_fft[(GRAPH_NUM_LINES-1)][(FFT_NUMFREQ-1)+i_c1] = 1;
         }
@@ -1816,7 +1887,7 @@ void dsp_core1_setup_and_loop()
       // fill line for graphic  0 to +band
       for(i_c1=0; i_c1<FFT_NUMFREQ; i_c1++)
       {
-        if(MAG(fft_out[i_c1].r, fft_out[i_c1].i) > 1u)
+        if(MAG(fft_out[i_c1].r, fft_out[i_c1].i) > 1)
         {
           vet_graf_fft[(GRAPH_NUM_LINES-1)][FFT_NUMFREQ-i_c1] = 1;
         }
@@ -1913,7 +1984,7 @@ void dsp_core1_setup_and_loop()
 void dsp_init() 
 {
 
-  uint16_t slice_num;
+  //uint16_t slice_num;
 
 
   gpio_init_mask(1<<14);  
