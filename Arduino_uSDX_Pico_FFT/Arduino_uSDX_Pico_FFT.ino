@@ -102,6 +102,13 @@ Check ENCODER selection at hmi.cpp (change if necessary)
 #define ENCODER_TYPE             ENCODER_FALL      //choose what encoder is used
 #define ENCODER_DIRECTION        ENCODER_CW_A_FALL_B_HIGH  //direction related to B signal level
 
+
+Choose one TX method at uSDR.h
+//#define TX_METHOD    PHASE_AMPLITUDE    // used for Class E RF amplifier - see description at: uSDX_TX_PhaseAmpl.cpp
+#define TX_METHOD    I_Q_QSE            // DO NOT USE - is not ready - uSDR_Pico original project generating I and Q signal to a QSE mixer
+
+
+
 */
 
 
@@ -121,22 +128,28 @@ void setup() {
 
   
   //uSDX.h -> Serialx = Serial1   //UART0  /dev/ttyUSB0
+  //Better to choose Serialx = Serial on uSDR.h (it will use Pico's USB and save the use of USB to serial converter and leave 2 spare pins)
   Serialx.begin(115200);  
 
 
   uint16_t tim = millis();
  
-  // some delay required for Serial1 too
-  for(int i=0; i<10; i++)
+  // some delay required for Serial to open
+  for(int i=0; i<50; i++)  //try for 5s to connect to serial
   {
   //digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
   gpio_set_mask(1<<LED_BUILTIN);
   delay(50);                       // wait
   //digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
   gpio_clr_mask(1<<LED_BUILTIN);
-   delay(50);                       // wait
-  }
-    
+  delay(50);                       // wait
+   
+  if(Serial)  //serial open
+    break;
+  }  // If the serial is not open on 5s, it goes ahead and the serial print commands will be called but with no effect
+
+
+/*    
   while (!Serialx)  //Caution!!  with Serial, if no USB-serial open, it will be stuck here
   {  //wait for PC USB-serial to open
   //digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
@@ -146,7 +159,7 @@ void setup() {
   gpio_clr_mask(1<<LED_BUILTIN);
   delay(250);
   }
-
+*/
   Serialx.println("Arduino uSDX Pico FFT");
   Serialx.println("\nSerial took " + String((millis() - tim)) + "ms to start");
 
