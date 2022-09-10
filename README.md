@@ -13,11 +13,12 @@ Initially, I have used Visual Studio, but after some considerations, I ported al
 
 I also, chose not to change the original software as much as possible, and focused on the waterfall implementation, mostly in the dsp.c.
 
-I used the word "uSDX" instead of "uSDR" to name some files. This was a mistake. My intention was to follow Arjan's project with the same names, and not to mix with the Guido's PE1NNZ uSDX project (https://github.com/threeme3/usdx).
+I used the word "uSDX" instead of "uSDR" to name some files. This was a mistake. My intention was to follow Arjan's project with the same names.
 
 
 Initial tests video:  https://youtu.be/0zGAnkRjizE<br>
-AGC and Visual Scope video: https://youtu.be/BiaS002xZfw
+AGC and Visual Scope video: https://youtu.be/BiaS002xZfw<br>
+Transmission test video: https://drive.google.com/file/d/1Rr4CVPphtcBfMTgRN5z8F7xxByQ_1ybG/view<br>
 
 There are also some messages related to this project at:<br>
 https://groups.io/g/ucx<br>
@@ -26,7 +27,7 @@ Initial msg: #15923 · May 26  2022<br>
 <br>
 
 
-There is a **uSDX_TX** folder with code to test RF modulation using **phase and amplitude**, the same method used at the **uSDX project**. If the test works on Pico, it will be included as an option to the main project.
+There is a **uSDX_TX** folder with code to test RF modulation using **phase and amplitude**, the same method used at the **uSDX project** (https://github.com/threeme3/usdx). If the test works on Pico, it will be included as an option to the main project.
 <br>
 <br>
 
@@ -52,14 +53,15 @@ There is a **uSDX_TX** folder with code to test RF modulation using **phase and 
 - There is a digital low pass filter FIR implemented at the code (in the original too) that will give the passband we want for audio.
   This filter was calculated with the help of this site:  http://t-filter.engineerjs.com/
   The dificulty is that the number of filter taps can not be high (there is no much time to process it), so the filter must be chosen carefully.
+- Please consider that this waterfall is not perfect, I had to let go of some rules to make it.
 - Block diagram at "Arduino_uSDR_Pico_FFT.png".
 
 ![Block diagram](Arduino_uSDR_Pico_FFT.png)
 
 
 ### Nyquist considerations:
-If we sample each signal I, Q and MIC at 160kHz, it is necessary to have a hardware low pass filter for max 80kHz on each input (anti-aliasing filter).
-If we deliver an audio signal at 16kHz (sample frequency), we need a hardware low pass filter for less than 8kHz at the output (the sample frequency will be present and need to be removed as it is an audio frequency).
+**Input:** We sample each signal I, Q and MIC at 160kHz, so it is necessary to have a hardware low pass filter for 80kHz on each input (anti-aliasing filter). If the input filter is set to lower than 80kHz, the waterfall will show less than +-80kHz of signals. If the input filter is set to higher then 80kHz, the audio and the waterfall could peek some signals greater than 80kHz and treat them as lower than 80kHz (this is the aliasing problem).<br>
+**Output:** We deliver an audio signal at 16kHz sample frequency, so we need a hardware low pass filter for less than 8kHz at the output. The sample frequency will be present and needs to be removed as it is an audio frequency.
 
 
 ## Microcontroller RP2040 notes:
@@ -71,7 +73,7 @@ If we deliver an audio signal at 16kHz (sample frequency), we need a hardware lo
 ## Arduino IDE setup and notes:
 - I am using Arduino IDE version 1.8.19 in Linux/Ubuntu
 - Lib used: TFT_eSPI by Bodmer
-- **Use the comments at beginning of  .ino  file to "adjust" the library files to the project.**
+- **IMPORTANT: Use the comments at beginning of  .ino  file to "adjust" the library files to the project.**
 - Boards Manager:  Arduino Mbed OS RP2040 Boards. My version is 3.0.1 (If I update it, I will need to adjust the library files again, so I will leave it for later).
 - Do not include EarlePhilhower library (it is just conflitant with Mbed)
 - Board: "RaspberryPiPico"  >  Arduino Mbed OS RP2040 Boards  >  RaspberryPiPico
