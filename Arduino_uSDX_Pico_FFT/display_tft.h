@@ -10,13 +10,13 @@ extern "C" {
 #define ROTATION_SETUP  0   // 0 or 1
 
 
-#if ROTATION_SETUP == 0
+#if ROTATION_SETUP == 0 || ROTATION_SETUP == 2
 //ILI9341
 #define display_WIDTH  TFT_WIDTH   //TFT_HEIGHT=240
 #define display_HEIGHT TFT_HEIGHT    //TFT_WIDTH=320
 #endif
 
-#if ROTATION_SETUP == 1
+#if ROTATION_SETUP == 1 || ROTATION_SETUP == 3
 //ILI9341
 #define display_WIDTH  TFT_HEIGHT    //TFT_WIDTH=320
 #define display_HEIGHT TFT_WIDTH   //TFT_HEIGHT=240
