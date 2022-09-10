@@ -38,28 +38,19 @@
 #include "hardware/gpio.h"
 */
 #include "Arduino.h"
+#include "uSDR.h"
 #include "relay.h"
 #include "si5351.h"
 #include "dsp.h"
-//#include "lcd.h"
 #include "hmi.h"
 #include "dsp.h"
-/*
-#include "SPI.h"
-#include "TFT_eSPI.h"
-//#include "display.h"
-//#include "kiss_fftr.h"
-//#include "adc_fft.h"
-#include "dma.h"
-#include "pwm.h"
-#include "adc.h"
-#include "irq.h"
-#include "time.h"
-*/
 #include "pico/multicore.h"
 #include "SPI.h"
 #include "TFT_eSPI.h"
 #include "display_tft.h"
+//#include "Dflash.h"
+
+
 
 /*
  * GPIO assignments
@@ -74,23 +65,24 @@
 #define GP_MASK_IN	((1<<GP_ENC_A)|(1<<GP_ENC_B)|(1<<GP_AUX_0)|(1<<GP_AUX_1)|(1<<GP_AUX_2)|(1<<GP_AUX_3)|(1<<GP_PTT))
 //#define GP_MASK_PTT	(1<<GP_PTT)
 
-#define ENCODER_FALL             10    //increment/decrement freq on falling of A encoder signal
-#define ENCODER_FALL_AND_RISE    22    //increment/decrement freq on falling and rising fo A encoder signal
-#define ENCODER_TYPE             ENCODER_FALL      //choose what encoder is used
-//#define ENCODER_TYPE             ENCODER_FALL_AND_RISE      //choose what encoder is used
+
+#define ENCODER_FALL              10    //increment/decrement freq on falling of A encoder signal
+#define ENCODER_FALL_AND_RISE     22    //increment/decrement freq on falling and rising of A encoder signal
+#define ENCODER_TYPE              ENCODER_FALL      //choose to trigger the encoder step only on fall of A signal
+//#define ENCODER_TYPE              ENCODER_FALL_AND_RISE      //choose to trigger the encoder step on fall and on rise of A signal
 
 
-#define ENCODER_CW_A_FALL_B_LOW  10    //encoder type clockwise step when B low at falling of A
-#define ENCODER_CW_A_FALL_B_HIGH 22    //encoder type clockwise step when B high at falling of A
-#define ENCODER_DIRECTION        ENCODER_CW_A_FALL_B_HIGH   //direction related to B signal level
-//#define ENCODER_DIRECTION        ENCODER_CW_A_FALL_B_LOW    //direction related to B signal level
+#define ENCODER_CW_A_FALL_B_LOW   10    //encoder type clockwise step when B low at falling of A
+#define ENCODER_CW_A_FALL_B_HIGH  22    //encoder type clockwise step when B high at falling of A
+#define ENCODER_DIRECTION         ENCODER_CW_A_FALL_B_HIGH   //direction related to B signal level when A signal is triggered
+//#define ENCODER_DIRECTION         ENCODER_CW_A_FALL_B_LOW    //direction related to B signal level when A signal is triggered
 
 
 /*
  * Event flags
  */
-//#define GPIO_IRQ_ALL		(GPIO_IRQ_LEVEL_LOW|GPIO_IRQ_LEVEL_HIGH|GPIO_IRQ_EDGE_FALL|GPIO_IRQ_EDGE_RISE)
-#define GPIO_IRQ_EDGE_ALL	(GPIO_IRQ_EDGE_FALL|GPIO_IRQ_EDGE_RISE)
+//#define GPIO_IRQ_ALL		    (GPIO_IRQ_LEVEL_LOW|GPIO_IRQ_LEVEL_HIGH|GPIO_IRQ_EDGE_FALL|GPIO_IRQ_EDGE_RISE)
+#define GPIO_IRQ_EDGE_ALL	  (GPIO_IRQ_EDGE_FALL|GPIO_IRQ_EDGE_RISE)
 
 /*
  * Display layout:
@@ -413,7 +405,42 @@ void hmi_init(void)
 
 	// Set callback, one for all GPIO, not sure about correctness!
 	gpio_set_irq_enabled_with_callback(GP_ENC_A, GPIO_IRQ_EDGE_ALL, true, hmi_callback);
-		
+
+
+/*
+  // write last menu configuration to data flash memory
+  if(Dflash_write_block(hmi_sub, HMI_NSTATES) == true)
+  {
+      Serialx.println("\nWrite menu configuration from DFLASH = OK");
+      for(int ndata = 0; ndata < HMI_NSTATES; ndata++)
+        {   
+        Serialx.print(" " + String(hmi_sub[ndata]));
+        }
+      Serialx.println("\n");
+  }
+  else
+  {
+      Serialx.println("\nWrite menu configuration from DFLASH = NOT OK");
+  }
+*/
+
+/*
+  // read last menu configuration from data flash memory
+  if(Dflash_read_block(hmi_sub, HMI_NSTATES) == true)
+  {
+      Serialx.print("\nRead menu configuration from DFLASH = OK   ");
+      for(int ndata = 0; ndata < HMI_NSTATES; ndata++)
+        {   
+        Serialx.print(" " + String(hmi_sub[ndata]));
+        }
+      Serialx.println("\n");
+  }
+  else
+  {
+      Serialx.println("\nRead menu configuration from DFLASH = NOT OK    Using Default Values");
+  }
+*/
+    
 	// Initialize LCD and set VFO
 	hmi_state = HMI_S_TUNE;
 	hmi_option = 4;									// Active kHz digit
@@ -538,6 +565,31 @@ void hmi_evaluate(void)
 
   if((hmi_state_old != hmi_state) || (hmi_option_old != hmi_option))
   {
+
+/*
+    if((hmi_state_old != hmi_state) && (hmi_state == HMI_S_TUNE))      // escape from menus to TUNE
+    {
+      Serialx.print("\nWrite menu configuration to DFLASH ");
+      // write modified menu configuration to data flash memory
+      if(Dflash_write_block(hmi_sub, HMI_NSTATES) == true)
+      {
+          Serialx.print("\nWrite menu configuration to DFLASH = OK   ");
+          for(int ndata = 0; ndata < HMI_NSTATES; ndata++)
+            {   
+            Serialx.print(" " + String(hmi_sub[ndata]));
+            }
+          Serialx.println("\n");
+      }
+      else
+      {
+          Serialx.println("\nWrite menu configuration to DFLASH = NOT OK\n");
+      }
+
+    }
+
+*/
+
+    
   	//menu 
   	switch (hmi_state)
   	{
