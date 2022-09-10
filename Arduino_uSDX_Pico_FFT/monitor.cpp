@@ -51,11 +51,11 @@ int nargs;											// Nr of arguments
 
 typedef struct 
 {
-	char *cmdstr;									// Command string
+	const char *cmdstr;									// Command string
 	int   cmdlen;									// Command string length
 	void (*cmd)(void);								// Command executive
-	char *cmdsyn;									// Command syntax
-	char *help;										// Command help text
+	const char *cmdsyn;									// Command syntax
+	const char *help;										// Command help text
 } shell_t;
 
 
