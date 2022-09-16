@@ -134,3 +134,6 @@
   void I2C::beginTransmission(uint8_t addr){ start(); SendByte(addr << 1);  };
   bool I2C::write(uint8_t byte){ SendByte(byte); return 1; };
   uint8_t I2C::endTransmission(){ stop(); return 0; };
+  
+  
+  

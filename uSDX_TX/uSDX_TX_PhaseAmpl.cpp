@@ -71,7 +71,7 @@ inline void _vox(bool trigger)
 
 
 
-#define _UA       600   //=(_FSAMP_TX)/8 //(_F_SAMP_TX)      //360  // unit angle; integer representation of one full circle turn or 2pi radials or 360 degrees, should be a integer divider of F_SAMP_TX and maximized to have higest precision
+#define _UA       667  //600   //=(_FSAMP_TX)/8 //(_F_SAMP_TX)      //360  // unit angle; integer representation of one full circle turn or 2pi radials or 360 degrees, should be a integer divider of F_SAMP_TX and maximized to have higest precision
 #define MAX_DP    ((filt == 0) ? _UA : (filt == 3) ? _UA/4 : _UA/2)     //(_UA/2) // the occupied SSB bandwidth can be further reduced by restricting the maximum phase change (set MAX_DP to _UA/2).
 #define CARRIER_COMPLETELY_OFF_ON_LOW    1    // disable oscillator on low amplitudes, to prevent potential unwanted biasing/leakage through PA circuit
 #define KEY_CLICK        1   // Reduce key clicks by envelope shaping
@@ -370,7 +370,8 @@ void dsp_tx_fm()
 
 
 
-#define TIME_LOOP   208UL   // 1/4800 = 208us
+//#define TIME_LOOP   208UL   // 1/4800 = 208us
+#define TIME_LOOP   187UL   // 1/5333.33 = 187.5us
 unsigned long old_time;
 
 
@@ -547,7 +548,7 @@ static uint16_t ptt, old_ptt = 22;
   
 
 
-  //simulates an 4800Hz interrupt
+  //simulates an 5333(4800)Hz interrupt
   if(((unsigned long)(micros() - old_time)) > TIME_LOOP)
   {
 

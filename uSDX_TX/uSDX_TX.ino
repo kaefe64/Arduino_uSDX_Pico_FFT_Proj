@@ -55,7 +55,7 @@ void setup()
   uint16_t tim = millis();
  
   // some delay required for Serial1 too
-  for(int i=0; i<10; i++)
+  for(int i=0; i<60; i++)   //waits 6s to connect to serial
   {
   //digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
   gpio_set_mask(1<<LED_BUILTIN);
@@ -63,18 +63,13 @@ void setup()
   //digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
   gpio_clr_mask(1<<LED_BUILTIN);
    delay(50);                       // wait
-  }
-    
-  while (!Serial)  //Caution!!  with Serial, if no USB-serial open, it will be stuck here
-  {  //wait for PC USB-serial to open
-  //digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
-  gpio_set_mask(1<<LED_BUILTIN);
-  delay(250);
-  //digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
-  gpio_clr_mask(1<<LED_BUILTIN);
-  delay(250);
+
+  if(Serial)  //serial open
+    break;
   }
 
+
+  
   Serial.println("Arduino uSDX TX");
   Serial.println("\nSerial took " + String((millis() - tim)) + "ms to start");
 

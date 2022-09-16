@@ -10,7 +10,7 @@ extern "C" {
 
 
 
-#define F_SAMP_TX      4800U  //4810 //4805 // 4402 // (Design) ADC sample-rate; is best a multiple of _UA and fits exactly in OCR2A = ((F_CPU / 64) / F_SAMP_TX) - 1 , should not exceed CPU utilization
+#define F_SAMP_TX      5336   //4800U  //4810 //4805 // 4402 // (Design) ADC sample-rate; is best a multiple of _UA and fits exactly in OCR2A = ((F_CPU / 64) / F_SAMP_TX) - 1 , should not exceed CPU utilization
 #define _F_SAMP_TX     F_SAMP_TX
 
 
