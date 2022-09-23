@@ -112,6 +112,9 @@ volatile uint8_t vox_thresh = 50;  //(1 << 1); //(1 << 2);
 volatile uint8_t drive = 2;   // hmm.. drive>2 impacts cpu load..why?
 //uint16_t _amp;  // -6dB gain (correction)
 
+//int16_t vdf[20];
+//int16_t ndf = 0;
+
 //***********************************************************************
 //
 //
@@ -150,6 +153,7 @@ inline int16_t ssb(int16_t in)
   _amp = _amp << (drive);
   _amp = ((_amp > 255) || (drive == 8)) ? 255 : _amp; // clip or when drive=8 use max output
   amp = (tx) ? lut[_amp] : 0;
+//vdf[ndf&0x0f] = amp;  ndf++;  ndf = ndf&0x000f;
 
   static int16_t prev_phase;
   int16_t phase = arctan3(q, i);
@@ -169,8 +173,9 @@ inline int16_t ssb(int16_t in)
 #endif
   if(mode == USB)
     return dp * ( _F_SAMP_TX / _UA); // calculate frequency-difference based on phase-difference
+    //return -200;
   else
-    return dp * (-_F_SAMP_TX / _UA);
+    return dp * (-(_F_SAMP_TX / _UA));
 }
 
 
@@ -242,6 +247,7 @@ void dsp_tx_ssb()
   pwm_set_gpio_level(PWM_AMPL_OUT_PIN, amp);       // submit amplitude to PWM register (takes about 1/32125 = 31us+/-31us to propagate) -> amplitude-phase-alignment error is about 30-50us
   int16_t adc = adc_result[2];  //ADC - 512; // current ADC sample 10-bits analog input, NOTE: first ADCL, then ADCH
   int16_t df = ssb(adc >> MIC_ATTEN);  // convert analog input into phase-shifts (carrier out by periodic frequency shifts)
+//  vdf[ndf&0x0f] = df;  ndf++;  ndf = ndf&0x000f;
   si5351.freq_calc_fast(df);           // calculate SI5351 registers based on frequency shift and carrier frequency
 
 
@@ -488,6 +494,13 @@ void uSDX_TX_PhaseAmpl_setup(void)
     
   old_time = micros();
 
+/*
+int16_t dp = 600;
+int16_t resp = dp * (-_F_SAMP_TX / _UA);
+
+
+Serial.println("\n resp " + String(resp) +"\n");
+*/
 }
 
 
@@ -510,7 +523,8 @@ int16_t vet_audio[TAM_VET_AUDIO] = { 0/4,  1447/4,  2047/4,  1447/4,  -1/4,  -14
 int16_t vet_audio[TAM_VET_AUDIO] = { 0,  1447,  2047,  1447,  -1,  -1448, -2048, -1448, 0,  1773,  1773,  -1, -1774, -1774 );
 */
 
-
+//extern int32_t vdf[20];
+//extern int16_t ndf;
 
 
 //***********************************************************************
@@ -543,6 +557,13 @@ static uint16_t ptt, old_ptt = 22;
         
 //      Serial.println("TX OFF       tx = " + String(tx) + "      _amp = " + String(_amp) ); 
       Serial.println("TX OFF       MIC = " + String(adc_read())); 
+/*
+      for(ndf=0; ndf<8; ndf++)
+      {
+        Serial.print("  " + String(vdf[ndf]));
+      }
+      Serial.println("");
+*/
     }
   }  
   

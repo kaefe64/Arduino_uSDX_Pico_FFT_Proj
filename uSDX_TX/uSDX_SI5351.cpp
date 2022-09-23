@@ -17,6 +17,7 @@
 
 
 
+#define _MSC  0x10000
 
 
 #define BB0(x) ((uint8_t)(x))           // Bash byte x of int32_t
@@ -24,7 +25,8 @@
 #define BB2(x) ((uint8_t)((x)>>16))
 
 
-
+//int32_t vdf[20];
+//int16_t ndf = 0;
 
 
 //***********************************************************************
@@ -37,8 +39,25 @@
 //***********************************************************************
   void FAST SI5351::freq_calc_fast(int16_t df)  // note: relies on cached variables: _msb128, _msa128min512, _div, _fout, fxtal
   {
-    #define _MSC  0x10000
     uint32_t msb128 = _msb128 + ((int64_t)(_div * (int32_t)df) * _MSC * 128) / fxtal;
+//    uint32_t msb128 = _msb128 + (((int64_t)(_div * (int32_t)df) * _MSC) * 128L) / fxtal;
+    //uint32_t msb128 = (((int64_t)(_div * (int32_t)df) * (int64_t)_MSC) * (int64_t)128) / (int64_t)fxtal;
+//vdf[ndf&0x0f] = msb128;  ndf++;  ndf = ndf&0x000f;
+    //msb128 += _msb128;
+/*
+vdf[0] = _msb128;
+vdf[1] = _div;
+vdf[2] = df;
+vdf[3] = _MSC;
+vdf[4] = fxtal;
+vdf[5] = 0;
+vdf[6] = msb128;
+vdf[7] = 0;
+vdf[8] = 0;
+vdf[9] = 0;
+vdf[10] = 0;
+*/
+    
 
     uint16_t msp1 = _msa128min512 + msb128 / _MSC; // = 128 * _msa + msb128 / _MSC - 512;
     uint16_t msp2 = msb128; // = msb128 % _MSC;  assuming MSC is covering exact uint16_t so the mod operation can dissapear (and the upper BB2 byte) // = msb128 - msb128/_MSC * _MSC;
@@ -138,8 +157,8 @@
 
       _fout = fout;  // cache
       _div = d;
-      _msa128min512 = fvcoa / fxtal * 128 - 512;
-      _msb128=((uint64_t)(fvcoa % fxtal)*_MSC*128) / fxtal;
+      _msa128min512 = ((fvcoa / fxtal) * 128) - 512;
+      _msb128=(((uint64_t)(fvcoa % fxtal)*_MSC)*128) / fxtal;
       //_mod = fvcoa % fxtal;
   }
 
