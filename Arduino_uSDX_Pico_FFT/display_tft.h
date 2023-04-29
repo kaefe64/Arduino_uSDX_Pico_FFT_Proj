@@ -7,7 +7,7 @@ extern "C" {
 
 
 
-#define ROTATION_SETUP  0   // 0 or 1
+#define ROTATION_SETUP  2   // 0, 1, 2 or 3
 
 
 #if ROTATION_SETUP == 0 || ROTATION_SETUP == 2
@@ -116,6 +116,7 @@ uint16_t tft_color565(uint16_t r, uint16_t g, uint16_t b);
 //extern uint8_t fft_display_graf_new;
 void display_fft_graf(void);
 void display_fft_graf_top(void);
+void display_tft_setup0(void);
 void display_tft_setup(void);
 void display_tft_loop(void);
 

@@ -6,12 +6,13 @@ extern "C" {
 #endif
 
 
+//#define PY2KLA_setup  1    //setup for PY2KLA hardware
 
+//#define EXCHANGE_I_Q  1    //include or remove this #define in case the LSB/USB and the lower/upper frequency of waterfall display are reverted - hardware dependent
 
 //choose the serial to be used
-//#define Serialx   Serial    //USB virtual serial  /dev/ttyACM0
-#define Serialx   Serial1   //UART0  /dev/ttyUSB0
-
+#define Serialx   Serial    //USB virtual serial  /dev/ttyACM0
+//#define Serialx   Serial1   //UART0  /dev/ttyUSB0
 
 
 
@@ -28,6 +29,7 @@ extern "C" {
 
 
 
+void uSDR_setup0(void);
 void uSDR_setup(void);
 void uSDR_loop(void);
 

@@ -68,15 +68,19 @@
 
 #define ENCODER_FALL              10    //increment/decrement freq on falling of A encoder signal
 #define ENCODER_FALL_AND_RISE     22    //increment/decrement freq on falling and rising of A encoder signal
+#ifdef PY2KLA_setup
+#define ENCODER_TYPE              ENCODER_FALL_AND_RISE      //choose to trigger the encoder step on fall and on rise of A signal
+#else
 #define ENCODER_TYPE              ENCODER_FALL      //choose to trigger the encoder step only on fall of A signal
-//#define ENCODER_TYPE              ENCODER_FALL_AND_RISE      //choose to trigger the encoder step on fall and on rise of A signal
-
+#endif
 
 #define ENCODER_CW_A_FALL_B_LOW   10    //encoder type clockwise step when B low at falling of A
 #define ENCODER_CW_A_FALL_B_HIGH  22    //encoder type clockwise step when B high at falling of A
+#ifdef PY2KLA_setup
+#define ENCODER_DIRECTION         ENCODER_CW_A_FALL_B_LOW    //direction related to B signal level when A signal is triggered
+#else
 #define ENCODER_DIRECTION         ENCODER_CW_A_FALL_B_HIGH   //direction related to B signal level when A signal is triggered
-//#define ENCODER_DIRECTION         ENCODER_CW_A_FALL_B_LOW    //direction related to B signal level when A signal is triggered
-
+#endif
 
 /*
  * Event flags
@@ -137,7 +141,7 @@
 char hmi_o_menu[HMI_NSTATES][8] = {"Tune","Mode","AGC","Pre","VOX"};	// Indexed by hmi_state
 char hmi_o_mode[HMI_NMODE][8] = {"USB","LSB","AM","CW"};			// Indexed by hmi_sub[HMI_S_MODE]
                                                               //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
-char hmi_o_agc [HMI_NAGC][8] = {"NoGC","Slow","Fast"};					// Indexed by hmi_sub[HMI_S_AGC]
+char hmi_o_agc [HMI_NAGC][8] = {"NoAGC","Slow","Fast"};					// Indexed by hmi_sub[HMI_S_AGC]
 char hmi_o_pre [HMI_NPRE][8] = {"-30dB","-20dB","-10dB","0dB","+10dB"};	// Indexed by hmi_sub[HMI_S_PRE]
 char hmi_o_vox [HMI_NVOX][8] = {"NoVOX","VOX-L","VOX-M","VOX-H"};		// Indexed by hmi_sub[HMI_S_VOX]
 char hmi_o_bpf [HMI_NBPF][8] = {"<2.5","2-6","5-12","10-24","20-40"};
@@ -155,9 +159,12 @@ uint32_t hmi_freq;														// Frequency from Tune state
 uint32_t hmi_step[7] = {10000000, 1000000, 100000, 10000, 1000, 100, 50};	// Frequency digit increments
 #define HMI_MAXFREQ		30000000
 #define HMI_MINFREQ		     100
-//#define HMI_MULFREQ          4			// Factor between HMI and actual frequency
+#ifdef PY2KLA_setup
+#define HMI_MULFREQ          4			// Factor between HMI and actual frequency
+#else
 #define HMI_MULFREQ          1      // Factor between HMI and actual frequency
 																		// Set to 1, 2 or 4 for certain types of mixer
+#endif
 #define PTT_DEBOUNCE	3											// Nr of cycles for debounce
 int ptt_state;															// Debounce counter
 bool ptt_active;														// Resulting state
@@ -616,7 +623,7 @@ void hmi_evaluate(void)
       tft_writexy_(1, TFT_MAGENTA, TFT_BLACK,0,0,(uint8_t *)s);  
   		break;
   	case HMI_S_BPF:
-  		sprintf(s, "Band: %d %s        ", hmi_option, hmi_o_bpf[hmi_option]);
+  		sprintf(s, "Band: B%d %sMHz    ", hmi_option, hmi_o_bpf[hmi_option]);
       tft_writexy_(1, TFT_MAGENTA, TFT_BLACK,0,0,(uint8_t *)s);  
   	default:
   		break;

@@ -466,6 +466,23 @@ int16_t x;
 
 
 
+/*********************************************************
+  
+*********************************************************/
+void display_tft_setup0(void) {
+  char s[32];
+  
+  tft.init();
+  tft.setRotation(ROTATION_SETUP);
+ 
+  tft.fillScreen(TFT_BLACK);
+
+  sprintf(s, "uSDR Pico");
+  tft_writexy_plus(3, TFT_YELLOW, TFT_NAVY, 1,10,1,0,(uint8_t *)s);
+  //sprintf(s, "PY2KLA");
+  //tft_writexy_(3, TFT_WHITE, TFT_NAVY, 3,3,(uint8_t *)s);
+  
+}
 
 
 /*********************************************************
@@ -476,9 +493,9 @@ void display_tft_setup(void) {
 //uint16_t x, y;
 char s[32];
   
-  tft.init();
-  tft.setRotation(ROTATION_SETUP);
- 
+//  tft.init();
+//  tft.setRotation(ROTATION_SETUP);
+
   tft.fillScreen(TFT_BLACK);
   
 

@@ -94,6 +94,13 @@ There is a **uSDX_TX** folder with code to test RF modulation using **phase and 
 
 ## Last changes and notes:<br>
 
+Apr29 2023
+- Minor changes, improve comments at .ino file. Trying to get the new PCB running and getting back to software improvement.
+
+![PCB assembly top](uSDR_Pico_FFT_PCB_top.png)
+
+![PCB assembly botton](uSDR_Pico_FFT_PCB_botton.png)
+
 
 Ago17 2022
 - Included sketch folder uSDX_TX to test the Phase and Amplitude TX method.
@@ -150,11 +157,12 @@ Jun10 2022
 ## Wish list:
 - Improve the S meter, at least to show the AD input signal level.
 - The AGC needs to be improved as the audio still saturate at beginnig of strong signal
+- Include zoom in the waterfall (frequency range)
 - Include RIT (receiver incremental tuning)
 - Reduce the minimum step to change the frequency to 50Hz or less
 - Verify why the switches do not work some times (at least for me)
 - Check the trasmission on all modes
-- Storage the last state to recover it at the next power up (SD card? Internal Flash doesn't work, it needs to stop interrupts)
+- Storage the last configuration to recover it at the next power up (Write to internal Flash needs to stop interrupts - special save command will stop the main functions)
 - Band selection with setup for each one (correspondence to the filter bands)
 - Tests: reception/transmission SSB...  menus...  switches/debounce...   display appearance
 

@@ -161,9 +161,9 @@ Control Si5351 (see AN619):
 #define SI_XTAL_LOAD	183
 
 // CLK_OE register 3 values
-#define SI_CLK0_ENABLE	0b00000001	// Enable clock 0 output
-#define SI_CLK1_ENABLE	0b00000010	// Enable clock 1 output
-#define SI_CLK2_ENABLE	0b00000100	// Enable clock 2 output
+//#define SI_CLK0_ENABLE	0b00000001	// Enable clock 0 output
+//#define SI_CLK1_ENABLE	0b00000010	// Enable clock 1 output
+//#define SI_CLK2_ENABLE	0b00000100	// Enable clock 2 output
 
 // CLKi_CTL register 16, 17, 18 values
 // Normally 0x4f for clk 0 and 1, 0x6f for clk 2
@@ -178,9 +178,11 @@ Control Si5351 (see AN619):
 #define SI_PLLA_RST		0b00100000	// Reset PLL A
 
 
-
-//#define SI_XTAL_FREQ  (25000000UL-250UL)  // Replace with measured crystal frequency of XTAL for CL = 10pF (default)
-#define SI_XTAL_FREQ	25001414UL	// Replace with measured crystal frequency of XTAL for CL = 10pF (default)
+#ifdef PY2KLA_setup
+#define SI_XTAL_FREQ  25001414UL  // Replace with measured crystal frequency of XTAL for CL = 10pF (default)
+#else
+#define SI_XTAL_FREQ  (25000000UL-250UL)  // Replace with measured crystal frequency of XTAL for CL = 10pF (default)
+#endif
 #define SI_MSN_LO		((0.6e9)/SI_XTAL_FREQ)
 #define SI_MSN_HI		((0.9e9)/SI_XTAL_FREQ)
 #define SI_PLL_C		1000000UL		// Parameter c for PLL-A and -B setting
@@ -425,7 +427,11 @@ void si_init(void)
 	i2c_write_blocking_(i2c0, I2C_VFO, data, 2, false);
 
 	// Enable all outputs	
-	data[0] = SI_CLK_OE;
-	data[1] = 0x00;
+  data[0] = SI_CLK_OE;  //reg address
+#ifdef PY2KLA_setup
+  data[1] = 0xfe;       // enable clk0
+#else
+	data[1] = 0x00;       //0 = enable all
+#endif
 	i2c_write_blocking_(i2c0, I2C_VFO, data, 2, false);
 }

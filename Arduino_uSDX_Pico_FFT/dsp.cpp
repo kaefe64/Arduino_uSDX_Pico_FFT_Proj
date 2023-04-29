@@ -794,8 +794,8 @@ void dsp_setvox(int vox)
 //the DMA copy a block of samples from AD to  adc_samp[]
 //the size of the block is how much the sample frequency must be divided to get the audio samples frequency
 //ADC sample frequency = 480kHz, but for 3 samples = I, Q and MIC   resulting 160kHz of sample freq for each one
-//the audio sample freq could rise to 32kHz   with critical time conditions, changed to 16kHz  (care must be taken when including code)
-// 160kHz / 16kHz  = BLOCK_NSAMP = 30 samples / block
+//the audio sample freq could rise to 32kHz  but with critical time conditions, changed to 16kHz  (care must be taken when including code)
+// 160kHz / 16kHz  = BLOCK_NSAMP = 30 samples / block  (10 samples for each I Q and MIC)
 //the DMA will interrupt @16kHz with 30 samples saved on adc_samp[]
 //the last samples from adc_samp[] will be summed to generate an audio sample. This is also a low pass filter for audio samples.
 //   the number of samples summed to generate the audio sample = 10   to make a low pass <10kHz
@@ -818,7 +818,7 @@ volatile int16_t adc_samp_sum[ADC_NUM_BLOCK][3] = { 0 };  //save the sum of each
 
 //bias = samples average = DC component, used to remome the DC from the samples
 #define AVG_BIAS_SHIFT  8  //16   
-volatile int32_t adc_result_bias[3] = { (ADC_BIAS << AVG_BIAS_SHIFT), (ADC_BIAS << AVG_BIAS_SHIFT), (ADC_BIAS << AVG_BIAS_SHIFT) };
+volatile int32_t adc_result_bias[3] = { (ADC_BIAS << AVG_BIAS_SHIFT), (ADC_BIAS << AVG_BIAS_SHIFT), (ADC_BIAS << AVG_BIAS_SHIFT) };  //bias starts at the middle
 volatile int16_t adc_result[3];   //
 
 #define FFT_NUM_BLOCK   (NBLOCK + 2u)  // number of blocks FFT + HILBERT_TAP_NUM = 15 = fit in 2*blocks=20
@@ -827,7 +827,7 @@ volatile uint16_t fft_samp_block_pos = 0;
 volatile uint16_t fft_samples_ready = 0;  //all buffer filled
 volatile uint16_t fft_display_graf_new = 0;   //new data for graphic ready
 
-volatile int16_t aud_samp[AUD_NUM_VAR][AUD_NUM_SAMP];  //samples buffer for FFT and waterfall    only 0-1 used for I and Q  (3=MIC)  [NL][NCOL]
+volatile int16_t aud_samp[AUD_NUM_VAR][AUD_NUM_SAMP];  //samples buffer for audio process, filter and demodulation
 volatile uint16_t aud_samp_block_pos = 0;    
 volatile uint16_t aud_samples_state = AUD_STATE_SAMP_IN;  //filling buffer
 
@@ -839,7 +839,7 @@ volatile uint16_t st_int_count=0;
 /************************************************************************************** 
  * CORE1:  DMA IRQ
  * dma handler - IRQ when a block of samples was read
- * take a block o samples, calculate average for I Q MIC and store for FFT
+ * take a block of samples, calculate average for I Q MIC and store data for FFT
  * it takes < 28us (1/16kHz = 62.5us)
  **************************************************************************************/
 void __not_in_flash_func(dma_handler)(void)
@@ -1171,7 +1171,8 @@ void core0_irq_handler()
 
 #define HILBERT_TAP_NUM  15u  //Hilbert filter 15 taps  fixed value   it uses values from 0 to 14
 
-
+//  int16_t out_sample_;
+//  int16_t out_sobe_;
 
 /************************************************************************************** 
  * CORE0: inside DMA IRQ 
@@ -1194,16 +1195,23 @@ bool rx(void)
 
 //  gpio_set_mask(1<<LED_BUILTIN);
 
+
 	/*
    * Store new sample
 	 * Attenuate with AGC feedback from AUDIO GENERATION stage
 	 * This behavior in essence is exponential, complementing the logarithmic peak detector
 	 */
+#ifdef EXCHANGE_I_Q
+  // Take last ADC 0 result, connected to Q input  (16 bits size)
+  i_sample = ((int32_t)agc_gain * (int32_t)adc_result[0])>>AGC_GAIN_SHIFT;
+  // Take last ADC 1 result, connected to I input  (16 bits size)
+  q_sample = ((int32_t)agc_gain * (int32_t)adc_result[1])>>AGC_GAIN_SHIFT;
+#else
   // Take last ADC 0 result, connected to Q input  (16 bits size)
   q_sample = ((int32_t)agc_gain * (int32_t)adc_result[0])>>AGC_GAIN_SHIFT;
   // Take last ADC 1 result, connected to I input  (16 bits size)
   i_sample = ((int32_t)agc_gain * (int32_t)adc_result[1])>>AGC_GAIN_SHIFT;
-
+#endif
 
   /*
    * IIR filter: dc = a*sample + (1-a)*dc  where a = 1/128
@@ -1352,6 +1360,29 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
   pwm_set_chan_level(dac_audio, PWM_CHAN_A, out_sample);
 
 
+#if 0
+  if(out_sobe_ == 0)
+  {
+    out_sample_-=50;
+    if(out_sample_ < 0)
+    {
+      out_sample_ = 0;
+      out_sobe_ = 1;
+    }
+  }
+  else
+  {
+    out_sample_+=50;                                                                                                                                                                                                                                                                                                                                                                        0;
+    if(out_sample_ > 255)
+    {
+      out_sample_ = 255;
+      out_sobe_ = 0;
+    }    
+  }
+
+  pwm_set_chan_level(dac_audio, PWM_CHAN_A, (out_sample_&0xff));
+#endif
+
 
 
 
@@ -1470,7 +1501,7 @@ bool vox(void)
 // 666Hz cw tone @ 16kHz sample freq 
 #define CW_TONE_NUM  24
 int16_t cw_tone_to_play_pos = 0;
-// ADC_RANGE 4096  >>4 = DAC_RANGE 256
+// ADC_RANGE 4095  >>4 = DAC_RANGE 255
 int16_t cw_tone_to_play[CW_TONE_NUM] = {0,  529, 1023,  1447,  1773,  1977,  2047,  1977,  1773,  1447,  1023,  529, -1,  -530,  -1024, -1448, -1774, -1978, -2048, -1978, -1774, -1448, -1024, -530}; 
 
 
@@ -1558,16 +1589,16 @@ bool tx(void)
 	a_accu = DAC_BIAS - (qh>>4);  //(qh/16);
 	if (a_accu<0)
 		q_dac = 0;
-	else if (a_accu>(int16_t)(DAC_RANGE-1u))
-		q_dac = DAC_RANGE-1;
+	else if (a_accu>(int16_t)(DAC_RANGE))
+		q_dac = DAC_RANGE;
 	else
 		q_dac = a_accu;
 	
 	a_accu = DAC_BIAS + (a_s[7]>>4);  //(a_s[7]/16);
 	if (a_accu<0)
 		i_dac = 0;
-	else if (a_accu>(int16_t)(DAC_RANGE-1u))
-		i_dac = DAC_RANGE-1;
+	else if (a_accu>(int16_t)(DAC_RANGE))
+		i_dac = DAC_RANGE;
 	else
 		i_dac = a_accu;
 		
@@ -1805,8 +1836,13 @@ void dsp_core1_setup_and_loop()
       // fill first samples to calculate the first Hilbert value
       for(j_c1=0; j_c1<HILBERT_TAP_NUM; j_c1++)
       {
+#ifdef EXCHANGE_I_Q
+        fft_i_s[j_c1] = fft_samp[block_num][block_pos];   
+        fft_q_s[j_c1] = fft_samp[block_num][block_pos+1];
+#else
         fft_q_s[j_c1] = fft_samp[block_num][block_pos];   
         fft_i_s[j_c1] = fft_samp[block_num][block_pos+1];
+#endif
         block_pos+=3;
         if(block_pos >= BLOCK_NSAMP)
         {
@@ -1821,8 +1857,13 @@ void dsp_core1_setup_and_loop()
           fft_q_s[i_c1] = fft_q_s[i_c1+1];
           fft_i_s[i_c1] = fft_i_s[i_c1+1];
         }
+#ifdef EXCHANGE_I_Q
+        fft_i_s[(HILBERT_TAP_NUM-1)] = fft_samp[block_num][block_pos];
+        fft_q_s[(HILBERT_TAP_NUM-1)] = fft_samp[block_num][block_pos+1];
+#else
         fft_q_s[(HILBERT_TAP_NUM-1)] = fft_samp[block_num][block_pos];
         fft_i_s[(HILBERT_TAP_NUM-1)] = fft_samp[block_num][block_pos+1];
+#endif
      
         qh = ((int32_t)(fft_q_s[0]-fft_q_s[14])*315L + (int32_t)(fft_q_s[2]-fft_q_s[12])*440L + 
               (int32_t)(fft_q_s[4]-fft_q_s[10])*734L + (int32_t)(fft_q_s[6]-fft_q_s[ 8])*2202L) >> 12;  // / 4096L
@@ -1847,9 +1888,13 @@ void dsp_core1_setup_and_loop()
       
       for(j_c1=0; j_c1<FFT_NSAMP; j_c1++)  //320
       {
+#ifdef EXCHANGE_I_Q
+        fft_in_plus[j_c1] = fft_samp[block_num][block_pos];
+        fft_in_minus[j_c1] = fft_samp[block_num][block_pos+1]; 
+#else
         fft_in_minus[j_c1] = fft_samp[block_num][block_pos];
         fft_in_plus[j_c1] = fft_samp[block_num][block_pos+1]; 
-        
+#endif
         block_pos+=3;
         if(block_pos >= BLOCK_NSAMP)
         {
@@ -2003,13 +2048,13 @@ void dsp_init()
   gpio_set_function(21, GPIO_FUNC_PWM);     // GP21 is PWM for I DAC (Slice 2, Channel B)
   dac_iq = pwm_gpio_to_slice_num(20);       // Get PWM slice for GP20 (Same for GP21)
   pwm_set_clkdiv_int_frac (dac_iq, 1, 0);     // clock divide by 1 = 125MHz
-  pwm_set_wrap(dac_iq, DAC_RANGE-1);        // Set cycle length; nr of counts until wrap, 125MHz / 255 = 490kHz
+  pwm_set_wrap(dac_iq, DAC_RANGE);        // Set cycle length; nr of counts until wrap, 125MHz / 255 = 490kHz
   pwm_set_enabled(dac_iq, true);            // Set the PWM running
   
   gpio_set_function(22, GPIO_FUNC_PWM);     // GP22 is PWM for Audio DAC (Slice 3, Channel A)
   dac_audio = pwm_gpio_to_slice_num(22);      // Find PWM slice for GP22
   pwm_set_clkdiv_int_frac (dac_audio, 1, 0);    // clock divide by 1 = 125MHz
-  pwm_set_wrap(dac_audio, DAC_RANGE-1);     // Set cycle length; nr of counts until wrap, 125MHz / 255 = 490kHz
+  pwm_set_wrap(dac_audio, DAC_RANGE);     // Set cycle length; nr of counts until wrap, 125MHz / 255 = 490kHz
   pwm_set_enabled(dac_audio, true);         // Set the PWM running
 
 

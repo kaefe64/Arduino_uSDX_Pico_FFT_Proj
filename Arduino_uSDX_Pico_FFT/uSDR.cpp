@@ -6,7 +6,7 @@
  * May2022: adapted by Klaus Fensterseifer 
  * https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj
  * 
- * The main loop of the application.
+ * The application main loop
  * This initializes the units that do the actual work, and then loops in the background. 
  * Other units are:
  * - dsp.c, containing all signal processing in RX and TX branches. This part runs on the second processor core.
@@ -33,6 +33,13 @@
 
 uint16_t tim_loc;     // local time 
 
+void uSDR_setup0(void)  //main
+{
+  display_tft_setup0();
+
+}
+
+
 
 void uSDR_setup(void)  //main
 {
@@ -55,7 +62,7 @@ void uSDR_setup(void)  //main
 	mon_init();										// Monitor shell on stdio
 	si_init();										// VFO control unit
 	relay_init();
-  display_tft_setup();
+  display_tft_setup();   //moved to setup0 to write into display from the beggining
 	hmi_init();										// HMI user inputs
   dsp_init();                   // Signal processing unit
 

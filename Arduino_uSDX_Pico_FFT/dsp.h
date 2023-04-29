@@ -34,9 +34,9 @@ extern "C" {
  * ADC is 12 bit, so resolution is by definition 4096
  * To eliminate undefined behavior we clip off the upper 4 sample bits.
  */
-#define DAC_RANGE  256u
+#define DAC_RANGE  255u
 #define DAC_BIAS  (DAC_RANGE/2u)
-#define ADC_RANGE 4096u
+#define ADC_RANGE 4095u
 #define ADC_BIAS  (ADC_RANGE/2u)
 
 
