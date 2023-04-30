@@ -1630,6 +1630,7 @@ uint16_t block_num;
 uint16_t block_pos;
 uint16_t aux_c1 = 0;
 uint16_t i_c1, j_c1;
+uint16_t volatile fft_gain = 8;
 /************************************************************************************** 
  * CORE1: 
  * Timing loop, triggered through inter-core fifo 
@@ -1837,11 +1838,11 @@ void dsp_core1_setup_and_loop()
       for(j_c1=0; j_c1<HILBERT_TAP_NUM; j_c1++)
       {
 #ifdef EXCHANGE_I_Q
-        fft_i_s[j_c1] = fft_samp[block_num][block_pos];   
-        fft_q_s[j_c1] = fft_samp[block_num][block_pos+1];
+        fft_i_s[j_c1] = (fft_gain * fft_samp[block_num][block_pos]) >> FFT_GAIN_SHIFT;   
+        fft_q_s[j_c1] = (fft_gain * fft_samp[block_num][block_pos+1]) >> FFT_GAIN_SHIFT;;
 #else
-        fft_q_s[j_c1] = fft_samp[block_num][block_pos];   
-        fft_i_s[j_c1] = fft_samp[block_num][block_pos+1];
+        fft_q_s[j_c1] = (fft_gain * fft_samp[block_num][block_pos]) >> FFT_GAIN_SHIFT;;   
+        fft_i_s[j_c1] = (fft_gain * fft_samp[block_num][block_pos+1]) >> FFT_GAIN_SHIFT;;
 #endif
         block_pos+=3;
         if(block_pos >= BLOCK_NSAMP)
@@ -1858,11 +1859,11 @@ void dsp_core1_setup_and_loop()
           fft_i_s[i_c1] = fft_i_s[i_c1+1];
         }
 #ifdef EXCHANGE_I_Q
-        fft_i_s[(HILBERT_TAP_NUM-1)] = fft_samp[block_num][block_pos];
-        fft_q_s[(HILBERT_TAP_NUM-1)] = fft_samp[block_num][block_pos+1];
+        fft_i_s[(HILBERT_TAP_NUM-1)] = (fft_gain * fft_samp[block_num][block_pos]) >> FFT_GAIN_SHIFT;
+        fft_q_s[(HILBERT_TAP_NUM-1)] = (fft_gain * fft_samp[block_num][block_pos+1]) >> FFT_GAIN_SHIFT;
 #else
-        fft_q_s[(HILBERT_TAP_NUM-1)] = fft_samp[block_num][block_pos];
-        fft_i_s[(HILBERT_TAP_NUM-1)] = fft_samp[block_num][block_pos+1];
+        fft_q_s[(HILBERT_TAP_NUM-1)] = (fft_gain * fft_samp[block_num][block_pos]) >> FFT_GAIN_SHIFT;
+        fft_i_s[(HILBERT_TAP_NUM-1)] = (fft_gain * fft_samp[block_num][block_pos+1]) >> FFT_GAIN_SHIFT;
 #endif
      
         qh = ((int32_t)(fft_q_s[0]-fft_q_s[14])*315L + (int32_t)(fft_q_s[2]-fft_q_s[12])*440L + 

@@ -124,6 +124,7 @@ Control Si5351 (see AN619):
 
 #include "Arduino.h"
 #include "uSDR.h"
+#include "dsp.h"
 #include "si5351.h"
 
 

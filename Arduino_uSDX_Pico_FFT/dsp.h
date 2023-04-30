@@ -40,6 +40,19 @@ extern "C" {
 #define ADC_BIAS  (ADC_RANGE/2u)
 
 
+#ifdef PY2KLA_setup
+#define EXCHANGE_I_Q  1    //include or remove this #define in case the LSB/USB and the lower/upper frequency of waterfall display are reverted - hardware I and Q pin dependent
+#endif
+
+
+#define PHASE_AMPLITUDE  11
+#define I_Q_QSE          22
+//
+//Here you can choose one of the two methods for uSDR_Pico transmission
+//
+#define TX_METHOD    I_Q_QSE            // uSDR_Pico original project generating I and Q signal to a QSE mixer
+//#define TX_METHOD    PHASE_AMPLITUDE    // DO NOT USE - is not ready - used for Class E RF amplifier - see description at: uSDX_TX_PhaseAmpl.cpp
+
 
 
 //extern volatile uint16_t adc_audio_count;
@@ -83,6 +96,8 @@ extern volatile int32_t peak_avg_shifted;     // signal level detector after AGC
 #define AGC_GAIN_SHIFT  6        //shift corresponding to AGC_GAIN_MAX
 #define AGC_GAIN_MAX    (1u<<AGC_GAIN_SHIFT)       //max attenuation agc can do   signal * agc_gain / AGC_GAIN_MAX
 extern volatile uint16_t agc_gain;
+#define FFT_GAIN_SHIFT   4  //gain = 1 to 16 / 16
+extern volatile uint16_t fft_gain;
 
 extern volatile uint16_t dac_iq, dac_audio;
 extern volatile bool tx_enabled;

@@ -57,12 +57,12 @@
  */
 #define GP_ENC_A	2               // Encoder clock
 #define GP_ENC_B	3               // Encoder direction
-#define GP_AUX_0	6								// Enter, Confirm
-#define GP_AUX_1	7								// Escape, Cancel
-#define GP_AUX_2	8								// Left move
-#define GP_AUX_3	9								// Right move
+#define GP_AUX_0_Enter	6								// Enter, Confirm
+#define GP_AUX_1_Escape	7								// Escape, Cancel
+#define GP_AUX_2_Left	8								// Left move
+#define GP_AUX_3_Right	9								// Right move
 #define GP_PTT		15
-#define GP_MASK_IN	((1<<GP_ENC_A)|(1<<GP_ENC_B)|(1<<GP_AUX_0)|(1<<GP_AUX_1)|(1<<GP_AUX_2)|(1<<GP_AUX_3)|(1<<GP_PTT))
+#define GP_MASK_IN	((1<<GP_ENC_A)|(1<<GP_ENC_B)|(1<<GP_AUX_0_Enter)|(1<<GP_AUX_1_Escape)|(1<<GP_AUX_2_Left)|(1<<GP_AUX_3_Right)|(1<<GP_PTT))
 //#define GP_MASK_PTT	(1<<GP_PTT)
 
 
@@ -217,13 +217,35 @@ void hmi_handler(uint8_t event)
 		}
 		if (event==HMI_E_INCREMENT)
 		{
-			if (hmi_freq < (HMI_MAXFREQ - hmi_step[hmi_option]))		// Boundary check
-				hmi_freq += hmi_step[hmi_option];						// Increment selected digit
+      //if(!gpio_get(GP_AUX_1_Escape))  //in case Escape is pressed
+      if(!gpio_get(GP_AUX_0_Enter))  //in case Escape is pressed
+      {
+        if(fft_gain<(1<<FFT_GAIN_SHIFT))
+          {
+            fft_gain++;
+          }
+      }
+      else
+      {
+			  if (hmi_freq < (HMI_MAXFREQ - hmi_step[hmi_option]))		// Boundary check
+			  	hmi_freq += hmi_step[hmi_option];						// Increment selected digit
+      }
 		}
 		if (event==HMI_E_DECREMENT)
 		{
-			if (hmi_freq > (hmi_step[hmi_option] + HMI_MINFREQ))		// Boundary check
-				hmi_freq -= hmi_step[hmi_option];						// Decrement selected digit
+      //if(!gpio_get(GP_AUX_1_Escape))  //in case Escape is pressed
+      if(!gpio_get(GP_AUX_0_Enter))  //in case Escape is pressed
+      {
+        if(fft_gain>1)
+          {
+            fft_gain--;
+          }
+      }
+      else
+      {
+        if (hmi_freq > (hmi_step[hmi_option] + HMI_MINFREQ))		// Boundary check
+				  hmi_freq -= hmi_step[hmi_option];						// Decrement selected digit
+      }
 		}
 		if (event==HMI_E_RIGHT)
 			hmi_option = (hmi_option<6)?hmi_option+1:6;					// Digit to the right
@@ -326,25 +348,25 @@ void hmi_callback(uint gpio, uint32_t events)
     }
 #endif
 		break;
-	case GP_AUX_0:									// Enter
+	case GP_AUX_0_Enter:									// Enter
 		if (events&GPIO_IRQ_EDGE_FALL)
     {
 			evt = HMI_E_ENTER;
     }
 		break;
-	case GP_AUX_1:									// Escape
+	case GP_AUX_1_Escape:									// Escape
 		if (events&GPIO_IRQ_EDGE_FALL)
     {
 			evt = HMI_E_ESCAPE;
     }
 		break;
-	case GP_AUX_2:									// Previous
+	case GP_AUX_2_Left:									// Previous
 		if (events&GPIO_IRQ_EDGE_FALL)
     {
 			evt = HMI_E_LEFT;
     }
 		break;
-	case GP_AUX_3:									// Next
+	case GP_AUX_3_Right:									// Next
 		if (events&GPIO_IRQ_EDGE_FALL)
     {
 			evt = HMI_E_RIGHT;
@@ -395,18 +417,18 @@ void hmi_init(void)
 	// Enable pull-ups
 	gpio_pull_up(GP_ENC_A);
 	gpio_pull_up(GP_ENC_B);
-	gpio_pull_up(GP_AUX_0);
-	gpio_pull_up(GP_AUX_1);
-	gpio_pull_up(GP_AUX_2);
-	gpio_pull_up(GP_AUX_3);
+	gpio_pull_up(GP_AUX_0_Enter);
+	gpio_pull_up(GP_AUX_1_Escape);
+	gpio_pull_up(GP_AUX_2_Left);
+	gpio_pull_up(GP_AUX_3_Right);
 	gpio_pull_up(GP_PTT);
 	
 	// Enable interrupt on level low
 	gpio_set_irq_enabled(GP_ENC_A, GPIO_IRQ_EDGE_ALL, true);
-	gpio_set_irq_enabled(GP_AUX_0, GPIO_IRQ_EDGE_ALL, true);
-	gpio_set_irq_enabled(GP_AUX_1, GPIO_IRQ_EDGE_ALL, true);
-	gpio_set_irq_enabled(GP_AUX_2, GPIO_IRQ_EDGE_ALL, true);
-	gpio_set_irq_enabled(GP_AUX_3, GPIO_IRQ_EDGE_ALL, true);
+	gpio_set_irq_enabled(GP_AUX_0_Enter, GPIO_IRQ_EDGE_ALL, true);
+	gpio_set_irq_enabled(GP_AUX_1_Escape, GPIO_IRQ_EDGE_ALL, true);
+	gpio_set_irq_enabled(GP_AUX_2_Left, GPIO_IRQ_EDGE_ALL, true);
+	gpio_set_irq_enabled(GP_AUX_3_Right, GPIO_IRQ_EDGE_ALL, true);
 //	gpio_set_irq_enabled(GP_PTT, GPIO_IRQ_EDGE_ALL, false);
   gpio_set_irq_enabled(GP_PTT, GPIO_IRQ_EDGE_ALL, true);
 
@@ -486,6 +508,7 @@ void hmi_evaluate(void)
   static uint8_t hmi_state_old;
   static uint8_t hmi_option_old;
   static int16_t agc_gain_old = 1;
+  static int16_t fft_gain_old = 0;
 
 
    
@@ -547,6 +570,9 @@ void hmi_evaluate(void)
     {
       sprintf(s, "R");
       tft_writexy_(2, TFT_GREEN, TFT_BLACK, 0,2,(uint8_t *)s);
+
+      sprintf(s, "x");
+      tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 0, 0, 4, 5, (uint8_t *)s);
     }
     agc_gain_old = agc_gain+1;
 
@@ -561,10 +587,17 @@ void hmi_evaluate(void)
     if(agc_gain_old != agc_gain)
     {
       rec_level = AGC_GAIN_MAX - agc_gain;
-      sprintf(s, "%d  ", rec_level);
+      sprintf(s, "%d", rec_level);
       tft_writexy_(2, TFT_GREEN, TFT_BLACK, 1,2,(uint8_t *)s);
       agc_gain_old = agc_gain;
     }
+    
+    if(fft_gain_old != fft_gain)
+    {
+      sprintf(s, "%d  ",fft_gain);
+      tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 1, 0, 4, 5, (uint8_t *)s);   
+      fft_gain_old = fft_gain;
+    }       
   }
 
 

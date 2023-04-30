@@ -94,6 +94,9 @@ There is a **uSDX_TX** folder with code to test RF modulation using **phase and 
 
 ## Last changes and notes:<br>
 
+Apr30 2023
+- To reduce the gain in the waterfall (reduce the noise information), press and keep the Enter (Low) button, and turn the frequency knob
+
 Apr29 2023
 - Minor changes, improve comments at .ino file. Trying to get the new PCB running and getting back to software improvement.
 

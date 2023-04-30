@@ -117,7 +117,7 @@ Compilation error: 'Wire1' was not declared in this scope
 #define ENCODER_DIRECTION        ENCODER_CW_A_FALL_B_HIGH  //direction related to B signal level
 
 --------------------------------------------------------------
->>Check the correct RX I and Q inputs at uSDR.h  
+>>Check the correct RX I and Q inputs at dsp.h  
 #define EXCHANGE_I_Q  1    //include or remove this #define in case the LSB/USB and the lower/upper frequency of waterfall display are reverted - hardware dependent
 
 --------------------------------------------------------------
