@@ -667,7 +667,6 @@ volatile int16_t a_s_raw[CW_BPF_TAP_NUM];             // Raw MIC samples, minus 
 
 
 
-
 /**************************************************************************************
  * AGC reference level is log2(0x40) = 6, where 0x40 is the MSB of half DAC_RANGE
  * 1/AGC_DECAY and 1/AGC_ATTACK are multipliers before agc_gain value integrator
@@ -680,6 +679,7 @@ volatile int16_t a_s_raw[CW_BPF_TAP_NUM];             // Raw MIC samples, minus 
 volatile int32_t peak_avg_shifted=0;     // signal level detector after AGC = average of positive values
 volatile int16_t peak_avg_diff_accu=0;   // Log peak level integrator
 volatile uint16_t agc_gain=((AGC_GAIN_MAX/2u)+1u);   // AGC gain/attenuation - starts at the middle
+uint16_t volatile fft_gain = 8;
 #define AGC_REF		3u //6
 #define AGC_DECAY	8192u
 #define AGC_ATTACK_FAST	 32u  //64
@@ -1203,14 +1203,14 @@ bool rx(void)
 	 */
 #ifdef EXCHANGE_I_Q
   // Take last ADC 0 result, connected to Q input  (16 bits size)
-  i_sample = ((int32_t)agc_gain * (int32_t)adc_result[0])>>AGC_GAIN_SHIFT;
+  i_sample = ((int32_t)(agc_gain * fft_gain) * (int32_t)adc_result[0])>>(AGC_GAIN_SHIFT + FFT_GAIN_SHIFT);
   // Take last ADC 1 result, connected to I input  (16 bits size)
-  q_sample = ((int32_t)agc_gain * (int32_t)adc_result[1])>>AGC_GAIN_SHIFT;
+  q_sample = ((int32_t)(agc_gain * fft_gain) * (int32_t)adc_result[1])>>(AGC_GAIN_SHIFT + FFT_GAIN_SHIFT);
 #else
   // Take last ADC 0 result, connected to Q input  (16 bits size)
-  q_sample = ((int32_t)agc_gain * (int32_t)adc_result[0])>>AGC_GAIN_SHIFT;
+  q_sample = ((int32_t)(agc_gain * fft_gain) * (int32_t)adc_result[0])>>(AGC_GAIN_SHIFT + FFT_GAIN_SHIFT);
   // Take last ADC 1 result, connected to I input  (16 bits size)
-  i_sample = ((int32_t)agc_gain * (int32_t)adc_result[1])>>AGC_GAIN_SHIFT;
+  i_sample = ((int32_t)(agc_gain * fft_gain) * (int32_t)adc_result[1])>>(AGC_GAIN_SHIFT + FFT_GAIN_SHIFT);
 #endif
 
   /*
@@ -1630,7 +1630,6 @@ uint16_t block_num;
 uint16_t block_pos;
 uint16_t aux_c1 = 0;
 uint16_t i_c1, j_c1;
-uint16_t volatile fft_gain = 8;
 /************************************************************************************** 
  * CORE1: 
  * Timing loop, triggered through inter-core fifo 

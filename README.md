@@ -7,7 +7,7 @@
 This project is based on  Arjan te Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico
  . I strongly recommend you to take a look there before trying to follow this one.
 
-My intention was to include a waterfall or panadapter to the uSDR-pico project, for this, I included an ILI9341 240x320 2.4" TFT display without touch, and also, changed the software to generate the waterfall.
+My intention is to include a waterfall or panadapter to the uSDR-pico project, for this, I included an ILI9341 240x320 2.4" TFT display without touch, and also, changed the software to generate the waterfall.
 
 Initially, I have used Visual Studio, but after some considerations, I ported all code to Arduino IDE. So, to compile and run this code you need the Arduino IDE installed for a Raspberry Pi Pico project.
 
@@ -71,10 +71,10 @@ There is a **uSDX_TX** folder with code to test RF modulation using **phase and 
 
 
 ## Arduino IDE setup and notes:
-- I am using Arduino IDE version 1.8.19 in Linux/Ubuntu
+- I am using Arduino IDE version 2.0.1 in Linux/Ubuntu
 - Lib used: TFT_eSPI by Bodmer
 - **IMPORTANT: Use the comments at beginning of  .ino  file to "adjust" the library files to the project.**
-- Boards Manager:  Arduino Mbed OS RP2040 Boards. My version is 3.0.1 (If I update it, I will need to adjust the library files again, so I will leave it for later).
+- Boards Manager:  Arduino Mbed OS RP2040 Boards. My version is 4.0.2 (Every time I update it, I will need to "adjust" the library files again).
 - Do not include EarlePhilhower library (it is just conflitant with Mbed)
 - Board: "RaspberryPiPico"  >  Arduino Mbed OS RP2040 Boards  >  RaspberryPiPico
 - The code files have cpp type, but the code itself is in C (cpp type is used to help in some compiler issues).
@@ -95,7 +95,7 @@ There is a **uSDX_TX** folder with code to test RF modulation using **phase and 
 ## Last changes and notes:<br>
 
 Apr30 2023
-- To reduce the gain in the waterfall (reduce the noise information), press and keep the Enter (Low) button, and turn the frequency knob
+- Included an adjust to the gain in the waterfall, it helps to reduce the noise information, press and keep the Enter button, and turn the frequency knob. This adjust affects the audio AGC.
 
 Apr29 2023
 - Minor changes, improve comments at .ino file. Trying to get the new PCB running and getting back to software improvement.
