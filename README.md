@@ -139,16 +139,16 @@ Jun24 2022
 - Few display corrections: central triangle, mode text overwriting.
 
 Jun13 2022
-- 3V3 noise sensitivity test
+- 3V3 noise sensitivity test:<br>
 I followed the tips in this post
-https://forums.raspberrypi.com/viewtopic.php?t=330208
-It says that a power supply with less noise to Vref and the Pico is the best for reducing the ADC noise.
-I used a 3V3 linear regulator instead of the Pico on board DC-DC 3v3.
-I connected it externally, in pins VSYS, GND, 3v3_EN and 3V3.
-Connecting 3v3_EN to Gnd disables the on board DC-DC 3v3.
-And I used a TPS79933 + caps from VSYS to 3V3 pin.
-I can connect and disconnect it easily.
-The first impression is that this does not improve the sensibility.
+https://forums.raspberrypi.com/viewtopic.php?t=330208<br>
+It says that a power supply with less noise to Vref is the best for reducing the ADC noise.<br>
+I used a 3V3 linear regulator instead of the Pico on board DC-DC 3v3.<br>
+I connected it externally, in pins VSYS, GND, 3v3_EN and 3V3.<br>
+Connecting 3v3_EN to Gnd disables the on board DC-DC 3v3.<br>
+I used a TPS79933 + caps from VSYS to 3V3 pin.<br>
+I can connect and disconnect it easily.<br>
+The first impression is that this does not improve the sensibility.<br>
 I have found a limit position from RF generator to Softrock receiver to start showing something at the waterfall.
 And both DC-DC and TPS look the same to me.
 
