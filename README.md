@@ -152,9 +152,7 @@ The first impression is that this does not improve the sensibility.<br>
 I have found a limit position from RF generator to Softrock receiver to start showing something at the waterfall.
 And both DC-DC and TPS look the same to me.
 
-![Reg 3v3](VREF TPS79933 AXX.png)
-
-![Reg position](Reg_position.jpg)
+![Reg 3v3](VREF_TPS79933_AXX.png)
 
 ![Reg mounted](Reg_monted.jpg)
 
