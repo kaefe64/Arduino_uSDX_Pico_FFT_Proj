@@ -67,7 +67,7 @@ There is a **uSDX_TX** folder with code to test RF modulation using **phase and 
 ## Microcontroller RP2040 notes:
 - Core0 and Core1 are too much connected and affect each other. This made me lose some painful hours...
 - There are only 3 ADC ports available.
-- There are some reports at internet about the low quality of the RP2040 ADC readings.
+- There are some reports at internet about the low quality of the RP2040 ADC readings (https://pico-adc.markomo.me/).
 
 
 ## Arduino IDE setup and notes:
@@ -95,7 +95,7 @@ There is a **uSDX_TX** folder with code to test RF modulation using **phase and 
 ## Last changes and notes:<br>
 
 Apr30 2023
-- Included an adjust to the gain in the waterfall, it helps to reduce the noise information, press and keep the Enter button, and turn the frequency knob. This adjust affects the audio AGC.
+- Included an adjust to the gain in the waterfall, it helps to reduce the noise information, press and keep the Enter button, and turn the frequency knob. This adjust also affects the audio AGC.
 
 Apr29 2023
 - Minor changes, improve comments at .ino file. Trying to get the new PCB running and getting back to software improvement.
@@ -137,6 +137,27 @@ Jul20 2022
 
 Jun24 2022
 - Few display corrections: central triangle, mode text overwriting.
+
+Jun13 2022
+- 3V3 noise sensitivity test
+I followed the tips in this post
+https://forums.raspberrypi.com/viewtopic.php?t=330208
+It says that a power supply with less noise to Vref and the Pico is the best for reducing the ADC noise.
+I used a 3V3 linear regulator instead of the Pico on board DC-DC 3v3.
+I connected it externally, in pins VSYS, GND, 3v3_EN and 3V3.
+Connecting 3v3_EN to Gnd disables the on board DC-DC 3v3.
+And I used a TPS79933 + caps from VSYS to 3V3 pin.
+I can connect and disconnect it easily.
+The first impression is that this does not improve the sensibility.
+I have found a limit position from RF generator to Softrock receiver to start showing something at the waterfall.
+And both DC-DC and TPS look the same to me.
+
+![Reg 3v3](VREF TPS79933 AXX.png)
+
+![Reg position](Reg_position.jpg)
+
+![Reg mounted](Reg_monted.jpg)
+
 
 Jun10 2022
 - AGC uncommented and adapted to work.<br>
