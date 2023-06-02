@@ -94,8 +94,15 @@ There is a **uSDX_TX** folder with code to test RF modulation using **phase and 
 
 ## Last changes and notes:<br>
 
+Jun2 2023
+- Testing an 80KHz Low Pass Filter for I and Q inputs because I can hear some frequency distant strong stations.
+- New schematics and PCB for LPF and RX at the same board.
+- Added software for Arduino Pro Mini to work as two I2C slaves, replacing the PCF8574's.
+- There are some mirror signal at the waterfall, I am looking for the reason.
+- I really like the quality of the audio received.
+
 Apr30 2023
-- Included an adjust to the gain in the waterfall, it helps to reduce the noise information, press and keep the Enter button, and turn the frequency knob. This adjust also affects the audio AGC.
+- Included an adjust to the gain in the waterfall, it helps to reduce the noise in the waterfall. Press and keep the Enter button, and turn the frequency knob. This adjust also affects the audio AGC.
 
 Apr29 2023
 - Minor changes, improve comments at .ino file. Trying to get the new PCB running and getting back to software improvement.
