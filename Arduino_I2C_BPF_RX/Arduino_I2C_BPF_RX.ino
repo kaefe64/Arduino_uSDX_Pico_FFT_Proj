@@ -4,10 +4,11 @@
 Receiving commands as more than one I2C slave (multiple addresses)
    to replace the PCF8574 (can replace two of them, and adding read swr option) in uSDX Pico FFT project
 
+Reference:
 https://stackoverflow.com/questions/34691478/arduino-as-slave-with-multiple-i2c-addresses
 https://github.com/alexisgaziello/TwoWireSimulator
 
-I2C Wire library with multi address
+I2C Wire library with multi address:
 https://github.com/arduino/ArduinoCore-avr/pull/90/files#diff-e4603cea13a2a6370bdf819d929e8fb9b272c812bc1df9a9190b365875c47db3
 
 
@@ -25,7 +26,7 @@ I2C: A4 (SDA) and A5 (SCL)
 
 
 Created: May 2023
-Author: Klaus Fensterseifer
+Author: Klaus Fensterseifer  PY2KLA
 https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj
 
 */
@@ -64,17 +65,17 @@ https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj
 #define REL_PRE_00_val	0x00
 
 /* SWR read */
-#define I2C_SWR 		(I2C_BPF)	//0x20 read
-#define swrPin      A0   // select the input pin for the swr analog reading
+#define I2C_SWR 		I2C_BPF	//0x20 read (use the same address to make easy to build the multi I2C mask)
+#define swrPin      A0      // select the input pin for the swr analog reading
 uint16_t swr, swr0, swr1;
-uint8_t swr8b;
+uint8_t swr8bits;
 
 #define I2C_ADDR (I2C_BPF | I2C_RX)
 #define I2C_MASK ((I2C_BPF | I2C_RX) ^ (I2C_BPF & I2C_RX))
 
 
 
-#define ledPin      13 // cria uma constante com o numero do pino ligado ao LED
+#define ledPin      13     // define LED pin number
 
 
 uint8_t RX_Relays=0, RX_Relays_old=0;
@@ -102,7 +103,7 @@ void setup()
   }  // If the serial is not open, the print commands will have no effect
   Serial.println("\nArduino I2C Slave Multi Address");
   //Serial.print("FREQ CPU: ");
-  //Serial.println(F_CPU);   //chose the right clock for Arduino Pro Mini at Tools Processor
+  //Serial.println(F_CPU);   //prints the clock frequency, chose the right clock for Arduino Pro Mini at Tools Processor
 
   
   pinMode(REL_LPF2_pin, OUTPUT);
@@ -127,7 +128,6 @@ void setup()
   pinMode(swrPin, INPUT);
 
   Wire.begin(I2C_ADDR, I2C_MASK);       // base address for all slaves running here
-
   Wire.onRequest(requestEvent);  // register callback function for I2C = master read
   Wire.onReceive(receiveEvent);  // register callback function for I2C = master write
 }
@@ -137,7 +137,7 @@ void setup()
 void requestEvent (){    // master read = request data from slave
   switch (Wire.getLastAddress()) {   // address from last byte on the bus
     case (I2C_SWR):
-      Wire.write(swr8b);   // send back 8bits value
+      Wire.write(swr8bits);   // send back 8bits value
       //Wire.write((byte *)&swr, 2);   //send 2 bytes
       break;
 
@@ -149,13 +149,6 @@ void requestEvent (){    // master read = request data from slave
 
 /*****************************************************************************************/
 void receiveEvent(int howManyBytesReceived) {   // master write = send data to slave
-/*
-I2C_Address = Wire.getLastAddress();
-//I2C_Address = (TWDR >> 1);
-I2C_Data = Wire.read();   // receive byte
-rec++;
-*/
-
   switch (Wire.getLastAddress()) {   // address from last byte on the bus
     case (I2C_BPF):
       BPF_Relays = Wire.read();   // receive byte
@@ -261,7 +254,6 @@ void Set_RX_Relays() {
 
 
 
-uint16_t cont_time = 0;
 uint16_t cont_BPF_relay = 0;
 uint16_t cont_ATT_relay = 0;
 uint16_t cont_test = 0;
@@ -269,81 +261,78 @@ uint16_t cont_test = 0;
 /*****************************************************************************************/
 void loop() {
  
-  /* read the AD for SWR */
-  swr0 = analogRead(swrPin);  //actual value
-  swr = (swr0 + swr1) >> 1;   //average with last value
-  swr8b = swr >> 2;            //8 bits through I2C
-  swr1 = swr0;                //save last value
- 
- 
-  /* send  tx power, swr, Vbat ? */
-  /* read the direct tx power */
-  /* read the reflected power */
-  /* calculate the swr */
 
-/*
-if(rec > 0)
-{
-  Serial.print(I2C_Address, HEX);    
-  Serial.print("  ");    
-  Serial.println(I2C_Data);    
-  rec = 0;  
-}
-*/
- 
-
-  if(BPF_Relays_old != BPF_Relays)
+  if(cont_test < 10) 
   {
-    Set_BPF_Relays();
-    BPF_Relays_old = BPF_Relays;
-  }
-  
-
-  if(RX_Relays_old != RX_Relays)
-  {
-    Set_RX_Relays();
-    RX_Relays_old = RX_Relays;
-  }  
-  
-
-  
-  delay(10);  //ms
-  cont_time++;
-  if(cont_time > 20)
-  {
-    // initial test switching relays
-    if(cont_test < 10)
-    {
-      if(cont_test < 5)  
-      {    
-        BPF_Relays = REL_BPF_val[cont_BPF_relay];
-        //Serial.println("Set BPF Relays " + String(cont_BPF_relay) + "  " + String(BPF_Relays));
-        Serial.print(cont_BPF_relay);   Serial.print("  ");
-        cont_BPF_relay++;
-        if(cont_BPF_relay >= REL_BPF_val_num)
-          cont_BPF_relay = 0;
-      }
-      else
-      {    
-        RX_Relays = REL_ATT_val[cont_ATT_relay];
-        //Serial.println("Set RX Relays " + String(cont_ATT_relay) + "  " + String(RX_Relays));
-        Serial.print(cont_ATT_relay);   Serial.print("  ");
-        cont_ATT_relay++;
-        if(cont_ATT_relay >= REL_ATT_val_num)
-          cont_ATT_relay = 0;
-      }
-      cont_test++;
+    /*******************************************************************************************************/  
+    /* special case doing initial test switching relays just after reset  (just switch through all relays) */
+    /*******************************************************************************************************/  
+    if(cont_test < 5)  
+    {    
+      BPF_Relays = REL_BPF_val[cont_BPF_relay];
+      //Serial.println("Set BPF Relays " + String(cont_BPF_relay) + "  " + String(BPF_Relays));
+      Serial.print(cont_BPF_relay);   Serial.print("  ");
+      cont_BPF_relay++;
+      if(cont_BPF_relay >= REL_BPF_val_num)
+        cont_BPF_relay = 0;
+      Set_BPF_Relays();
     }
-    cont_time = 0;  
+    else
+    {    
+      RX_Relays = REL_ATT_val[cont_ATT_relay];
+      //Serial.println("Set RX Relays " + String(cont_ATT_relay) + "  " + String(RX_Relays));
+      Serial.print(cont_ATT_relay);   Serial.print("  ");
+      cont_ATT_relay++;
+      if(cont_ATT_relay >= REL_ATT_val_num)
+        cont_ATT_relay = 0;
+      Set_RX_Relays();
+    }
+    cont_test++;
+
+    delay(500);  //ms
+  }
+  else  
+  {  
+    /**************************/  
+    /* loop normal processing */
+    /**************************/  
+
+    /* check if received new value to set the relays */
+    if(BPF_Relays_old != BPF_Relays)
+    {
+      Set_BPF_Relays();
+      BPF_Relays_old = BPF_Relays;
+    }
+    
+
+    /* check if received new value to set the relays */
+    if(RX_Relays_old != RX_Relays)
+    {
+      Set_RX_Relays();
+      RX_Relays_old = RX_Relays;
+    }  
+      
+
+
+    /* read the AD for SWR */
+    swr0 = analogRead(swrPin);  //actual value
+    swr = (swr0 + swr1) >> 1;   //average with last value
+    swr8bits = swr >> 2;            //8 bits through I2C
+    swr1 = swr0;                //save last value
+ 
+
+
+    /* loop processes at each 10ms */  
+    delay(10);  //ms
   }
 
-/*
-  delay(500);
-  digitalWrite(ledPin, 0);  //toggle led
-  delay(500);
-  digitalWrite(ledPin, 1);  //toggle led
-*/
 
+ 
+/* future tasks */
+/* send  tx power, swr, Vbat ? */
+/* read the direct tx power */
+/* read the reflected power */
+/* calculate the swr */
 
 }
 
