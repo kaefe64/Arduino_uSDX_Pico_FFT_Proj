@@ -1,5 +1,6 @@
 /*
 
+I2C Slave with multiple addresses
 
 Receiving commands as more than one I2C slave (multiple addresses)
    to replace the PCF8574 (can replace two of them, and adding read swr option) in uSDX Pico FFT project
