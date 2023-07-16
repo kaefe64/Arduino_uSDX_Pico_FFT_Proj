@@ -113,7 +113,7 @@ void tft_cursor(uint16_t font, uint16_t color, uint8_t x, uint8_t y);
 void tft_cursor_plus(uint16_t font, uint16_t color, uint8_t x, uint8_t x_plus, uint8_t y, uint8_t y_plus);
 uint16_t tft_color565(uint16_t r, uint16_t g, uint16_t b);
 
-//extern uint8_t fft_display_graf_new;
+
 void display_fft_graf(void);
 void display_fft_graf_top(void);
 void display_tft_setup0(void);

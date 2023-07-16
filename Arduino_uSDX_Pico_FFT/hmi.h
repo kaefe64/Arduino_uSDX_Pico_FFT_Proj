@@ -25,6 +25,7 @@ extern "C" {
 
 extern bool ptt_active;
 extern uint32_t hmi_freq;  
+extern uint8_t  hmi_option;	
 
 void hmi_init(void);
 void hmi_evaluate(void);

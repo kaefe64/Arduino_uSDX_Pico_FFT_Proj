@@ -281,9 +281,9 @@ void display_fft_graf_top(void)
       }
       if((freq_graf_ini % 50) == 0)
       {
-        tft.drawFastVLine (x-1, Y_MIN_DRAW - 11, 5, TFT_WHITE);
-        tft.drawFastVLine (x, Y_MIN_DRAW - 11, 5, TFT_WHITE);
-        tft.drawFastVLine (x+1, Y_MIN_DRAW - 11, 5, TFT_WHITE);
+        tft.drawFastVLine (x-1, Y_MIN_DRAW - 11, 7, TFT_WHITE);
+        tft.drawFastVLine (x, Y_MIN_DRAW - 11, 7, TFT_WHITE);
+        tft.drawFastVLine (x+1, Y_MIN_DRAW - 11, 7, TFT_WHITE);
       }
       if((freq_graf_ini % 100) == 0)
       {
@@ -320,7 +320,7 @@ void display_fft_graf_top(void)
 
 
 
-//uint8_t fft_display_graf_new = 0;
+
 uint8_t vet_graf_fft[GRAPH_NUM_LINES][FFT_NSAMP];    // [NL][NCOL]
 //uint16_t vet_graf_fft_pos = 0;
 /*********************************************************
@@ -467,7 +467,7 @@ int16_t x;
 
 
 /*********************************************************
-  
+  Initial msgs on display  (after reset)
 *********************************************************/
 void display_tft_setup0(void) {
   char s[32];
@@ -479,10 +479,13 @@ void display_tft_setup0(void) {
 
   sprintf(s, "uSDR Pico");
   tft_writexy_plus(3, TFT_YELLOW, TFT_BLACK, 1,10,1,0,(uint8_t *)s);
-  //sprintf(s, "PY2KLA");
-  //tft_writexy_(3, TFT_WHITE, TFT_NAVY, 3,3,(uint8_t *)s);
-  
+#ifdef PY2KLA_setup
+  sprintf(s, "PY2KLA");
+  tft_writexy_plus(3, TFT_WHITE, TFT_BLACK, 3,0,3,0,(uint8_t *)s);
+#endif  
 }
+
+
 
 
 /*********************************************************
@@ -520,18 +523,22 @@ char s[32];
 
 
   sprintf(s, "I");
-  tft_writexy_(1, TFT_GREEN, TFT_BLACK, 8,1,(uint8_t *)s);
+  tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 8,6,1,0,(uint8_t *)s);
   sprintf(s, "Q");
-  tft_writexy_(1, TFT_CYAN, TFT_BLACK, 8,2,(uint8_t *)s);
+  tft_writexy_plus(1, TFT_CYAN, TFT_BLACK, 8,6,2,0,(uint8_t *)s);
   sprintf(s, "A");
-  tft_writexy_(1, TFT_PINK, TFT_BLACK, 8,3,(uint8_t *)s);
+  tft_writexy_plus(1, TFT_PINK, TFT_BLACK, 8,6,3,0,(uint8_t *)s);
   sprintf(s, "MIC");
-  tft_writexy_(1, TFT_RED, TFT_BLACK, 10,1,(uint8_t *)s);
+  tft_writexy_plus(1, TFT_RED, TFT_BLACK, 10,4,1,0,(uint8_t *)s);
   sprintf(s, "PEAK");
-  tft_writexy_(1, TFT_YELLOW, TFT_BLACK, 10,2,(uint8_t *)s);
+  tft_writexy_plus(1, TFT_YELLOW, TFT_BLACK, 10,4,2,0,(uint8_t *)s);
   sprintf(s, "GAIN");
-  tft_writexy_(1, TFT_MAGENTA, TFT_BLACK, 10,3,(uint8_t *)s);
+  tft_writexy_plus(1, TFT_MAGENTA, TFT_BLACK, 10,4,3,0,(uint8_t *)s);
 
+
+  sprintf(s, "B%d", hmi_option);
+  //tft_writexy_plus(3, TFT_YELLOW, TFT_BLACK, 0,0,2,20,(uint8_t *)s);
+  tft_writexy_plus(2, TFT_BLUE, TFT_BLACK, 0,0,3,18,(uint8_t *)s);
 
 
 /* 
