@@ -572,7 +572,7 @@ void hmi_evaluate(void)
       tft_writexy_(2, TFT_GREEN, TFT_BLACK, 0,2,(uint8_t *)s);
 
       sprintf(s, "x");
-      tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 0, 0, 4, 5, (uint8_t *)s);
+      tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 4, 9, 3, 5, (uint8_t *)s);
     }
     agc_gain_old = agc_gain+1;
 
@@ -595,7 +595,8 @@ void hmi_evaluate(void)
     if(fft_gain_old != fft_gain)
     {
       sprintf(s, "%d  ",fft_gain);
-      tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 1, 0, 4, 5, (uint8_t *)s);   
+      s[3]=0;
+      tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 5, 9, 3, 5, (uint8_t *)s);   
       fft_gain_old = fft_gain;
     }       
   }
