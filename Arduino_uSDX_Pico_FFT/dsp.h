@@ -55,6 +55,15 @@ extern "C" {
 
 
 
+#define  LOW_PASS_16KHZ_AVERAGE_SUM   11
+#define  LOW_PASS_16KHZ_FIR  55
+// choose with type of filter used for I and Q after  160kHz sampling  to deliever to the 16kHz audio process
+//#define LOW_PASS_16KHZ  LOW_PASS_16KHZ_AVERAGE_SUM
+#define LOW_PASS_16KHZ  LOW_PASS_16KHZ_FIR
+
+
+
+
 //extern volatile uint16_t adc_audio_count;
 //extern volatile uint16_t adc_waterfall_count;
 extern volatile int16_t adc_result[3];   //

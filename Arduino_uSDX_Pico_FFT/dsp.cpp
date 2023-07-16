@@ -519,9 +519,9 @@ fixed point precision: 16 bits
 
 */
 
-#define LPF_TAP_NUM 17
+#define SSB_LPF_TAP_NUM 17
 
-static int16_t lpf_taps[LPF_TAP_NUM] = {
+static int16_t ssb_lpf_taps[LPF_TAP_NUM] = {
   843,
   1742,
   1498,
@@ -546,6 +546,110 @@ static int16_t lpf_taps[LPF_TAP_NUM] = {
 
 
 #if 0
+
+/*
+
+FIR filter designed with
+http://t-filter.appspot.com
+
+sampling frequency: 16000 Hz
+
+fixed point precision: 16 bits
+
+* 0 Hz - 3000 Hz
+  gain = 1
+  desired ripple = 5 dB
+  actual ripple = n/a
+
+* 4100 Hz - 8000 Hz
+  gain = 0
+  desired attenuation = -40 dB
+  actual attenuation = n/a
+
+*/
+
+#define SSB_LPF_TAP_NUM 17
+
+static int ssb_lpf_taps[FILTER_TAP_NUM] = {
+  350,
+  1651,
+  2300,
+  843,
+  -2080,
+  -2530,
+  2406,
+  10080,
+  13832,
+  10080,
+  2406,
+  -2530,
+  -2080,
+  843,
+  2300,
+  1651,
+  350
+};
+
+
+#endif
+
+
+
+
+#if 0
+
+/*
+
+FIR filter designed with
+http://t-filter.appspot.com
+
+sampling frequency: 16000 Hz
+
+fixed point precision: 16 bits
+
+* 0 Hz - 3000 Hz
+  gain = 1
+  desired ripple = 5 dB
+  actual ripple = n/a
+
+* 4200 Hz - 8000 Hz
+  gain = 0
+  desired attenuation = -40 dB
+  actual attenuation = n/a
+
+*/
+
+#define SSB_LPF_TAP_NUM 15
+
+static int ssb_lpf_taps[FILTER_TAP_NUM] = {
+  768,
+  1137,
+  -319,
+  -3119,
+  -3520,
+  1558,
+  9521,
+  13439,
+  9521,
+  1558,
+  -3520,
+  -3119,
+  -319,
+  1137,
+  768
+};
+
+
+
+#endif
+
+
+
+
+
+
+
+
 
 /*
 
@@ -593,8 +697,8 @@ static int16_t am_lpf_taps[AM_LPF_TAP_NUM] = {
 };
 
 
-#endif
 
+#if 0
 
 
 /*
@@ -641,6 +745,134 @@ static int16_t am_lpf_taps[AM_LPF_TAP_NUM] = {
   -751,
   -1214
 };
+
+#endif
+
+
+
+
+
+#if 0   // LP filter 16kHz @160Khz inside the interrupt
+/*
+
+FIR filter designed with
+http://t-filter.appspot.com
+
+sampling frequency: 160000 Hz
+
+fixed point precision: 16 bits
+
+* 0 Hz - 6000 Hz
+  gain = 1
+  desired ripple = 5 dB
+  actual ripple = n/a
+
+* 16000 Hz - 80000 Hz
+  gain = 0
+  desired attenuation = -42 dB  = 0.8% Vin
+  actual attenuation = -42.49 dB  = 0.75% Vin
+
+*/
+
+#define FILTER_TAP_NUM 19
+
+static const int32_t lpf_16khz_taps[FILTER_TAP_NUM] = {
+  304,
+  523,
+  897,
+  1366,
+  1901,
+  2454,
+  2972,
+  3394,
+  3671,
+  3768,
+  3671,
+  3394,
+  2972,
+  2454,
+  1901,
+  1366,
+  897,
+  523,
+  304
+};
+
+
+
+
+
+/*
+
+FIR filter designed with
+http://t-filter.appspot.com
+
+sampling frequency: 160000 Hz
+
+fixed point precision: 16 bits
+
+* 0 Hz - 4000 Hz
+  gain = 1
+  desired ripple = 5 dB
+  actual ripple = n/a
+
+* 13000 Hz - 80000 Hz
+  gain = 0
+  desired attenuation = -63 dB
+  actual attenuation = n/a
+
+*/
+
+#define FILTER_TAP_NUM 33
+
+static int filter_taps[FILTER_TAP_NUM] = {
+  29,
+  59,
+  114,
+  195,
+  307,
+  453,
+  635,
+  849,
+  1091,
+  1353,
+  1622,
+  1885,
+  2127,
+  2334,
+  2493,
+  2593,
+  2627,
+  2593,
+  2493,
+  2334,
+  2127,
+  1885,
+  1622,
+  1353,
+  1091,
+  849,
+  635,
+  453,
+  307,
+  195,
+  114,
+  59,
+  29
+};
+
+
+
+
+
+
+
+
+
+#endif
+
+
+
 
 
 
@@ -807,13 +1039,22 @@ void dsp_setvox(int vox)
 #define BLOCK_NSAMP    (FSAMP/FSAMP_AUDIO)    //block = 480k / 16k = 30 samples
 #define BLOCK_NSET     (BLOCK_NSAMP/3)        //block = 10 sets of 3 samples
 #define NBLOCK       ((FFT_NSAMP+(BLOCK_NSET-1)) / BLOCK_NSET)  // number of blocks necessary for FFT  320 / 30 = 10.666  =11
+#if LOW_PASS_16KHZ == LOW_PASS_16KHZ_AVERAGE_SUM
 #define ADC_NUM_BLOCK  (2u)  //save last 2 blocks
 #define ADC_NUM_BLOCK_MASK  (1u)  // 0 - 1
-//#define ADC_NUM_BLOCK  (4u)  //save last 4 blocks
-//#define ADC_NUM_BLOCK_MASK  (3u)  // 0 - 3
+#endif
+#if LOW_PASS_16KHZ == LOW_PASS_16KHZ_FIR
+#define ADC_NUM_BLOCK  (8u)  //save last 8 blocks
+#define ADC_NUM_BLOCK_MASK  (7u)  // 0 - 7
+#endif
 volatile int16_t adc_samp[ADC_NUM_BLOCK][BLOCK_NSAMP] = { 0 };  //samples buffer    0-1 used for I and Q  3=MIC=VOX  [NL][NCOL]
 volatile uint16_t adc_samp_block_pos = 0;       //actual sample block reading by ADC and DMA
 volatile uint16_t adc_samp_last_block_pos = 0;  //last sample block read
+#if LOW_PASS_16KHZ == LOW_PASS_16KHZ_FIR
+volatile uint16_t adc_samp_last_block_pos3 = 0;  //last sample block read
+volatile uint16_t adc_samp_last_block_pos2 = 0;  //last sample block read
+volatile uint16_t adc_samp_last_block_pos1 = 0;  //last sample block read
+#endif
 volatile int16_t adc_samp_sum[ADC_NUM_BLOCK][3] = { 0 };  //save the sum of each block  12 bits = 0-4095 * 10  must fit in 16 bits
 
 //bias = samples average = DC component, used to remome the DC from the samples
@@ -868,6 +1109,7 @@ void __not_in_flash_func(dma_handler)(void)
   //           ave_x4 += new_value - (ave_x4/4)
 
 
+
   //init first sum = value  
   i_int=0;
 
@@ -876,7 +1118,9 @@ void __not_in_flash_func(dma_handler)(void)
   // remove bias (avg) from samples
   adc_samp[adc_samp_last_block_pos][i_int] -= (adc_result_bias[0] >> AVG_BIAS_SHIFT);
   // sum of last 10 samples = all block
-  adc_samp_sum[adc_samp_last_block_pos][0] = adc_samp[adc_samp_last_block_pos][i_int]; //block samples sum to subsample at lower frequency (it is a low pass filter too)
+#if LOW_PASS_16KHZ == LOW_PASS_16KHZ_AVERAGE_SUM
+  adc_samp_sum[adc_samp_last_block_pos][0] = adc_samp[adc_samp_last_block_pos][i_int]; //block samples sum to subsample at lower frequency (it is a low pass filter too)  
+#endif
   i_int++;
 
 
@@ -885,7 +1129,9 @@ void __not_in_flash_func(dma_handler)(void)
   // remove bias (avg) from samples
   adc_samp[adc_samp_last_block_pos][i_int] -= (adc_result_bias[1] >> AVG_BIAS_SHIFT);
   // sum of last 10 samples = all block
+#if LOW_PASS_16KHZ == LOW_PASS_16KHZ_AVERAGE_SUM
   adc_samp_sum[adc_samp_last_block_pos][1] = adc_samp[adc_samp_last_block_pos][i_int]; //block samples sum to subsample at lower frequency (it is a low pass filter too)
+#endif
   i_int++;
 
 
@@ -908,7 +1154,9 @@ void __not_in_flash_func(dma_handler)(void)
     // remove bias (avg) from samples
     adc_samp[adc_samp_last_block_pos][i_int] -= (adc_result_bias[0] >> AVG_BIAS_SHIFT);
     // sum of last 10 samples = all block
+#if LOW_PASS_16KHZ == LOW_PASS_16KHZ_AVERAGE_SUM
     adc_samp_sum[adc_samp_last_block_pos][0] += adc_samp[adc_samp_last_block_pos][i_int]; //block samples sum to subsample at lower frequency (it is a low pass filter too)
+#endif
     i_int++;
 
 
@@ -917,7 +1165,9 @@ void __not_in_flash_func(dma_handler)(void)
     // remove bias (avg) from samples
     adc_samp[adc_samp_last_block_pos][i_int] -= (adc_result_bias[1] >> AVG_BIAS_SHIFT);
     // sum of last 10 samples = all block
+#if LOW_PASS_16KHZ == LOW_PASS_16KHZ_AVERAGE_SUM
     adc_samp_sum[adc_samp_last_block_pos][1] += adc_samp[adc_samp_last_block_pos][i_int]; //block samples sum to subsample at lower frequency (it is a low pass filter too)
+#endif
     i_int++;
 
 
@@ -929,6 +1179,135 @@ void __not_in_flash_func(dma_handler)(void)
     adc_samp_sum[adc_samp_last_block_pos][2] += adc_samp[adc_samp_last_block_pos][i_int]; //block samples sum to subsample at lower frequency (it is a low pass filter too)
     i_int++;
   }
+
+
+
+
+
+#if LOW_PASS_16KHZ == LOW_PASS_16KHZ_FIR
+
+
+  adc_samp_sum[adc_samp_last_block_pos][0] = (int16_t)((
+                                                        (adc_samp[adc_samp_last_block_pos3][21] * 29L) +
+                                                        (adc_samp[adc_samp_last_block_pos3][24] * 59L) +
+                                                        (adc_samp[adc_samp_last_block_pos3][27] * 114L) +
+                                                        (adc_samp[adc_samp_last_block_pos2][0] * 195L) + 
+                                                        (adc_samp[adc_samp_last_block_pos2][3] * 307L) + 
+                                                        (adc_samp[adc_samp_last_block_pos2][6] * 453L) +
+                                                        (adc_samp[adc_samp_last_block_pos2][9] * 635L) +
+                                                        (adc_samp[adc_samp_last_block_pos2][12] * 849L) +
+                                                        (adc_samp[adc_samp_last_block_pos2][15] * 1091L) +
+                                                        (adc_samp[adc_samp_last_block_pos2][18] * 1353L) +
+                                                        (adc_samp[adc_samp_last_block_pos2][21] * 1622L) +
+                                                        (adc_samp[adc_samp_last_block_pos2][24] * 1885L) +
+                                                        (adc_samp[adc_samp_last_block_pos2][27] * 2127L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][0] * 2334L) + 
+                                                        (adc_samp[adc_samp_last_block_pos1][3] * 2493L) + 
+                                                        (adc_samp[adc_samp_last_block_pos1][6] * 2593L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][9] * 2627L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][12] * 2593L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][15] * 2493L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][18] * 2334L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][21] * 2127L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][24] * 1885L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][27] * 1622L) +
+                                                        (adc_samp[adc_samp_last_block_pos][0] * 1353L) +
+                                                        (adc_samp[adc_samp_last_block_pos][3] * 1091L) +
+                                                        (adc_samp[adc_samp_last_block_pos][6] * 849L) +
+                                                        (adc_samp[adc_samp_last_block_pos][9] * 635L) +
+                                                        (adc_samp[adc_samp_last_block_pos][12] * 453L) +
+                                                        (adc_samp[adc_samp_last_block_pos][15] * 307L) +
+                                                        (adc_samp[adc_samp_last_block_pos][18] * 195L) +
+                                                        (adc_samp[adc_samp_last_block_pos][21] * 114L) +
+                                                        (adc_samp[adc_samp_last_block_pos][24] * 59L) +
+                                                        (adc_samp[adc_samp_last_block_pos][27] * 29L)   ) >> 13u);  // >>16  *8 to give some gain (on average sum it is *10)
+
+
+  adc_samp_sum[adc_samp_last_block_pos][1] = (int16_t)((
+                                                        (adc_samp[adc_samp_last_block_pos3][22] * 29L) +
+                                                        (adc_samp[adc_samp_last_block_pos3][25] * 59L) +
+                                                        (adc_samp[adc_samp_last_block_pos3][28] * 114L) +
+                                                        (adc_samp[adc_samp_last_block_pos2][1] * 195L) + 
+                                                        (adc_samp[adc_samp_last_block_pos2][4] * 307L) + 
+                                                        (adc_samp[adc_samp_last_block_pos2][7] * 453L) +
+                                                        (adc_samp[adc_samp_last_block_pos2][10] * 635L) +
+                                                        (adc_samp[adc_samp_last_block_pos2][13] * 849L) +
+                                                        (adc_samp[adc_samp_last_block_pos2][16] * 1091L) +
+                                                        (adc_samp[adc_samp_last_block_pos2][19] * 1353L) +
+                                                        (adc_samp[adc_samp_last_block_pos2][22] * 1622L) +
+                                                        (adc_samp[adc_samp_last_block_pos2][25] * 1885L) +
+                                                        (adc_samp[adc_samp_last_block_pos2][28] * 2127L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][1] * 2334L) + 
+                                                        (adc_samp[adc_samp_last_block_pos1][4] * 2493L) + 
+                                                        (adc_samp[adc_samp_last_block_pos1][7] * 2593L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][10] * 2627L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][13] * 2593L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][16] * 2493L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][19] * 2334L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][22] * 2127L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][25] * 1885L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][28] * 1622L) +
+                                                        (adc_samp[adc_samp_last_block_pos][1] * 1353L) +
+                                                        (adc_samp[adc_samp_last_block_pos][4] * 1091L) +
+                                                        (adc_samp[adc_samp_last_block_pos][7] * 849L) +
+                                                        (adc_samp[adc_samp_last_block_pos][10] * 635L) +
+                                                        (adc_samp[adc_samp_last_block_pos][13] * 453L) +
+                                                        (adc_samp[adc_samp_last_block_pos][16] * 307L) +
+                                                        (adc_samp[adc_samp_last_block_pos][19] * 195L) +
+                                                        (adc_samp[adc_samp_last_block_pos][22] * 114L) +
+                                                        (adc_samp[adc_samp_last_block_pos][25] * 59L) +
+                                                        (adc_samp[adc_samp_last_block_pos][28] * 29L)   ) >> 13u);  // >>16  *8 to give some gain (on average sum it is *10)
+
+   
+
+
+#if 0
+  adc_samp_sum[adc_samp_last_block_pos][0] = (int16_t)(((adc_samp[adc_samp_last_block_pos1][3] * 304L) + 
+                                                        (adc_samp[adc_samp_last_block_pos1][6] * 523L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][9] * 897L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][12] * 1366L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][15] * 1901L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][18] * 2454L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][21] * 2972L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][24] * 3394L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][27] * 3671L) +
+                                                        (adc_samp[adc_samp_last_block_pos][0] * 3768L) +
+                                                        (adc_samp[adc_samp_last_block_pos][3] * 3671L) +
+                                                        (adc_samp[adc_samp_last_block_pos][6] * 3394L) +
+                                                        (adc_samp[adc_samp_last_block_pos][9] * 2972L) +
+                                                        (adc_samp[adc_samp_last_block_pos][12] * 2454L) +
+                                                        (adc_samp[adc_samp_last_block_pos][15] * 1901L) +
+                                                        (adc_samp[adc_samp_last_block_pos][18] * 1366L) +
+                                                        (adc_samp[adc_samp_last_block_pos][21] * 897L) +
+                                                        (adc_samp[adc_samp_last_block_pos][24] * 523L) +
+                                                        (adc_samp[adc_samp_last_block_pos][27] * 304L)) >> 13u);  // >>16  *8 to give some gain (on average sum it is *10)
+
+  
+  
+  adc_samp_sum[adc_samp_last_block_pos][1] = (int16_t)(((adc_samp[adc_samp_last_block_pos1][4] * 304L) + 
+                                                        (adc_samp[adc_samp_last_block_pos1][7] * 523L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][10] * 897L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][13] * 1366L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][16] * 1901L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][19] * 2454L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][22] * 2972L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][25] * 3394L) +
+                                                        (adc_samp[adc_samp_last_block_pos1][28] * 3671L) +
+                                                        (adc_samp[adc_samp_last_block_pos][1] * 3768L) +
+                                                        (adc_samp[adc_samp_last_block_pos][4] * 3671L) +
+                                                        (adc_samp[adc_samp_last_block_pos][7] * 3394L) +
+                                                        (adc_samp[adc_samp_last_block_pos][10] * 2972L) +
+                                                        (adc_samp[adc_samp_last_block_pos][13] * 2454L) +
+                                                        (adc_samp[adc_samp_last_block_pos][16] * 1901L) +
+                                                        (adc_samp[adc_samp_last_block_pos][19] * 1366L) +
+                                                        (adc_samp[adc_samp_last_block_pos][22] * 897L) +
+                                                        (adc_samp[adc_samp_last_block_pos][25] * 523L) +
+                                                        (adc_samp[adc_samp_last_block_pos][28] * 304L)) >> 13u);  // >>16  *8 to give some gain (on average sum it is *10)
+#endif
+
+
+
+#endif
 
 
 
@@ -1070,6 +1449,11 @@ void __not_in_flash_func(dma_handler)(void)
 
 
   //prepare next block position
+#if LOW_PASS_16KHZ == LOW_PASS_16KHZ_FIR  
+  adc_samp_last_block_pos3 = adc_samp_last_block_pos2;  //16kHz LP FIR use one more block
+  adc_samp_last_block_pos2 = adc_samp_last_block_pos1;  //16kHz LP FIR use one more block
+  adc_samp_last_block_pos1 = adc_samp_last_block_pos;  //16kHz LP FIR use one more block
+#endif
   adc_samp_last_block_pos = adc_samp_block_pos;
   adc_samp_block_pos++;   // = avg_num_block_pos;
   adc_samp_block_pos&=ADC_NUM_BLOCK_MASK;
@@ -1748,10 +2132,10 @@ void dsp_core1_setup_and_loop()
        (fft_display_graf_new == 0))
     {
 
-#if 0  //send FFT samples to serial
+#if 0  //send FFT samples to serial   it needs to use with extra serial on pins GP0 GP1
 
           
-          if(++aux_c1 == 20)
+          if(++aux_c1 == 50)
           {
           
           
@@ -1819,7 +2203,7 @@ void dsp_core1_setup_and_loop()
 
 
 
-#endif
+#endif    //send FFT samples to serial 
 
 
 
