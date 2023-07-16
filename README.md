@@ -94,6 +94,12 @@ There is a **uSDX_TX** folder with code to test RF modulation using **phase and 
 
 ## Last changes and notes:<br>
 
+Jul16 2023
+- Changing the 16kHz low pass filter from average sum of samples to a strong lp FIR. Due to I could hear strong stations away multiples of 16kHz.
+- Including the Band selection on screen in blue (ex. B0 = Band 0).
+- Adjusting the position on screen for receive level and manual gain (ex. R30x12).
+Obs.: to use manual gain adjust, press Enter button and turn the frequncy knob.
+
 Jun2 2023
 - Testing an 80KHz Low Pass Filter for I and Q inputs because I can hear some frequency distant strong stations.
 - New schematics and PCB for LPF and RX at the same board.
