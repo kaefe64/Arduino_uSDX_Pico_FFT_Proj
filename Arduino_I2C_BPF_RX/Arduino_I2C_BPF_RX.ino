@@ -79,8 +79,8 @@ uint8_t swr8bits;
 #define ledPin      13     // define LED pin number
 
 
-uint8_t RX_Relays=0, RX_Relays_old=0;
-uint8_t BPF_Relays=0, BPF_Relays_old=0;
+uint8_t RX_Relays=0, RX_Relays_old=0xff;
+uint8_t BPF_Relays=0, BPF_Relays_old=0xff;
 uint8_t I2C_Data;
 uint8_t rec=0, I2C_Address;
 const uint8_t REL_BPF_val[REL_BPF_val_num] = {REL_LPF2_val, REL_BPF6_val, REL_BPF12_val, REL_BPF24_val, REL_BPF40_val};
@@ -290,7 +290,7 @@ void loop() {
     }
     cont_test++;
 
-    delay(500);  //ms
+    delay(350);  //ms
   }
   else  
   {  
