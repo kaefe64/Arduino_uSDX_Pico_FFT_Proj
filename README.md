@@ -94,6 +94,16 @@ There is a **uSDX_TX** folder with code to test RF modulation using **phase and 
 
 ## Last changes and notes:<br>
 
+Jul19 2023
+- Changing uSDR_Pico_BPF_RX_SCH.pdf and PCB due to Relay HFD3 characteristics.
+
+![PCB assembly top](HFD3_characteristics.png)
+
+- Changing the components value on schematic to be the same as my assembly.
+
+- Including my Kicad PCBs layout as ZIP file (I can not give much support on this, use at your risk).
+
+
 Jul16 2023
 - Changing the 16kHz low pass filter from average sum of samples to a strong lp FIR. Due to I could hear strong stations away multiples of 16kHz.
 - Including the Band selection on screen in blue (ex. B0 = Band 0).
