@@ -1,13 +1,12 @@
-# Arduino_uSDX_Pico_FFT_Proj
+# Arduino_uSDR_Pico_FFT_Proj
 ## Hamradio SDR Transceiver Software
 ### by Klaus Fensterseifer - PY2KLA
 
 ![uSDR-PICO FFT](Pict1.png)
 
-This project is based on  Arjan te Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico
- . I strongly recommend you to take a look there before trying to follow this one.
+This project is a QSD/QSE Software Defined HF Transceiver, 5 Band, Low Power, based on  Arjan te Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico. I strongly recommend you to take a look there before trying to follow this one.
 
-My intention is to include a waterfall or panadapter to the uSDR-pico project, for this, I included an ILI9341 240x320 2.4" TFT display without touch, and also, changed the software to generate the waterfall.
+My intention is to include a waterfall or panadapter to the Arjan's uSDR-pico project, for this, I included an ILI9341 240x320 2.4" TFT display without touch, and also, changed the software to generate the waterfall.
 
 Initially, I have used Visual Studio, but after some considerations, I ported all code to Arduino IDE. So, to compile and run this code you need the Arduino IDE installed for a Raspberry Pi Pico project.
 
@@ -87,6 +86,24 @@ There is a **uSDX_TX** folder with code to test RF modulation using **phase and 
 - Obs.: at the initial test video, I used only the RC output filter shown in the schematic, and for input filter, only what is already inside of the Softrock RXTX Ensemble.
 
 ![Hardware Modification](FFT_LCD_pico_MOD.png)
+<br>
+
+- Keys description<br>
+**Normal operation:**
+Encoder = to change the frequency at the cursor position
+Left key = move the cursor to left
+Right key = move the cursor to right
+Enter key = We can adjust the Waterfall gain with the Encoder while
+pressing the Enter key.
+Escape key = to enter on menu mode
+**Menu mode:**
+Escape key = to go back to normal operation
+Left key = to move between the menu items
+Right key = to move between the menu items
+Encoder = to change menu item value
+Enter key = to confirm the menu item value
+
+<br>
 <br>
 <br>
 <br>
