@@ -90,18 +90,17 @@ There is a **uSDX_TX** folder with code to test RF modulation using **phase and 
 
 - Keys description<br>
 **Normal operation:**<br>
-Encoder = to change the frequency at the cursor position
-Left key = move the cursor to left
-Right key = move the cursor to right
-Enter key = We can adjust the Waterfall gain with the Encoder while
-pressing the Enter key.
+Encoder = to change the frequency at the cursor position<br>
+Left key = move the cursor to left<br>
+Right key = move the cursor to right<br>
+Enter key = We can adjust the Waterfall gain with the Encoder while pressing the Enter key.<br>
 Escape key = to enter on menu mode<br>
 **Menu mode:**<br>
-Escape key = to go back to normal operation
-Left key = to move between the menu items
-Right key = to move between the menu items
-Encoder = to change menu item value
-Enter key = to confirm the menu item value
+Escape key = to go back to normal operation<br>
+Left key = to move between the menu items<br>
+Right key = to move between the menu items<br>
+Encoder = to change menu item value<br>
+Enter key = to confirm the menu item value<br>
 
 <br>
 <br>
