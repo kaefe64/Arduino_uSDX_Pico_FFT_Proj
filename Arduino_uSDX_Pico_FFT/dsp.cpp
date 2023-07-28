@@ -371,9 +371,9 @@ fixed point precision: 16 bits
 
 **************************************************************************************/
 
-#define LPF_TAP_NUM 13
+#define SSB_LPF_TAP_NUM 13
 
-static int16_t lpf_taps[LPF_TAP_NUM] = {
+static int16_t ssb_lpf_taps[SSB_LPF_TAP_NUM] = {
   1326,
   2635,
   460,
@@ -418,9 +418,9 @@ fixed point precision: 16 bits
 
 */
 
-#define LPF_TAP_NUM 15
+#define SSB_LPF_TAP_NUM 15
 
-static int16_t lpf_taps[LPF_TAP_NUM] = {
+static int16_t ssb_lpf_taps[SSB_LPF_TAP_NUM] = {
   -695,
   -1627,
   -2278,
@@ -521,7 +521,7 @@ fixed point precision: 16 bits
 
 #define SSB_LPF_TAP_NUM 17
 
-static int16_t ssb_lpf_taps[LPF_TAP_NUM] = {
+static int16_t ssb_lpf_taps[SSB_LPF_TAP_NUM] = {
   843,
   1742,
   1498,
@@ -570,7 +570,7 @@ fixed point precision: 16 bits
 
 #define SSB_LPF_TAP_NUM 17
 
-static int ssb_lpf_taps[FILTER_TAP_NUM] = {
+static int16_t ssb_lpf_taps[SSB_LPF_TAP_NUM] = {
   350,
   1651,
   2300,
@@ -621,7 +621,7 @@ fixed point precision: 16 bits
 
 #define SSB_LPF_TAP_NUM 15
 
-static int ssb_lpf_taps[FILTER_TAP_NUM] = {
+static int16_t ssb_lpf_taps[SSB_LPF_TAP_NUM] = {
   768,
   1137,
   -319,
@@ -644,8 +644,149 @@ static int ssb_lpf_taps[FILTER_TAP_NUM] = {
 #endif
 
 
+#if 0
+
+/*
+
+FIR filter designed with
+http://t-filter.appspot.com
+
+sampling frequency: 16000 Hz
+
+fixed point precision: 16 bits
+
+* 0 Hz - 3600 Hz
+  gain = 1
+  desired ripple = 5 dB
+  actual ripple = n/a
+
+* 4800 Hz - 8000 Hz
+  gain = 0
+  desired attenuation = -40 dB
+  actual attenuation = n/a
+
+*/
+
+#define SSB_LPF_TAP_NUM 17
+
+static int16_t ssb_lpf_taps[SSB_LPF_TAP_NUM] = {
+  -767,
+  -1080,
+  686,
+  2621,
+  700,
+  -2801,
+  344,
+  10756,
+  16848,
+  10756,
+  344,
+  -2801,
+  700,
+  2621,
+  686,
+  -1080,
+  -767
+};
+
+#endif
 
 
+#if 0
+
+/*
+
+FIR filter designed with
+http://t-filter.appspot.com
+
+sampling frequency: 16000 Hz
+
+fixed point precision: 16 bits
+
+* 0 Hz - 4000 Hz
+  gain = 1
+  desired ripple = 5 dB
+  actual ripple = n/a
+
+* 5100 Hz - 8000 Hz
+  gain = 0
+  desired attenuation = -40 dB
+  actual attenuation = n/a
+
+*/
+
+#define SSB_LPF_TAP_NUM 17
+
+static int16_t ssb_lpf_taps[SSB_LPF_TAP_NUM] = {
+  -657,
+  -2322,
+  -1700,
+  1495,
+  1446,
+  -3040,
+  -1503,
+  10273,
+  17926,
+  10273,
+  -1503,
+  -3040,
+  1446,
+  1495,
+  -1700,
+  -2322,
+  -657
+};
+
+#endif
+
+
+#if 0
+
+/*
+
+FIR filter designed with
+http://t-filter.appspot.com
+
+sampling frequency: 16000 Hz
+
+fixed point precision: 16 bits
+
+* 0 Hz - 4600 Hz
+  gain = 1
+  desired ripple = 5 dB
+  actual ripple = n/a
+
+* 5600 Hz - 8000 Hz
+  gain = 0
+  desired attenuation = -40 dB
+  actual attenuation = n/a
+
+*/
+
+#define SSB_LPF_TAP_NUM 17
+
+static int16_t ssb_lpf_taps[SSB_LPF_TAP_NUM] = {
+  796,
+  -361,
+  -3240,
+  -1483,
+  2258,
+  -1600,
+  -3557,
+  9661,
+  20242,
+  9661,
+  -3557,
+  -1600,
+  2258,
+  -1483,
+  -3240,
+  -361,
+  796
+};
+
+
+#endif
 
 
 
@@ -776,7 +917,7 @@ fixed point precision: 16 bits
 
 #define FILTER_TAP_NUM 19
 
-static const int32_t lpf_16khz_taps[FILTER_TAP_NUM] = {
+static const int16_t lpf_16khz_taps[FILTER_TAP_NUM] = {
   304,
   523,
   897,
@@ -825,7 +966,7 @@ fixed point precision: 16 bits
 
 #define FILTER_TAP_NUM 33
 
-static int filter_taps[FILTER_TAP_NUM] = {
+static int16_t filter_taps[FILTER_TAP_NUM] = {
   29,
   59,
   114,
