@@ -178,8 +178,8 @@ void setup() {
   }  // If the serial is not open on 5s, it goes ahead and the serial print commands will be called but with no effect
   //fixed time for initial display - if the serial is not ok - consider no serial
 
-  Serialx.println("\n\n***  ARJAN-5  ***");
-  Serialx.println("\nArduino uSDX Pico FFT");
+//  Serialx.println("\n\n***  ARJAN-5  ***");
+//  Serialx.println("\nArduino uSDX Pico FFT");
 //  Serialx.println("\nSerial took " + String((millis() - tim)) + "ms to start");
 
   uSDR_setup();
