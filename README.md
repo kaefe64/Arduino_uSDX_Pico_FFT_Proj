@@ -1,12 +1,14 @@
-# Arduino_uSDR_Pico_FFT_Proj
-## Hamradio SDR Transceiver Software
+# ARJAN-5
+## 5 Band SSB/AM/CW
+## HF Transceiver
+## (Arduino_uSDR_Pico_FFT_Proj)
 ### by Klaus Fensterseifer - PY2KLA
 
 ![uSDR-PICO FFT](Pict1.png)
 
-This project is a QSD/QSE Software Defined HF Transceiver, 5 Band, Low Power, based on  Arjan te Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico. I strongly recommend you to take a look there before trying to follow this one.
+This project is a QSD/QSE Software Defined HF Transceiver (SDR), 5 Band, Low Power, based on  Arjan te Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico. I strongly recommend you to take a look there before trying to follow this one.
 
-My intention is to include a waterfall or panadapter to the Arjan's uSDR-pico project, for this, I included an ILI9341 240x320 2.4" TFT display without touch, and also, changed the software to generate the waterfall.
+My intention was to include a waterfall or panadapter to the Arjan's uSDR-pico project, for this, I included an ILI9341 240x320 2.4" TFT display without touch, and also, changed the software to generate the waterfall.
 
 Initially, I have used Visual Studio, but after some considerations, I ported all code to Arduino IDE. So, to compile and run this code you need the Arduino IDE installed for a Raspberry Pi Pico project.
 
@@ -26,7 +28,7 @@ Initial msg: #15923 · May 26  2022<br>
 <br>
 
 
-There is a **uSDX_TX** folder with code to test RF modulation using **phase and amplitude**, the same method used at the **uSDX project** (https://github.com/threeme3/usdx). If the test works on Pico, it will be included as an option to the main project.
+There is a **uSDX_TX** folder with code to test RF modulation using **phase and amplitude**, the same method used at the **uSDX project** (https://github.com/threeme3/usdx). 
 <br>
 <br>
 
@@ -39,28 +41,28 @@ There is a **uSDX_TX** folder with code to test RF modulation using **phase and 
 - The max ADC frequency is 500kHz, I have changed it to 480kHz (close to the original) to make the divisions "rounded".
 - The ADC for audio reception has frequency of 16kHz (close to the original). I have tested higher frequencies, but the time became critical, without so much benefit.
 - The max ADC frequency for each sample = 480kHz / 3 = 160kHz   (because there is only one internal ADC used to read the 3 inputs in sequence).
-- With 160kHz of samples, we can see 80kHz range after the FFT, but if we apply Hilbert to get the lower band and the upper band, we get two bands of 80kHz, one above and one below the center frequency.
+- With 160kHz of samples, we can see 80kHz range after the FFT, but applying Hilbert to get the lower band and the upper band, we get two bands of 80kHz, above and below the center frequency.
 - There is no time to process each sample at 160kHz and generate the "live" audio, so I use this method:
     Set the DMA to receive 10 samples of each ADC input (10 x 3 = 30) and generate an interrupt.
-    So, we get 16kHz interrupts with 10 x 3 samples to deal. 
-    For audio, we need only one sample at each interruption of 16kHz, but to improve the signal, I made an average from the last 10 samples to deliver to audio task (this is also a low pass filter).
+    So, we get 16kHz interrupts with 10 x 3 samples to deal.<br>
+    For audio, we need only one sample at each interruption of 16kHz. At this point, there is a low pass filter to remove any frequency above 8kHz.<br>
     For FFT, we need all samples (raw samples), so they are copied to a FFT buffer for later use.
-- There is also no time to process the samples and run the audio receiver part at 16kHz, so I chose to split it. The interrupt and buffer/average part is done at Core1, and the audio original reception is in the Core0.
-- Every 16kHz interrupt, after average the I, Q and MIC, these samples are passed to Core0 to follow the audio reception tasks.
+- There is also no time to process the samples and run the audio receiver part at 16kHz, so I chose to split it. The interrupt and buffer/filter part is done at Core1, and the audio original reception is in the Core0.
+- Every 16kHz interrupt, after filtering the I, Q and MIC, these samples are passed to Core0 to follow the audio reception tasks.
 - For the waterfall, when we have received 320 I and Q samples, it stops filling the buffer and indicates to the Core1 main loop to process FFT/Hilbert for a new graphic line.
 - The original processes run at Core0, every 100ms.
-- There is a digital low pass filter FIR implemented at the code (in the original too) that will give the passband we want for audio.
+- There is a digital low pass filter FIR implemented at the code (like the original) that will give the passband we want for audio.
   This filter was calculated with the help of this site:  http://t-filter.engineerjs.com/
   The dificulty is that the number of filter taps can not be high (there is no much time to process it), so the filter must be chosen carefully.
 - Please consider that this waterfall is not perfect, I had to let go of some rules to make it.
-- Block diagram at "Arduino_uSDR_Pico_FFT.png".
+- Block diagram at "Arduino_uSDR_Pico_FFT.png":
 
 ![Block diagram](Arduino_uSDR_Pico_FFT.png)
 
 
-### Nyquist considerations:
-**Input:** We sample each signal I, Q and MIC at 160kHz, so it is necessary to have a hardware low pass filter for 80kHz on each input (anti-aliasing filter). If the input filter is set to lower than 80kHz, the waterfall will show less than +-80kHz of signals. If the input filter is set to higher then 80kHz, the audio and the waterfall could peek some signals greater than 80kHz and treat them as lower than 80kHz (this is the aliasing problem).<br>
-**Output:** We deliver an audio signal at 16kHz sample frequency, so we need a hardware low pass filter for less than 8kHz at the output. The sample frequency will be present and needs to be removed as it is an audio frequency.
+### ADC Aliasing filter considerations:
+**Input:** We sample each signal I, Q and MIC at 160kHz, so it is necessary to have a hardware low pass filter for 80kHz on each input (anti-aliasing filter). If the input filter is set to lower than 80kHz, the waterfall will show less than +-80kHz of signals. If the input filter is set to higher then 80kHz, the audio and the waterfall could peek some signals greater than 80kHz and treat them as lower than 80kHz (this is the ADC aliasing problem).<br>
+**Output:** We deliver an audio signal at 16kHz sample frequency, so we need a hardware low pass filter for less than 8kHz at the output. The sample frequency will be present and needs to be removed as it is also an audio frequency.
 
 
 ## Microcontroller RP2040 notes:
@@ -82,13 +84,14 @@ There is a **uSDX_TX** folder with code to test RF modulation using **phase and 
 - Inclusion of ILI9341 on free pins, using SPI1, and removing the LCD display.
 - Schematic diagram at "FFT_LCD_pico.png".
 - I noticed that changing the signal in one ADC input, changed the other inputs signal through the resistors for setting half Vref. To solve this, I changed the circuit to have a separate resistor divider for each ADC input.
-- Use input/output filters for Nyquist considerations (see above). 
-- Obs.: at the initial test video, I used only the RC output filter shown in the schematic, and for input filter, only what is already inside of the Softrock RXTX Ensemble.
 
 ![Hardware Modification](FFT_LCD_pico_MOD.png)
 <br>
 
-- Keys description<br>
+- Use input/output filters for ADC Aliasing considerations (see above). 
+- Obs.: at the initial test video, I used only the RC output filter shown in the schematic, and for input filter, only what is already inside of the Softrock RXTX Ensemble.
+
+## Keys description<br>
 **Normal operation:**<br>
 Encoder = to change the frequency at the cursor position<br>
 Left key = move the cursor to left<br>
@@ -109,6 +112,11 @@ Enter key = to confirm the menu item value<br>
 
 
 ## Last changes and notes:<br>
+
+Oct13 2023
+- Now, each band has its own setup, including last frequency used. It will remember the menu options for each band.
+- Included new menu option to save the band setup on Data Flash (non volatile memory), including the frequency. The last band saved will be the one selected after power on.
+- Changed the trasnceiver name to ARJAN-5 (the name uSDR Pico brings to misunderstandings in my opinion).
 
 Jul19 2023
 - Changing uSDR_Pico_BPF_RX_SCH.pdf and PCB due to Relay HFD3 characteristics.
