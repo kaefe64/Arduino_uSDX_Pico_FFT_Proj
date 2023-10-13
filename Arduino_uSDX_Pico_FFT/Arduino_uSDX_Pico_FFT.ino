@@ -122,8 +122,8 @@ Compilation error: 'Wire1' was not declared in this scope
 
 --------------------------------------------------------------
 >>Choose one TX method at uSDR.h
-//#define TX_METHOD    PHASE_AMPLITUDE    // used for Class E RF amplifier - see description at: uSDX_TX_PhaseAmpl.cpp
-#define TX_METHOD    I_Q_QSE            // DO NOT USE - is not ready - uSDR_Pico original project generating I and Q signal to a QSE mixer
+#define TX_METHOD    I_Q_QSE            // uSDR_Pico original project generating I and Q signal to a QSE mixer
+//#define TX_METHOD    PHASE_AMPLITUDE    // DO NOT USE - is not ready - used for Class E RF amplifier - see description at: uSDX_TX_PhaseAmpl.cpp
 
 --------------------------------------------------------------
 >> I made a #define PY2KLA_setup 1 at uSDR.h  to set my configuration on other files
@@ -137,6 +137,7 @@ Comment out this #define and set your own configuration
 
 
 #include "uSDR.h"
+#include "hmi.h"
 
 
 
@@ -150,18 +151,20 @@ void setup() {
   gpio_init_mask(1<<LED_BUILTIN);  
   gpio_set_dir(LED_BUILTIN, GPIO_OUT); 
 
-  uSDR_setup0();  //write something into display while waiting for the serial
-
   
   //uSDX.h -> Serialx = Serial1   //UART0  /dev/ttyUSB0
-  //Better to choose Serialx = Serial on uSDR.h (it will use Pico's USB and save the use of USB to serial converter and leave 2 spare pins)
+  //if you choose Serialx = Serial on uSDR.h - it will use Pico's USB and save the use of USB to serial converter and leave 2 spare pins
   Serialx.begin(115200);  
 
-
   uint16_t tim = millis();
- 
+
+  //special jobs while waiting initial display print
+  uSDR_setup0();  //write something into display while waiting for the serial
+  hmi_init0();     //it could take some time to read all DFLASH data
+
   // some delay required for Serial to open
-  for(int i=0; i<50; i++)  //try for 5s to connect to serial
+  //for(int i=0; i<50; i++)  //try for 5s to connect to serial
+  while((millis() - tim) < 5000)   //try for 5s to connect to serial
   {
   //digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
   gpio_set_mask(1<<LED_BUILTIN);
@@ -169,42 +172,17 @@ void setup() {
   //digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
   gpio_clr_mask(1<<LED_BUILTIN);
   delay(50);                       // wait
-   
-  if(Serial)  //serial open
-    break;
+  
+  //if(Serial)  //serial open
+  //  break;
   }  // If the serial is not open on 5s, it goes ahead and the serial print commands will be called but with no effect
+  //fixed time for initial display - if the serial is not ok - consider no serial
 
-
-/*    
-  while (!Serialx)  //Caution!!  with Serial, if no USB-serial open, it will be stuck here
-  {  //wait for PC USB-serial to open
-  //digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
-  gpio_set_mask(1<<LED_BUILTIN);
-  delay(250);
-  //digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
-  gpio_clr_mask(1<<LED_BUILTIN);
-  delay(250);
-  }
-*/
-  Serialx.println("Arduino uSDX Pico FFT");
-  Serialx.println("\nSerial took " + String((millis() - tim)) + "ms to start");
-
-
-
-
-//  analogReadResolution(12);
-//  analogWriteResolution(12);
-//  analogWrite(DAC0, 0);
-//  analogWrite(DAC1, 0);
-
-
-//  display_setup();
-//  adc_fft_setup();
-
-
+  Serialx.println("\n\n***  ARJAN-5  ***");
+  Serialx.println("\nArduino uSDX Pico FFT");
+//  Serialx.println("\nSerial took " + String((millis() - tim)) + "ms to start");
 
   uSDR_setup();
-
 }
 
 

@@ -36,6 +36,7 @@ extern "C" {
 #define SIZE3    1
 
 #define FONT2 &FreeMonoBold18pt7b
+//#define FONT2 &FreeMono18pt7b
 #define X_CHAR2  21
 #define Y_CHAR2  32
 #define SIZE2    1

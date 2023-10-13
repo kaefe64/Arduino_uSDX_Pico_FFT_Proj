@@ -420,27 +420,36 @@ void display_aud_graf(void)
 {
 uint16_t aud_pos;
 int16_t x;
-
+int16_t aud_samp_trigger;
   
   //erase graphic area
   //tft.fillRect(0, Y_MIN_DRAW - 10, display_WIDTH, 10, TFT_BLACK);
   tft.fillRect(X_MIN_AUD_GRAPH, Y_MIN_AUD_GRAPH, AUD_GRAPH_NUM_COLS, (AUD_GRAPH_MAX - AUD_GRAPH_MIN + 1), TFT_BLACK);
 
+ // if(tx_enabled)
+  {
+ //   aud_samp_trigger = AUD_SAMP_MIC;  
+  }
+//  else
+  {
+    aud_samp_trigger = AUD_SAMP_I;
+  }
+
   //find trigger point to start ploting
   for(x=0; x<AUD_GRAPH_NUM_COLS; x++)
   {
-     if((aud_samp[AUD_SAMP_I][x+0] > 0) &&
-        (aud_samp[AUD_SAMP_I][x+1] > 0) &&
-        (aud_samp[AUD_SAMP_I][x+2] > 0) &&
-        (aud_samp[AUD_SAMP_I][x+3] > 0) &&
-        (aud_samp[AUD_SAMP_I][x+4] > 0))
+     if((aud_samp[aud_samp_trigger][x+0] > 0) &&
+        (aud_samp[aud_samp_trigger][x+1] > 0) &&
+        (aud_samp[aud_samp_trigger][x+2] > 0) &&
+        (aud_samp[aud_samp_trigger][x+3] > 0) &&
+        (aud_samp[aud_samp_trigger][x+4] > 0))
         {
           break;
         }
   }
   for(; x<AUD_GRAPH_NUM_COLS; x++)
   {
-     if(aud_samp[AUD_SAMP_I][x] < 0)
+     if(aud_samp[aud_samp_trigger][x] < 0)
         {
           break;
         }
@@ -477,12 +486,40 @@ void display_tft_setup0(void) {
  
   tft.fillScreen(TFT_BLACK);
 
-  sprintf(s, "uSDR Pico");
-  tft_writexy_plus(3, TFT_YELLOW, TFT_BLACK, 1,10,1,0,(uint8_t *)s);
-#ifdef PY2KLA_setup
-  sprintf(s, "PY2KLA");
-  tft_writexy_plus(3, TFT_WHITE, TFT_BLACK, 3,0,3,0,(uint8_t *)s);
-#endif  
+//  sprintf(s, "uSDR Pico");
+  sprintf(s, "Arjan-5");  //name changed from uSDR Pico FFT
+  tft_writexy_plus(3, TFT_YELLOW, TFT_BLACK, 2,10,1,0,(uint8_t *)s);
+
+  //tft.fillRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t radius, uint32_t color)
+  //tft.drawRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t radius, uint32_t color)
+  tft.drawRoundRect(35, 25, 250, 70, 15, TFT_YELLOW);
+
+//  sprintf(s, "uSDR Pico FFT");  //name changed from uSDR Pico FFT
+  sprintf(s, "5 Band SSB/AM/CW");  //name changed from uSDR Pico FFT
+//  tft_writexy_plus(2, TFT_YELLOW, TFT_BLACK, 0,0,3,10,(uint8_t *)s);
+  tft_writexy_plus(1, TFT_YELLOW, TFT_BLACK, 3,0,5,0,(uint8_t *)s);
+
+  sprintf(s, "HF Transceiver");  //name changed from uSDR Pico FFT
+//  tft_writexy_plus(2, TFT_YELLOW, TFT_BLACK, 0,10,4,10,(uint8_t *)s);
+  tft_writexy_plus(1, TFT_YELLOW, TFT_BLACK, 4,0,6,10,(uint8_t *)s);
+
+
+//#ifdef PY2KLA_setup
+//  sprintf(s, "by");
+//  tft_writexy_plus(1, TFT_LIGHTGREY, TFT_BLACK, 0,0,5,0,(uint8_t *)s);
+//  sprintf(s, "PE1ATM");
+//  sprintf(s, "by");
+//  tft_writexy_plus(1, TFT_LIGHTGREY, TFT_BLACK, 0,0,7,0,(uint8_t *)s);
+  sprintf(s, "Arjan te Malverde");
+  tft_writexy_plus(1, TFT_SKYBLUE, TFT_BLACK, 3,0,9,0,(uint8_t *)s);
+//  sprintf(s, "and");
+//  tft_writexy_plus(1, TFT_LIGHTGREY, TFT_BLACK, 0,0,8,0,(uint8_t *)s);
+// sprintf(s, "PY2KLA");
+//  sprintf(s, "and");
+//  tft_writexy_plus(1, TFT_LIGHTGREY, TFT_BLACK, 0,0,9,0,(uint8_t *)s);
+  sprintf(s, "Klaus Fensterseifer");
+  tft_writexy_plus(1, TFT_SKYBLUE, TFT_BLACK, 2,0,10,0,(uint8_t *)s);
+//#endif  
 }
 
 
@@ -535,10 +572,6 @@ char s[32];
   sprintf(s, "GAIN");
   tft_writexy_plus(1, TFT_MAGENTA, TFT_BLACK, 10,4,3,0,(uint8_t *)s);
 
-
-  sprintf(s, "B%d", hmi_option);
-  //tft_writexy_plus(3, TFT_YELLOW, TFT_BLACK, 0,0,2,20,(uint8_t *)s);
-  tft_writexy_plus(2, TFT_BLUE, TFT_BLACK, 0,0,3,18,(uint8_t *)s);
 
 
 /* 
