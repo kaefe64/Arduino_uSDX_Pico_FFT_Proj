@@ -43,6 +43,8 @@
 #include "kiss_fftr.h"
 #include "TFT_eSPI.h"
 #include "display_tft.h"
+#include "pico/multicore.h"
+#include "Dflash.h"
 
 #if TX_METHOD == PHASE_AMPLITUDE    // uSDX TX method used for Class E RF amplifier
 #include "uSDX_I2C.h"
@@ -1026,11 +1028,19 @@ static int16_t filter_taps[FILTER_TAP_NUM] = {
 
 #define FILTER_SHIFT  16  // 16 bits coef 
 
-
-// Obs.: *** i_s_raw[], q_s_raw[] and a_s_raw  need to use the size from the filter with more taps
-// CW_BPF_TAP_NUM  or  AM_LPF_TAP_NUM  or  SBB_LPF_TAP_NUM  ->   CW_BPF_TAP_NUM
-volatile int16_t i_s_raw[CW_BPF_TAP_NUM], q_s_raw[CW_BPF_TAP_NUM];      // Raw I/Q samples minus DC bias
-volatile int16_t a_s_raw[CW_BPF_TAP_NUM];             // Raw MIC samples, minus DC bias
+// Obs.: *** i_s_raw[], q_s_raw[] and a_s_raw[]  need to use the size from the filter with more taps
+// CW_BPF_TAP_NUM  or  AM_LPF_TAP_NUM  or  SBB_LPF_TAP_NUM  ->   MAX_TAP_NUM
+#define MAX_TAP_NUM  CW_BPF_TAP_NUM
+#if AM_LPF_TAP_NUM > MAX_TAP_NUM
+#undef MAX_TAP_NUM
+#define MAX_TAP_NUM  AM_LPF_TAP_NUM
+#endif
+#if SBB_LPF_TAP_NUM > MAX_TAP_NUM
+#undef MAX_TAP_NUM
+#define MAX_TAP_NUM  SBB_LPF_TAP_NUM
+#endif
+volatile int16_t i_s_raw[MAX_TAP_NUM], q_s_raw[MAX_TAP_NUM];      // Raw I/Q samples minus DC bias
+volatile int16_t a_s_raw[MAX_TAP_NUM];             // Raw MIC samples, minus DC bias
 
 
 
@@ -1328,6 +1338,16 @@ void __not_in_flash_func(dma_handler)(void)
 #if LOW_PASS_16KHZ == LOW_PASS_16KHZ_FIR
 
 
+/*
+Low pass filter with extra attenuation to avoid hearing some one >16kHz away (attenuate an strong station away a multiple of 16kHz)
+sampling frequency: 160000 Hz
+* 0 Hz - 4000 Hz
+  gain = 1
+* 13000 Hz - 80000 Hz
+  desired attenuation = -63 dB  (extra attenuation)
+
+The sampling is at 160kHz but for audio we only need 16kHz samples, so the filter is at 160kHz with the output generated at 16kHz (process 1x at each 16kHz)
+*/
   adc_samp_sum[adc_samp_last_block_pos][0] = (int16_t)((
                                                         (adc_samp[adc_samp_last_block_pos3][21] * 29L) +
                                                         (adc_samp[adc_samp_last_block_pos3][24] * 59L) +
@@ -1937,9 +1957,30 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
 }
 
 
+/************************************************************************************** 
+ * compress - audio compression input= -+2048 output= -+1024  reducing values above -+512
+ **************************************************************************************/
+#define COMPRESS_BASE  2040
+const int16_t vcompress[2] = {0+(COMPRESS_BASE/4), (COMPRESS_BASE/4)+(COMPRESS_BASE/8)};
 
-
-
+int16_t compress(int16_t mic_sample)
+{
+  for(int16_t i=0; i<2; i++)
+  {
+    //IF(C10>(E$4+E$5);((C10-(E$4+E$5))/2)+(E$4+E$5)
+    if(mic_sample > vcompress[i])
+    {
+      mic_sample = ((mic_sample - vcompress[i])>>1) + vcompress[i];
+    }
+    //IF(C10<-(E$4+E$5);((C10+(E$4+E$5))/2)-(E$4+E$5)
+    else if(mic_sample < -vcompress[i])
+    {
+      mic_sample = ((mic_sample + vcompress[i])>>1) - vcompress[i];
+    }
+    //C10
+  }
+  return mic_sample;
+}
 
 
 
@@ -1965,6 +2006,10 @@ bool vox(void)
    * samples already subtracted from bias
 	 */
 	vox_sample = adc_result[2];						// Get latest ADC 2 result
+
+  /* audio compression resulting -+2048   (1 bit less than ADC) */
+  vox_sample = compress(vox_sample);
+
 
   //store variables for scope graphic
   if(aud_samples_state == AUD_STATE_SAMP_IN)  
@@ -2027,8 +2072,10 @@ bool vox(void)
 #define CW_TONE_NUM  24
 int16_t cw_tone_to_play_pos = 0;
 // ADC_RANGE 4095  >>4 = DAC_RANGE 255
-int16_t cw_tone_to_play[CW_TONE_NUM] = {0,  529, 1023,  1447,  1773,  1977,  2047,  1977,  1773,  1447,  1023,  529, -1,  -530,  -1024, -1448, -1774, -1978, -2048, -1978, -1774, -1448, -1024, -530}; 
-
+//int16_t cw_tone_to_play[CW_TONE_NUM] = {0,  529, 1023,  1447,  1773,  1977,  2047,  1977,  1773,  1447,  1023,  529, -1,  -530,  -1024, -1448, -1774, -1978, -2048, -1978, -1774, -1448, -1024, -530}; 
+int16_t cw_tone_to_play[CW_TONE_NUM] = {0, 518, 1000, 1414, 1732, 1932, 2000, 1932, 1732, 1414, 1000, 517, 0, -518, -1000, -1415, -1732, -1932, -2000, -1932, -1732,  -1414,  -1000,  -517};
+// max -2000 to 2000     to fit at 255  ->  cw_tone_to_play[] >> 4  (the filter makes << 4)
+//int16_t cw_tone_to_play[CW_TONE_NUM] = {0, 31, 60, 85, 104, 116, 120, 116, 104, 85, 60, 31, 0, -31, -60, -85, -104, -116, -120, -116, -104,  -85,  -60,  -31};
 
 /************************************************************************************** 
  * CORE0: inside DMA IRQ
@@ -2048,13 +2095,13 @@ bool tx(void)
   //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
   if(dsp_mode != MODE_CW)  //no filter for CW  - direct generated
   {
-    //sample already saved at vox()
+    //sample already saved at a_s_raw[] in vox()
     a_accu = 0;                   // Initialize accumulator
     for (i=0; i<mode_filter_tap_num; i++)              // Low pass FIR filter, using raw samples
       a_accu += (int32_t)a_s_raw[i]*mode_filter_taps[i];    
     for (i=0; i<(HILBERT_TAP_NUM-1); i++)              // Shift decimated samples
       a_s[i] = a_s[i+1];
-    a_s[(HILBERT_TAP_NUM-1)] = a_accu >> FILTER_SHIFT;             // Store rescaled accumulator
+    a_s[(HILBERT_TAP_NUM-1)] = (a_accu >> FILTER_SHIFT);             // Store rescaled accumulator
   }
 
 
@@ -2091,27 +2138,36 @@ bool tx(void)
     {
       cw_tone_to_play_pos = 0;
     }
-    qh = cw_tone_to_play[cw_tone_to_play_pos]>>2;
+    qh = cw_tone_to_play[cw_tone_to_play_pos];  //it uses a 4096 range, similar to the filters output (it makes >>4 below)
     i = cw_tone_to_play_pos + (CW_TONE_NUM/4);  // 90 degrees
     if(i >= CW_TONE_NUM)
     {
       i -= CW_TONE_NUM;
     }
-    a_s[7] = cw_tone_to_play[i]>>2;
+    a_s[7] = cw_tone_to_play[i]; //it uses a 4096 range, similar to the filters output (it makes >>4 below)
 
     //audio side tone
-    pwm_set_chan_level(dac_audio, PWM_CHAN_A, (cw_tone_to_play[cw_tone_to_play_pos]>>8)+DAC_BIAS);
+    pwm_set_chan_level(dac_audio, PWM_CHAN_A, (cw_tone_to_play[cw_tone_to_play_pos]>>6)+DAC_BIAS);  //>>4 = max value, more >>2 to attenuate the side tone sound level
+    //pwm_set_chan_level(dac_audio, PWM_CHAN_A, ((a_s_raw[mode_filter_tap_num-1u]>>4)+DAC_BIAS));  //>>4 = max value, more >>2 to attenuate the side tone sound level
     break;
 	default:
 		break;
 	}
+
+
+  if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphic
+    {
+      aud_samp[AUD_SAMP_I][aud_samp_block_pos] = qh>>2;
+      aud_samp[AUD_SAMP_Q][aud_samp_block_pos] = a_s[7]>>2;
+    }
+  
 
 	/* 
 	 * Write I and Q to QSE DACs, phase is 7 samples back.
 	 * Need to multiply AC with DAC_RANGE/ADC_RANGE (appr 1/16)
 	 * Any case: clip to range
 	 */
-	a_accu = DAC_BIAS - (qh>>4);  //(qh/16);
+	a_accu = DAC_BIAS + (qh>>5);  //>>4 to change from ADC 4096 range to 256 PWM range  (>>4 seems saturate)
 	if (a_accu<0)
 		q_dac = 0;
 	else if (a_accu>(int16_t)(DAC_RANGE))
@@ -2119,7 +2175,7 @@ bool tx(void)
 	else
 		q_dac = a_accu;
 	
-	a_accu = DAC_BIAS + (a_s[7]>>4);  //(a_s[7]/16);
+	a_accu = DAC_BIAS + (a_s[7]>>5);  //>>4 to change from ADC 4096 range to 256 PWM range  (>>4 seems saturate)
 	if (a_accu<0)
 		i_dac = 0;
 	else if (a_accu>(int16_t)(DAC_RANGE))
@@ -2133,7 +2189,23 @@ bool tx(void)
 	pwm_set_gpio_level(21, i_dac);
 	pwm_set_gpio_level(20, q_dac);
 	
-	
+
+  //store variables for scope graphic
+  if(aud_samples_state == AUD_STATE_SAMP_IN)
+  {
+    //aud_samp[AUD_SAMP_A][aud_samp_block_pos] = a_sample>>1;
+    //aud_samp[AUD_SAMP_PEAK][aud_samp_block_pos] = k;  //peak_avg_shifted>>PEAK_AVG_SHIFT;
+    //aud_samp[AUD_SAMP_GAIN][aud_samp_block_pos] = agc_gain;
+
+    if(++aud_samp_block_pos >= AUD_NUM_SAMP)
+    {
+      aud_samp_block_pos = 0;
+      aud_samples_state = AUD_STATE_SAMP_RDY;
+    }
+  }
+
+
+
 	return true;
 }
 
@@ -2177,6 +2249,7 @@ void dsp_core1_setup_and_loop()
   bus_ctrl_hw->priority = BUSCTRL_BUS_PRIORITY_DMA_W_BITS | BUSCTRL_BUS_PRIORITY_DMA_R_BITS;
 
 
+  multicore_lockout_victim_init();
 
   
   
@@ -2255,7 +2328,7 @@ void dsp_core1_setup_and_loop()
   adc_run(true);
 
   
-
+  
 
   //**************
 	//Core1 loop
@@ -2266,6 +2339,19 @@ void dsp_core1_setup_and_loop()
 	{
   
 //    gpio_set_mask(1<<14);
+
+    if(DFLASH_in_use != 0)
+    {
+      uint32_t interrupts_Core1 = save_and_disable_interrupts();
+
+      //adc_run(false);
+      DFLASH_in_use = 2;
+      while(DFLASH_in_use == 2);
+      //adc_run(true);
+
+      restore_interrupts(interrupts_Core1);      
+    }    
+
 
 
     //wait for FFT input data to be processed
