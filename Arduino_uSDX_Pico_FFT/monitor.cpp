@@ -67,11 +67,14 @@ void mon_init()
   //  stdio_init_all();								// Initialize Standard IO
 	mon_cmd[CMD_LEN] = '\0';						// Termination to be sure
 	Serialx.print("\n");
-	Serialx.print("=============\n");
-	Serialx.print(" uSDR-Pico   \n");
-	Serialx.print("  PE1ATM     \n");
-	Serialx.print(" 2021, Udjat \n");
-	Serialx.print("=============\n");
+	Serialx.print("===================\n");
+	Serialx.print("****  ARJAN-5  ****\n");
+	Serialx.print(" 5 Band SSB/AM/CW  \n");
+	Serialx.print("  HF Transceiver   \n");
+	Serialx.print("======= by ========\n");
+	Serialx.print(" Arjan te Malverde \n");
+	Serialx.print("Klaus Fensterseifer\n");
+	Serialx.print("=======2023========\n");
 	Serialx.print("Pico> ");								// prompt
 }
 
