@@ -14,8 +14,8 @@ https://github.com/arduino/ArduinoCore-avr/pull/90/files#diff-e4603cea13a2a6370b
 
 
 
-Arduino Pro Mini 3V3 8Mhz
- 
+Arduino Pro Mini 3V3   ATmega328P 8Mhz
+
 14 digital pins, input or output
 Serial: 0 (RX) and 1 (TX)
 External Interrupts: 2 and 3
@@ -66,13 +66,18 @@ https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj
 #define REL_PRE_00_val	0x00
 
 /* SWR read */
-#define I2C_SWR 		I2C_BPF	//0x20 read (use the same address to make easy to build the multi I2C mask)
-#define swrPin      A0      // select the input pin for the swr analog reading
-uint16_t swr, swr0, swr1;
-uint8_t swr8bits;
+#define I2C_SWR 		I2C_BPF	//=0x20 read (use the same address to make easy to build the multi I2C mask)
+#define vForwardPin       A0    // select the input pin for the swr analog reading
+#define vReflectedPin     A1    // select the input pin for the swr analog reading
+#define VMIN              20    // min forward AD value for swr
+#define SWR_BASE          10    // numeric base for SWR decimal
+#define SWR_MIN           (1 * SWR_BASE)    // SWR = 1.0
+#define SWR_MAX          255                // byte max value, SWR max = 255/SWR_BASE
+
+uint8_t swr_8bits;
 
 #define I2C_ADDR (I2C_BPF | I2C_RX)
-#define I2C_MASK ((I2C_BPF | I2C_RX) ^ (I2C_BPF & I2C_RX))
+#define I2C_MASK ((I2C_BPF | I2C_RX) ^ (I2C_BPF & I2C_RX))  /* xor */
 
 
 
@@ -85,6 +90,11 @@ uint8_t I2C_Data;
 uint8_t rec=0, I2C_Address;
 const uint8_t REL_BPF_val[REL_BPF_val_num] = {REL_LPF2_val, REL_BPF6_val, REL_BPF12_val, REL_BPF24_val, REL_BPF40_val};
 const uint8_t REL_ATT_val[REL_ATT_val_num] = {REL_PRE_10_val, REL_ATT_30_val, REL_ATT_20_val, REL_ATT_10_val, REL_ATT_00_val};
+
+
+
+unsigned long nextMillis;
+#define LOOP_PERIOD_MILLIS  500
 
 
 /*****************************************************************************************/
@@ -101,7 +111,7 @@ void setup()
   delay(50);                       // wait
   if(Serial)  //serial opened
     break;
-  }  // If the serial is not open, the print commands will have no effect
+  }  // If the serial does not open, the print commands will have no effect
   Serial.println("\nArduino I2C Slave Multi Address");
   //Serial.print("FREQ CPU: ");
   //Serial.println(F_CPU);   //prints the clock frequency, chose the right clock for Arduino Pro Mini at Tools Processor
@@ -126,11 +136,17 @@ void setup()
   digitalWrite(REL_PRE_10_pin, 0);
     
 
-  pinMode(swrPin, INPUT);
+  pinMode(vForwardPin, INPUT);
+  pinMode(vReflectedPin, INPUT);
 
-  Wire.begin(I2C_ADDR, I2C_MASK);       // base address for all slaves running here
+  Wire.begin(I2C_ADDR, I2C_MASK);       // base address for all slaves running here (valid only for ATmega328P Arduinos)
   Wire.onRequest(requestEvent);  // register callback function for I2C = master read
   Wire.onReceive(receiveEvent);  // register callback function for I2C = master write
+
+
+
+  nextMillis = millis() + LOOP_PERIOD_MILLIS;
+
 }
 
 
@@ -138,7 +154,7 @@ void setup()
 void requestEvent (){    // master read = request data from slave
   switch (Wire.getLastAddress()) {   // address from last byte on the bus
     case (I2C_SWR):
-      Wire.write(swr8bits);   // send back 8bits value
+      Wire.write(swr_8bits);   // send back 8bits value
       //Wire.write((byte *)&swr, 2);   //send 2 bytes
       break;
 
@@ -169,6 +185,9 @@ void receiveEvent(int howManyBytesReceived) {   // master write = send data to s
 
 /*****************************************************************************************/
 void Set_BPF_Relays() {
+
+  Serial.print("Set BPF Relays ");  
+
   if(BPF_Relays == REL_LPF2_val)    
   {
     digitalWrite(REL_LPF2_pin, 1);
@@ -176,6 +195,9 @@ void Set_BPF_Relays() {
     digitalWrite(REL_BPF12_pin, 0);
     digitalWrite(REL_BPF24_pin, 0);
     digitalWrite(REL_BPF40_pin, 0);
+    
+    Serial.print(BPF_Relays);  
+    Serial.println("  REL_LPF2_val   band=0");  
   }  
   else if(BPF_Relays == REL_BPF6_val) 
   {
@@ -184,6 +206,9 @@ void Set_BPF_Relays() {
     digitalWrite(REL_BPF12_pin, 0);
     digitalWrite(REL_BPF24_pin, 0);
     digitalWrite(REL_BPF40_pin, 0);
+    
+    Serial.print(BPF_Relays);  
+    Serial.println("  REL_BPF6_val   band=1");  
   }  
   else if(BPF_Relays == REL_BPF12_val) 
   {
@@ -192,6 +217,9 @@ void Set_BPF_Relays() {
     digitalWrite(REL_BPF12_pin, 1);
     digitalWrite(REL_BPF24_pin, 0);
     digitalWrite(REL_BPF40_pin, 0);
+    
+    Serial.print(BPF_Relays);  
+    Serial.println("  REL_BPF12_val   band=3");  
   }  
   else if(BPF_Relays == REL_BPF24_val) 
   {
@@ -200,6 +228,9 @@ void Set_BPF_Relays() {
     digitalWrite(REL_BPF12_pin, 0);
     digitalWrite(REL_BPF24_pin, 1);
     digitalWrite(REL_BPF40_pin, 0);
+    
+    Serial.print(BPF_Relays);  
+    Serial.println("  REL_BPF24_val   band=4");  
   }  
   else //BPF40   at least 1 filter connected
   {
@@ -208,20 +239,26 @@ void Set_BPF_Relays() {
     digitalWrite(REL_BPF12_pin, 0);
     digitalWrite(REL_BPF24_pin, 0);
     digitalWrite(REL_BPF40_pin, 1);
+    
+    Serial.print(BPF_Relays);  
+    Serial.println("  REL_BPF40_val   band=2");  
   }  
   
-  digitalWrite(ledPin, !digitalRead(ledPin));    //toggle led
-  Serial.print("Set BPF Relays ");  
-  Serial.println(BPF_Relays);  
+//  digitalWrite(ledPin, !digitalRead(ledPin));    //toggle led
 }
 
 
 
 /*****************************************************************************************/
 void Set_RX_Relays() {
+
+  Serial.print("Set RX Relays ");  
+  Serial.print(RX_Relays);    
+
   if((RX_Relays & REL_ATT_20_val) == REL_ATT_20_val) 
   {
     digitalWrite(REL_ATT_20_pin, 1);
+    Serial.print("   REL_ATT_20_val");      
   }
   else
   {
@@ -231,6 +268,7 @@ void Set_RX_Relays() {
   if((RX_Relays & REL_ATT_10_val) == REL_ATT_10_val) 
   {
     digitalWrite(REL_ATT_10_pin, 1);        
+    Serial.print("   REL_ATT_10_val");      
   }  
   else
   {
@@ -240,33 +278,82 @@ void Set_RX_Relays() {
   if((RX_Relays & REL_PRE_10_val) == REL_PRE_10_val) 
   {
     digitalWrite(REL_PRE_10_pin, 1);
+    Serial.print("   REL_PRE_10_pin");      
   }       
   else
   {
     digitalWrite(REL_PRE_10_pin, 0);
   } 
   
-  digitalWrite(ledPin, !digitalRead(ledPin));    //toggle led
-  Serial.print("Set RX Relays ");  
-  Serial.println(RX_Relays);    
+  Serial.println(" ");      
+//  digitalWrite(ledPin, !digitalRead(ledPin));    //toggle led
 }
 
 
 
 
-
-uint16_t cont_BPF_relay = 0;
-uint16_t cont_ATT_relay = 0;
-uint16_t cont_test = 0;
-
 /*****************************************************************************************/
-void loop() {
- 
+void SWR_read() 
+{
+  uint16_t vForward, vForward0;
+  static uint16_t  vForward1;  //last AD reading
+  uint16_t vReflected, vReflected0;
+  static uint16_t vReflected1;  //last AD reading
+  uint16_t swr;
+  
+  /* read the AD for SWR */
+  vForward0 = analogRead(vForwardPin);      //actual value
+  vForward = (vForward0 + vForward1) >> 1;   //average with last value
+  vForward1 = vForward0;                //save last value
+    
+  vReflected0 = analogRead(vReflectedPin);  //actual value
+  vReflected = (vReflected0 + vReflected1) >> 1;   //average with last value
+  vReflected1 = vReflected0;                //save last value
+
+  if(vForward < VMIN)
+  {
+    swr = SWR_MIN;
+  }    
+  else if(vForward <= vReflected)
+  {
+    swr = SWR_MAX;
+  }    
+  else
+  {    
+    swr = (SWR_BASE * (vForward + vReflected)) / (vForward - vReflected);
+    if(swr > SWR_MAX)      
+    {
+      swr = SWR_MAX;
+    }      
+  }
+  /* swr value will be from 1*8 to 25*8 meaning 1.0 to 25 */
+  /* 1 byte -> bit7-bit3 = integer    bit2-bit0 = decimal base 8 */
+
+  Serial.print("SWR  For= ");  
+  Serial.print(vForward);
+  Serial.print("   Ref= ");  
+  Serial.print(vReflected);
+  Serial.print("   swr= ");  
+  Serial.print(swr/SWR_BASE);
+  Serial.print('.');
+  Serial.println(swr%SWR_BASE);  /* RPI Pico will need to make a division by 10 to get the integer and decimal part */
+
+}
+
+
+
+
+uint8_t InitCheck(void)
+{
+  static uint16_t cont_BPF_relay = 0;
+  static uint16_t cont_ATT_relay = 0;
+  static uint16_t cont_test = 0;
+  uint8_t retValue;
 
   if(cont_test < 10) 
   {
     /*******************************************************************************************************/  
-    /* special case doing initial test switching relays just after reset  (just switch through all relays) */
+    /* initial test switching relays after reset  (just switch through all relays) */
     /*******************************************************************************************************/  
     if(cont_test < 5)  
     {    
@@ -290,50 +377,67 @@ void loop() {
     }
     cont_test++;
 
-    delay(350);  //ms
+    delay(250);  //ms
+
+    retValue = false;
   }
   else  
+  {
+    retValue = true;
+  }
+
+
+return retValue;
+
+}
+
+
+
+
+
+
+
+/*****************************************************************************************/
+void loop() {
+ 
+
+
+  if(InitCheck() == true)  /* it runs a test sequence after reset, true means ready for normal processing */
   {  
     /**************************/  
     /* loop normal processing */
     /**************************/  
+    digitalWrite(ledPin, 1);
 
-    /* check if received new value to set the relays */
-    if(BPF_Relays_old != BPF_Relays)
+
+    SWR_read();  /* read the ADC for SWR calculation */
+
+
+    digitalWrite(ledPin, 0);
+
+    /* wait loop period to end - pocesses loop at specific period */
+    while(millis() < nextMillis)
     {
-      Set_BPF_Relays();
-      BPF_Relays_old = BPF_Relays;
+
+      /* check if received new value to set the BPF relays */
+      if(BPF_Relays_old != BPF_Relays)
+      {
+        Set_BPF_Relays();
+        BPF_Relays_old = BPF_Relays;
+      }
+
+      /* check if received new value to set the RX relays */
+      if(RX_Relays_old != RX_Relays)
+      {
+        Set_RX_Relays();
+        RX_Relays_old = RX_Relays;
+      }  
+
     }
-    
+    /* time for next loop period */  
+    nextMillis += LOOP_PERIOD_MILLIS; 
 
-    /* check if received new value to set the relays */
-    if(RX_Relays_old != RX_Relays)
-    {
-      Set_RX_Relays();
-      RX_Relays_old = RX_Relays;
-    }  
-      
-
-
-    /* read the AD for SWR */
-    swr0 = analogRead(swrPin);  //actual value
-    swr = (swr0 + swr1) >> 1;   //average with last value
-    swr8bits = swr >> 2;            //8 bits through I2C
-    swr1 = swr0;                //save last value
- 
-
-
-    /* loop processes at each 10ms */  
-    delay(10);  //ms
   }
-
-
- 
-/* future tasks */
-/* send  tx power, swr, Vbat ? */
-/* read the direct tx power */
-/* read the reflected power */
-/* calculate the swr */
 
 }
 
