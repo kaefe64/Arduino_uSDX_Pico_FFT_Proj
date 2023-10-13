@@ -112,12 +112,12 @@ Enter key = to confirm the menu item value<br>
 
 ## Last changes and notes:<br>
 
-Oct13 2023
+### Oct13 2023
 - Now, each band has its own setup, including last frequency used. It will remember the menu options for each band.
 - Included new menu option to save the band setup on Data Flash (non volatile memory), including the frequency. The last band saved will be the one selected after power on.
 - Changed the trasnceiver name to ARJAN-5 (the name uSDR Pico brings to misunderstandings in my opinion).
 
-Jul19 2023
+### Jul19 2023
 - Changing uSDR_Pico_BPF_RX_SCH.pdf and PCB due to Relay HFD3 characteristics.
 
 ![PCB assembly top](HFD3_characteristics.png)
@@ -127,23 +127,23 @@ Jul19 2023
 - Including my Kicad PCBs layout as ZIP file (I can not give much support on this, use at your risk).
 
 
-Jul16 2023
+### Jul16 2023
 - Changing the 16kHz low pass filter from average sum of samples to a strong lp FIR. Due to I could hear strong stations away multiples of 16kHz.
 - Including the Band selection on screen in blue (ex. B0 = Band 0).
 - Adjusting the position on screen for receive level and manual gain (ex. R30x12).
 Obs.: to use manual gain adjust, press Enter button and turn the frequncy knob.
 
-Jun2 2023
+### Jun2 2023
 - Testing an 80KHz Low Pass Filter for I and Q inputs because I can hear some frequency distant strong stations.
 - New schematics and PCB for LPF and RX at the same board.
 - Added software for Arduino Pro Mini to work as two I2C slaves, replacing the PCF8574's.
 - There are some mirror signal at the waterfall, I am looking for the reason.
 - I really like the quality of the audio received.
 
-Apr30 2023
+### Apr30 2023
 - Included an adjust to the gain in the waterfall, it helps to reduce the noise in the waterfall. Press and keep the Enter button, and turn the frequency knob. This adjust also affects the audio AGC.
 
-Apr29 2023
+### Apr29 2023
 - Minor changes, improve comments at .ino file. Trying to get the new PCB running and getting back to software improvement.
 
 ![PCB assembly top](uSDR_Pico_FFT_PCB_top.png)
@@ -151,17 +151,17 @@ Apr29 2023
 ![PCB assembly botton](uSDR_Pico_FFT_PCB_botton.png)
 
 
-Ago17 2022
+### Ago17 2022
 - Included sketch folder uSDX_TX to test the Phase and Amplitude TX method.
 
-Ago07 2022
+### Ago07 2022
 - PTT input corrected. Now it uses the falling or rising to turn off and on the PTT.
 - Including options for encoder at hmi.cpp:  ENCODER_TYPE  ENCODER_DIRECTION
 
 ![Encoder type](Encoder_selection.png)
 
 
-Ago05 2022
+### Ago05 2022
 - Now the frequency changes at each encoder step (I am using EC11 encoder and it changed the frequency at every second step)
 - Plot to the waterfall improved to spend less time
 - Included separate audio filters for CW and AM
@@ -174,17 +174,17 @@ Ago05 2022
 <br>
 
 
-Jul20 2022
+### Jul20 2022
 - Waterfall: Changed to fall instead of going up
 - Waterfall: Frequency scale moving with main frequency
 - Waterfall: Shadow indicating the reception zone
 - AGC attack faster
 - It shows the reception signal level implemented from audio output and gain
 
-Jun24 2022
+### Jun24 2022
 - Few display corrections: central triangle, mode text overwriting.
 
-Jun13 2022
+### Jun13 2022
 - 3V3 noise sensitivity test:<br>
 I followed the tips in this post
 https://forums.raspberrypi.com/viewtopic.php?t=330208<br>
@@ -203,7 +203,7 @@ And both DC-DC and TPS look the same to me.
 ![Reg mounted](Reg_monted.jpg)
 
 
-Jun10 2022
+### Jun10 2022
 - AGC uncommented and adapted to work.<br>
 	 The AGC is only used at the output audio, not for waterfall.
 - A visual scope was implemented to allow visualization of some internal variables.<br>
@@ -223,15 +223,12 @@ Jun10 2022
 
 
 ## Wish list:
-- Improve the S meter, at least to show the AD input signal level.
-- The AGC needs to be improved as the audio still saturate at beginnig of strong signal
+- Improve the S meter, at least to show the AD input signal level (include SWR measurements on TX)
+- The AGC needs to be improved (some bug happens with some high level noise)
 - Include zoom in the waterfall (frequency range)
 - Include RIT (receiver incremental tuning)
 - Reduce the minimum step to change the frequency to 50Hz or less
-- Verify why the switches do not work some times (at least for me)
-- Check the trasmission on all modes
-- Storage the last configuration to recover it at the next power up (Write to internal Flash needs to stop interrupts - special save command will stop the main functions)
-- Band selection with setup for each one (correspondence to the filter bands)
+- Check the trasmission on all modes (it is affected the hardware)
 - Tests: reception/transmission SSB...  menus...  switches/debounce...   display appearance
 
 
