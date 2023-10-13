@@ -41,11 +41,15 @@
 */
 
 #include "relay.h"
+#include "uSDR.h"
 
 
 /* I2C address and pins */
 #define I2C_RX 				0x21
 #define I2C_BPF				0x20
+
+//#define I2C_WAIT_us   (uint64_t)500000  absolute_time_t
+#define I2C_TIMEOUT_us   10000
 
 
 void relay_setband(uint8_t val)
@@ -54,8 +58,10 @@ void relay_setband(uint8_t val)
 	//int ret;
 	
 	data[0] = val&0x1f;
-	if (i2c_write_blocking(i2c1, I2C_BPF, data, 1, false) < 0)
-		i2c_write_blocking(i2c1, I2C_BPF, data, 1, false);
+//	if (i2c_write_blocking(i2c1, I2C_BPF, data, 1, false) < 0)
+	if (i2c_write_timeout_us(i2c1, I2C_BPF, data, 1, false, I2C_TIMEOUT_us) < 0)
+//		i2c_write_blocking(i2c1, I2C_BPF, data, 1, false);
+		i2c_write_timeout_us(i2c1, I2C_BPF, data, 1, false, I2C_TIMEOUT_us);
 }
 
 int relay_getband(void)
@@ -69,13 +75,22 @@ int relay_getband(void)
 	return(ret);
 }
 
+
+
 void relay_setattn(uint8_t val)
 {
 	uint8_t data[2];
 	
 	data[0] = val&0x07;
-	if (i2c_write_blocking(i2c1, I2C_RX, data, 1, false) < 0)
-		i2c_write_blocking(i2c1, I2C_RX, data, 1, false);
+  //Serialx.println("relay_setattn  i2c_write_blocking  start");
+  //int i2c_write_blocking (i2c_inst_t *i2c, uint8_t addr, const uint8_t *src, size_t len, bool nostop). 
+	//if (i2c_write_blocking(i2c1, I2C_RX, data, 1, false) < 0)  // true to keep master control of bus
+	if (i2c_write_timeout_us(i2c1, I2C_RX, data, 1, false, I2C_TIMEOUT_us) < 0)  // true to keep master control of bus
+    {
+    //Serialx.println("relay_setattn  i2c_write_blocking  if <0");  // false, we're done writing
+		i2c_write_timeout_us(i2c1, I2C_RX, data, 1, false, I2C_TIMEOUT_us);
+    }    
+  //Serialx.println("relay_setattn  i2c_write_blocking  end");  // false, we're done writing
 }
 
 int relay_getattn(void)
@@ -91,7 +106,9 @@ int relay_getattn(void)
 
 void relay_init(void)
 { 
+/*  done at hmi_init()
 	relay_setattn(REL_PRE_10);
 	sleep_ms(1);
 	relay_setband(REL_BPF12);
+*/ 
 }
