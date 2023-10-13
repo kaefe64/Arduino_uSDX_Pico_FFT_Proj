@@ -1,6 +1,5 @@
 # ARJAN-5
-## 5 Band SSB/AM/CW
-## HF Transceiver
+## 5 Band SSB/AM/CW HF Transceiver
 ## (Arduino_uSDR_Pico_FFT_Proj)
 ### by Klaus Fensterseifer - PY2KLA
 
