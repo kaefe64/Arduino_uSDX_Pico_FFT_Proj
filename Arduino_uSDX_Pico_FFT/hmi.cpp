@@ -48,9 +48,11 @@
 #include "SPI.h"
 #include "TFT_eSPI.h"
 #include "display_tft.h"
-//#include "Dflash.h"
+#include "Dflash.h"
 
 
+
+//#define HMI_debug    10    //to release some serial print outs for debug
 
 /*
  * GPIO assignments
@@ -107,58 +109,57 @@
  *
  * --will be extended--
  */
+
  
-/* State definitions */
-#define HMI_S_TUNE			0
-#define HMI_S_MODE			1
-#define HMI_S_AGC			2
-#define HMI_S_PRE			3
-#define HMI_S_VOX			4
-#define HMI_S_BPF			5
-#define HMI_NSTATES			6
 
-/* Event definitions */
-#define HMI_E_NOEVENT		0
-#define HMI_E_INCREMENT		1
-#define HMI_E_DECREMENT		2
-#define HMI_E_ENTER			3
-#define HMI_E_ESCAPE		4
-#define HMI_E_LEFT			5
-#define HMI_E_RIGHT			6
-#define HMI_E_PTTON			7
-#define HMI_E_PTTOFF		8
-#define HMI_PTT_ON      9
-#define HMI_PTT_OFF     10
-#define HMI_NEVENTS			11
-//#define HMI_NEVENTS      9
+//char hmi_o_menu[HMI_NMENUS][8] = {"Tune","Mode","AGC","Pre","VOX"};	// Indexed by hmi_menu  not used - menus done direct in Evaluate()
+char hmi_o_mode[HMI_NUM_OPT_MODE][8] = {"USB","LSB","AM","CW"};			// Indexed by band_vars[hmi_band][HMI_S_MODE]  MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
+char hmi_o_agc [HMI_NUM_OPT_AGC][8] = {"NoAGC","Slow","Fast"};					// Indexed by band_vars[hmi_band][HMI_S_AGC]
+char hmi_o_pre [HMI_NUM_OPT_PRE][8] = {"-30dB","-20dB","-10dB","0dB","+10dB"};	// Indexed by band_vars[hmi_band][HMI_S_PRE]
+char hmi_o_vox [HMI_NUM_OPT_VOX][8] = {"NoVOX","VOX-L","VOX-M","VOX-H"};		// Indexed by band_vars[hmi_band][HMI_S_VOX]
+char hmi_o_bpf [HMI_NUM_OPT_BPF][8] = {"<2.5","2-6","5-12","10-24","20-40"};
+char hmi_o_dflash [HMI_NUM_OPT_DFLASH][8] = {"Save", "Saving"};  //only save is visible  (saving is used to start the dflash write)
 
-/* Sub menu option string sets */
-#define HMI_NMODE	4
-#define HMI_NAGC	3
-#define HMI_NPRE	5
-#define HMI_NVOX	4
-#define HMI_NBPF	5
-char hmi_o_menu[HMI_NSTATES][8] = {"Tune","Mode","AGC","Pre","VOX"};	// Indexed by hmi_state
-char hmi_o_mode[HMI_NMODE][8] = {"USB","LSB","AM","CW"};			// Indexed by hmi_sub[HMI_S_MODE]
-                                                              //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
-char hmi_o_agc [HMI_NAGC][8] = {"NoAGC","Slow","Fast"};					// Indexed by hmi_sub[HMI_S_AGC]
-char hmi_o_pre [HMI_NPRE][8] = {"-30dB","-20dB","-10dB","0dB","+10dB"};	// Indexed by hmi_sub[HMI_S_PRE]
-char hmi_o_vox [HMI_NVOX][8] = {"NoVOX","VOX-L","VOX-M","VOX-H"};		// Indexed by hmi_sub[HMI_S_VOX]
-char hmi_o_bpf [HMI_NBPF][8] = {"<2.5","2-6","5-12","10-24","20-40"};
+const uint8_t  hmi_num_opt[HMI_NMENUS] = { HMI_NUM_OPT_TUNE, HMI_NUM_OPT_MODE, HMI_NUM_OPT_AGC, HMI_NUM_OPT_PRE, HMI_NUM_OPT_VOX, HMI_NUM_OPT_BPF, HMI_NUM_OPT_DFLASH };	 // number of options for each menu
+
 
 // Map option to setting
 uint8_t hmi_pre[5] = {REL_ATT_30, REL_ATT_20, REL_ATT_10, REL_ATT_00, REL_PRE_10};
 uint8_t hmi_bpf[5] = {REL_LPF2, REL_BPF6, REL_BPF12, REL_BPF24, REL_BPF40};
 
-uint8_t  hmi_state, hmi_option;											// Current state and option selection
-uint8_t  hmi_sub[HMI_NSTATES] = {4,1,2,3,0,2};							// Stored option selection per state
-uint8_t  hmi_sub_old[HMI_NSTATES];          // Stored last option selection per state
-bool	 hmi_update;
+uint8_t  hmi_menu;     // menu section 0=Tune/cursor 1=Mode 2=AGC 3=Pre 4=VOX 5=Band 6=Mem  (old hmi_state)
+uint8_t  hmi_menu_opt_display;	 // current menu option showing on display (it will be copied to band vars on <enter>)  (old hmi_option)
+uint8_t  hmi_band;     // actual band
+
+//                              { cursor, mode, agc, pre, vox, band, mem ok }
+//uint8_t  hmi_sub[HMI_NMENUS] = {      4,    1,   2,   3,   0,    2,      0 };							// Stored option selection per state
+
+/*
+arr[row][col]
+int arr[3][5] = { {10, 0, 0, 0, 0},
+                  {8, 0, 0, 0, 0},
+                  {9, 0, 0, 0, 0 }};
+*/
+//                                                0=Tune/cursor 1=Mode 2=AGC 3=Pre 4=VOX 5=Band 6=Mem 7,8,9,10=freq
+uint8_t  band_vars[HMI_NUM_OPT_BPF][BAND_VARS_SIZE] =  { {4,0,2,3,0,0,0, b0_0, b0_1, b0_2, b0_3},
+                                                  {4,1,2,3,0,1,0, b1_0, b1_1, b1_2, b1_3},
+                                                  {4,1,2,3,0,2,0, b2_0, b2_1, b2_2, b2_3},
+                                                  {4,1,2,3,0,3,0, b3_0, b3_1, b3_2, b3_3},
+                                                  {4,1,2,3,0,4,0, b4_0, b4_1, b4_2, b4_3} };
+
+
+
+
+
+
 
 uint32_t hmi_freq;														// Frequency from Tune state
-uint32_t hmi_step[7] = {10000000, 1000000, 100000, 10000, 1000, 100, 50};	// Frequency digit increments
-#define HMI_MAXFREQ		30000000
-#define HMI_MINFREQ		     100
+uint32_t hmi_step[HMI_NUM_OPT_TUNE] = {10000000, 1000000, 100000, 10000, 1000, 100, 50};	// Frequency digit increments (tune option = cursor position)
+//#define HMI_MAXFREQ		30000000
+//#define HMI_MINFREQ		     100
+const uint32_t hmi_maxfreq[HMI_NUM_OPT_BPF] = {2500000, 6000000, 12000000, 24000000, 40000000};	// max freq for each band from pass band filters
+const uint32_t hmi_minfreq[HMI_NUM_OPT_BPF] = {1000000, 2000000,  5000000, 10000000, 20000000};	  // min freq for each band from pass band filters
+
 #ifdef PY2KLA_setup
 #define HMI_MULFREQ          4			// Factor between HMI and actual frequency
 #else
@@ -173,15 +174,140 @@ bool ptt_active;														// Resulting state
 
 
 
+
+
+//***********************************************************************
+//
+// get info from actual band = freq -> and store it at band_vars
+// when switching back to that band, it will be at the same freq and setup
+// it does not save at DFLASH, just to band_vars (it will lose the changes at power off)
+// 
+//***********************************************************************
+void Store_Last_Band(uint8_t band)
+{
+  uint16_t j;
+/*    
+  for(j = 0; j < HMI_NMENUS; j++)
+    {
+      band_vars[band][j] = hmi_sub[j];
+    }
+*/
+
+  band_vars[band][HMI_NMENUS] = (uint8_t)(hmi_freq >> 24);
+  band_vars[band][HMI_NMENUS+1] = (uint8_t)((hmi_freq >> 16)&0xff);
+  band_vars[band][HMI_NMENUS+2] = (uint8_t)((hmi_freq >> 8)&0xff);
+  band_vars[band][HMI_NMENUS+3] =  (uint8_t)(hmi_freq&0xff);
+}
+
+
+//***********************************************************************
+//
+// get band info from band_vars -> and set  freq
+// 
+//***********************************************************************
+void Setup_Band(uint8_t band)
+{
+  uint16_t j;
+/*    
+  for(j = 0; j < HMI_NMENUS; j++)
+    {
+    if(band_vars[band][j] < hmi_num_opt[j])   //checking boudaries
+      {
+      hmi_sub[j] = band_vars[band][j];
+      }
+    else
+      {
+      hmi_sub[j] = 0;    //hmi_num_opt[j]-1;
+      }
+    }
+*/
+	//hmi_freq = 7050000UL;							// Initial frequency
+  //get freq from DFLASH band data
+  hmi_freq = band_vars[band][HMI_NMENUS];
+  hmi_freq <<= 8;        
+  hmi_freq += band_vars[band][HMI_NMENUS+1];
+  hmi_freq <<= 8;        
+  hmi_freq += band_vars[band][HMI_NMENUS+2];
+  hmi_freq <<= 8;        
+  hmi_freq += band_vars[band][HMI_NMENUS+3];
+
+  if(hmi_freq > hmi_maxfreq[band])  //checking boudaries
+    {
+      hmi_freq = hmi_maxfreq[band];
+    }
+  else if(hmi_freq < hmi_minfreq[band])
+    {
+      hmi_freq = hmi_minfreq[band];
+    }
+
 /*
- * Some macros
- */
-#ifndef MIN
-#define MIN(x, y)        ((x)<(y)?(x):(y))  // Get min value
+  Serialx.print("Setup_Band   freq = " + String(band_vars[band][HMI_NMENUS]));
+  Serialx.print(" " + String(band_vars[band][HMI_NMENUS+1]));
+  Serialx.print(" " + String(band_vars[band][HMI_NMENUS+2]));
+  Serialx.print(" " + String(band_vars[band][HMI_NMENUS+2]));
+  Serialx.println("   = " + String(hmi_freq));
+*/
+
+  //set the new band to display and freq
+
+	SI_SETFREQ(0, HMI_MULFREQ*hmi_freq);			// Set freq to hmi_freq (MULFREQ depends on mixer type)
+	SI_SETPHASE(0, 1);								// Set phase to 90deg (depends on mixer type)
+	
+	ptt_state = 0;
+	ptt_active = false;
+	
+	dsp_setmode(band_vars[band][HMI_S_MODE]);  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
+	dsp_setvox(band_vars[band][HMI_S_VOX]);
+	dsp_setagc(band_vars[band][HMI_S_AGC]);	
+	relay_setattn(hmi_pre[band_vars[band][HMI_S_PRE]]);
+	relay_setband(hmi_bpf[band_vars[band][HMI_S_BPF]]);
+	//hmi_enter = false;
+
+
+
+//	hmi_menu = HMI_S_BPF;  //changing band on band menu
+//  hmi_band = band;
+//	hmi_menu_opt_display = band_vars[hmi_band][hmi_menu];  //get the menu option = actual band
+  
+}
+
+
+
+//***********************************************************************
+//
+// Save the actual band variables to DFLASH 
+//    on first empty mem block = last_block+1 mem position
+//
+//
+//***********************************************************************
+void Save_Actual_Band_Dflash(void)
+{
+  // save freq to band vars (after menu data)
+  band_vars[hmi_band][HMI_NMENUS] = (uint8_t)(hmi_freq >> 24);  //uint32_t
+  band_vars[hmi_band][HMI_NMENUS+1] = (uint8_t)((hmi_freq >> 16) & 0xff); 
+  band_vars[hmi_band][HMI_NMENUS+2] = (uint8_t)((hmi_freq >> 8) & 0xff); 
+  band_vars[hmi_band][HMI_NMENUS+3] = (uint8_t)(hmi_freq & 0xff); 
+
+  // write last menu configuration to data flash memory
+  if(Dflash_write_block(&band_vars[hmi_band][0]) == true)
+  {
+#ifdef HMI_debug
+      Serialx.println("\nWrite block to DFLASH = OK");
+      for(int ndata = 0; ndata < HMI_NMENUS; ndata++)
+        {   
+        Serialx.print(" " + String(band_vars[hmi_band][ndata]));
+        }
+      Serialx.println("\n");
+  }
+  else
+  {
+      Serialx.println("\nWrite block to DFLASH = NOT OK");
 #endif
-#ifndef MAX
-#define MAX(x, y)        ((x)>(y)?(x):(y))  // Get max value
-#endif
+  }
+}
+
+
+
 
 /*
  * HMI State Machine,
@@ -190,32 +316,27 @@ bool ptt_active;														// Resulting state
  */
 void hmi_handler(uint8_t event)
 {
+  static uint8_t hmi_menu_last = HMI_S_BPF;    //last menu when <escape>, used to come back to the same menu
+
 	/* Special case for TUNE state */
-	if (hmi_state == HMI_S_TUNE)  //on main tune
+	if (hmi_menu == HMI_S_TUNE)  //on main tune
 	{
 
     if (event==HMI_PTT_ON)    
     {
       ptt_active = true;
     }
-    if (event==HMI_PTT_OFF)   
+    else if (event==HMI_PTT_OFF)   
     {
       ptt_active = false;
     }
-
-/* I don't think this is needed (and I don't like to call I2C from the interrupt handler
-		if (event==HMI_E_ENTER)											// Commit current value
+		else if (event==HMI_E_ESCAPE)										// Enter submenus
 		{
-			SI_SETFREQ(0, HMI_MULFREQ*hmi_freq);						// Commit frequency
+			//band_vars[hmi_band][hmi_menu] = hmi_menu_opt_display;							// Store cursor position on TUNE
+			hmi_menu = hmi_menu_last;										// go to last menu selected before TUNE
+			hmi_menu_opt_display = band_vars[hmi_band][hmi_menu];							// Restore selection of new menu
 		}
-*/ 
-		if (event==HMI_E_ESCAPE)										// Enter submenus
-		{
-			hmi_sub[hmi_state] = hmi_option;							// Store selection (i.e. digit)
-			hmi_state = HMI_S_MODE;										// Should remember last one
-			hmi_option = hmi_sub[hmi_state];							// Restore selection of new state
-		}
-		if (event==HMI_E_INCREMENT)
+		else if (event==HMI_E_INCREMENT)
 		{
       //if(!gpio_get(GP_AUX_1_Escape))  //in case Escape is pressed
       if(!gpio_get(GP_AUX_0_Enter))  //in case Escape is pressed
@@ -227,11 +348,11 @@ void hmi_handler(uint8_t event)
       }
       else
       {
-			  if (hmi_freq < (HMI_MAXFREQ - hmi_step[hmi_option]))		// Boundary check
-			  	hmi_freq += hmi_step[hmi_option];						// Increment selected digit
+			  if (hmi_freq < (hmi_maxfreq[band_vars[hmi_band][HMI_S_BPF]] - hmi_step[hmi_menu_opt_display]))		// Boundary check HMI_MAXFREQ
+			  	hmi_freq += hmi_step[hmi_menu_opt_display];						// Increment selected digit
       }
 		}
-		if (event==HMI_E_DECREMENT)
+		else if (event==HMI_E_DECREMENT)
 		{
       //if(!gpio_get(GP_AUX_1_Escape))  //in case Escape is pressed
       if(!gpio_get(GP_AUX_0_Enter))  //in case Escape is pressed
@@ -243,75 +364,100 @@ void hmi_handler(uint8_t event)
       }
       else
       {
-        if (hmi_freq > (hmi_step[hmi_option] + HMI_MINFREQ))		// Boundary check
-				  hmi_freq -= hmi_step[hmi_option];						// Decrement selected digit
+        if (hmi_freq > (hmi_step[hmi_menu_opt_display] + hmi_minfreq[band_vars[hmi_band][HMI_S_BPF]]))		// Boundary check HMI_MINFREQ
+				  hmi_freq -= hmi_step[hmi_menu_opt_display];						// Decrement selected digit
       }
 		}
 		if (event==HMI_E_RIGHT)
-			hmi_option = (hmi_option<6)?hmi_option+1:6;					// Digit to the right
+      {
+			hmi_menu_opt_display = (hmi_menu_opt_display<(HMI_NUM_OPT_TUNE-1))?hmi_menu_opt_display+1:(HMI_NUM_OPT_TUNE-1);					// Digit to the right
+      band_vars[hmi_band][HMI_S_TUNE] = hmi_menu_opt_display;
+      }      
 		if (event==HMI_E_LEFT)
-			hmi_option = (hmi_option>0)?hmi_option-1:0;					// Digit to the left
-		//return;															// Early bail-out   changed to "else"
+      {      
+			hmi_menu_opt_display = (hmi_menu_opt_display>0)?hmi_menu_opt_display-1:0;					// Digit to the left
+      band_vars[hmi_band][HMI_S_TUNE] = hmi_menu_opt_display;
+      }      
 	}
   else  //in submenus
   {
   	/* Submenu states */
-  	switch(hmi_state)
+  	switch(hmi_menu)
   	{
   	case HMI_S_MODE:
   		if (event==HMI_E_INCREMENT)
       {
-  			hmi_option = (hmi_option<HMI_NMODE-1)?hmi_option+1:HMI_NMODE-1;
+  			hmi_menu_opt_display = (hmi_menu_opt_display<HMI_NUM_OPT_MODE-1)?hmi_menu_opt_display+1:HMI_NUM_OPT_MODE-1;
       }
-  		if (event==HMI_E_DECREMENT)
-  			hmi_option = (hmi_option>0)?hmi_option-1:0;
+  		else if (event==HMI_E_DECREMENT)
+  			hmi_menu_opt_display = (hmi_menu_opt_display>0)?hmi_menu_opt_display-1:0;
   		break;
   	case HMI_S_AGC:
   		if (event==HMI_E_INCREMENT)
-  			hmi_option = (hmi_option<HMI_NAGC-1)?hmi_option+1:HMI_NAGC-1;
-  		if (event==HMI_E_DECREMENT)
-  			hmi_option = (hmi_option>0)?hmi_option-1:0;
+  			hmi_menu_opt_display = (hmi_menu_opt_display<HMI_NUM_OPT_AGC-1)?hmi_menu_opt_display+1:HMI_NUM_OPT_AGC-1;
+  		else if (event==HMI_E_DECREMENT)
+  			hmi_menu_opt_display = (hmi_menu_opt_display>0)?hmi_menu_opt_display-1:0;
   		break;
   	case HMI_S_PRE:
   		if (event==HMI_E_INCREMENT)
-  			hmi_option = (hmi_option<HMI_NPRE-1)?hmi_option+1:HMI_NPRE-1;
-  		if (event==HMI_E_DECREMENT)
-  			hmi_option = (hmi_option>0)?hmi_option-1:0;
+  			hmi_menu_opt_display = (hmi_menu_opt_display<HMI_NUM_OPT_PRE-1)?hmi_menu_opt_display+1:HMI_NUM_OPT_PRE-1;
+  		else if (event==HMI_E_DECREMENT)
+  			hmi_menu_opt_display = (hmi_menu_opt_display>0)?hmi_menu_opt_display-1:0;
   		break;
   	case HMI_S_VOX:
   		if (event==HMI_E_INCREMENT)
-  			hmi_option = (hmi_option<HMI_NVOX-1)?hmi_option+1:HMI_NVOX-1;
-  		if (event==HMI_E_DECREMENT)
-  			hmi_option = (hmi_option>0)?hmi_option-1:0;
+  			hmi_menu_opt_display = (hmi_menu_opt_display<HMI_NUM_OPT_VOX-1)?hmi_menu_opt_display+1:HMI_NUM_OPT_VOX-1;
+  		else if (event==HMI_E_DECREMENT)
+  			hmi_menu_opt_display = (hmi_menu_opt_display>0)?hmi_menu_opt_display-1:0;
   		break;
   	case HMI_S_BPF:
   		if (event==HMI_E_INCREMENT)
-  			hmi_option = (hmi_option<HMI_NBPF-1)?hmi_option+1:HMI_NBPF-1;
-  		if (event==HMI_E_DECREMENT)
-  			hmi_option = (hmi_option>0)?hmi_option-1:0;
+  			hmi_menu_opt_display = (hmi_menu_opt_display<HMI_NUM_OPT_BPF-1)?hmi_menu_opt_display+1:HMI_NUM_OPT_BPF-1;
+  		else if (event==HMI_E_DECREMENT)
+  			hmi_menu_opt_display = (hmi_menu_opt_display>0)?hmi_menu_opt_display-1:0;
+  		break;
+  	case HMI_S_DFLASH: //show only 0 position = save
+      /*
+  		if (event==HMI_E_INCREMENT)
+  			hmi_menu_opt_display = (hmi_menu_opt_display<HMI_NUM_OPT_DFLASH-1)?hmi_menu_opt_display+1:HMI_NUM_OPT_DFLASH-1;
+  		else if (event==HMI_E_DECREMENT)
+  			hmi_menu_opt_display = (hmi_menu_opt_display>0)?hmi_menu_opt_display-1:0;
+      */
   		break;
   	}
   	
   	/* General actions for all submenus */
   	if (event==HMI_E_ENTER)
-  	{
-  		hmi_sub[hmi_state] = hmi_option;				// Store selected option	
-      hmi_update = true;                      // Mark HMI updated
+    {
+      if(hmi_menu == HMI_S_BPF)
+      {
+        hmi_band = hmi_menu_opt_display;  //band changed
+      }
+      else if(hmi_menu == HMI_S_DFLASH)
+      {
+        band_vars[hmi_band][hmi_menu] = 1;  //saving to indicate save event
+      }
+      else
+      {
+  		  band_vars[hmi_band][hmi_menu] = hmi_menu_opt_display;				// Store selected option	
+      }
+      //hmi_enter = true;                      // Mark HMI hit enter on that menu option
   	}
-  	if (event==HMI_E_ESCAPE)
+  	else if (event==HMI_E_ESCAPE)
   	{
-  		hmi_state = HMI_S_TUNE;										// Leave submenus
-  		hmi_option = hmi_sub[hmi_state];							// Restore selection of new state
+      hmi_menu_last = hmi_menu;
+  		hmi_menu = HMI_S_TUNE;										// Leave submenus
+  		hmi_menu_opt_display = band_vars[hmi_band][hmi_menu];							// Restore selection of new state
   	}
-  	if (event==HMI_E_RIGHT)
+  	else if (event==HMI_E_RIGHT)
   	{
-  		hmi_state = (hmi_state<HMI_NSTATES-1)?(hmi_state+1):1;		// Change submenu
-  		hmi_option = hmi_sub[hmi_state];							// Restore selection of new state
+  		hmi_menu = (hmi_menu<HMI_NMENUS-1)?(hmi_menu+1):1;		// Change submenu
+  		hmi_menu_opt_display = band_vars[hmi_band][hmi_menu];							// Restore selection of new state
   	}
-  	if (event==HMI_E_LEFT)
+  	else if (event==HMI_E_LEFT)
   	{
-  		hmi_state = (hmi_state>1)?(hmi_state-1):HMI_NSTATES-1;		// Change submenu
-  		hmi_option = hmi_sub[hmi_state];							// Restore selection of new state
+  		hmi_menu = (hmi_menu>1)?(hmi_menu-1):HMI_NMENUS-1;		// Change submenu
+  		hmi_menu_opt_display = band_vars[hmi_band][hmi_menu];							// Restore selection of new state
   	}
 
   }
@@ -398,6 +544,28 @@ void hmi_callback(uint gpio, uint32_t events)
 	hmi_handler(evt);								// Invoke state machine
 }
 
+
+
+/*
+ * Initialize the User interface
+ * It could take some time to read all DFLASH hmi data, so make it when display is showing title
+ */
+void hmi_init0(void)
+{
+	// Initialize LCD and set VFO
+  Init_HMI_data(&hmi_band);  //read data from DFLASH
+  //Setup_Band(hmi_band);
+  //  menu position = Tune  and  cursor position = hmi_menu_opt_display
+	hmi_menu = HMI_S_TUNE;
+	hmi_menu_opt_display = band_vars[hmi_band][HMI_S_TUNE];  // option on Tune is the cursor position
+#ifdef HMI_debug
+  Serialx.println("TUNE " + String(hmi_band));
+  Serialx.println("hmi_menu  " + String(hmi_menu));
+  Serialx.println("hmi_menu_opt_display " + String(hmi_menu_opt_display));
+#endif	
+}
+
+
 /*
  * Initialize the User interface
  */
@@ -414,7 +582,7 @@ void hmi_init(void)
 	// Init input GPIOs
 	gpio_init_mask(GP_MASK_IN);
 	
-	// Enable pull-ups
+	// Enable pull-ups on input pins
 	gpio_pull_up(GP_ENC_A);
 	gpio_pull_up(GP_ENC_B);
 	gpio_pull_up(GP_AUX_0_Enter);
@@ -436,57 +604,6 @@ void hmi_init(void)
 	gpio_set_irq_enabled_with_callback(GP_ENC_A, GPIO_IRQ_EDGE_ALL, true, hmi_callback);
 
 
-/*
-  // write last menu configuration to data flash memory
-  if(Dflash_write_block(hmi_sub, HMI_NSTATES) == true)
-  {
-      Serialx.println("\nWrite menu configuration from DFLASH = OK");
-      for(int ndata = 0; ndata < HMI_NSTATES; ndata++)
-        {   
-        Serialx.print(" " + String(hmi_sub[ndata]));
-        }
-      Serialx.println("\n");
-  }
-  else
-  {
-      Serialx.println("\nWrite menu configuration from DFLASH = NOT OK");
-  }
-*/
-
-/*
-  // read last menu configuration from data flash memory
-  if(Dflash_read_block(hmi_sub, HMI_NSTATES) == true)
-  {
-      Serialx.print("\nRead menu configuration from DFLASH = OK   ");
-      for(int ndata = 0; ndata < HMI_NSTATES; ndata++)
-        {   
-        Serialx.print(" " + String(hmi_sub[ndata]));
-        }
-      Serialx.println("\n");
-  }
-  else
-  {
-      Serialx.println("\nRead menu configuration from DFLASH = NOT OK    Using Default Values");
-  }
-*/
-    
-	// Initialize LCD and set VFO
-	hmi_state = HMI_S_TUNE;
-	hmi_option = 4;									// Active kHz digit
-	hmi_freq = 7050000UL;							// Initial frequency
-
-	SI_SETFREQ(0, HMI_MULFREQ*hmi_freq);			// Set freq to 7074 kHz (depends on mixer type)
-	SI_SETPHASE(0, 1);								// Set phase to 90deg (depends on mixer type)
-	
-	ptt_state = 0;
-	ptt_active = false;
-	
-	dsp_setmode(hmi_sub[HMI_S_MODE]);  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
-	dsp_setvox(hmi_sub[HMI_S_VOX]);
-	dsp_setagc(hmi_sub[HMI_S_AGC]);	
-	relay_setattn(hmi_pre[hmi_sub[HMI_S_PRE]]);
-	relay_setband(hmi_bpf[hmi_sub[HMI_S_BPF]]);
-	//hmi_update = false;   //hmi needs update after hardware devices updated
 
 }
 
@@ -503,17 +620,39 @@ void hmi_evaluate(void)
 	char s[32];
   int16_t rec_level;
   
-  static uint32_t hmi_freq_old;
+  static uint8_t  band_vars_old[HMI_NMENUS] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };          // Stored last option selection
+  static uint32_t hmi_freq_old = 0xff;
+  static uint8_t hmi_band_old = 0xff;
   static bool tx_enable_old = true;
-  static uint8_t hmi_state_old;
-  static uint8_t hmi_option_old;
+  static uint8_t hmi_menu_old = 0xff;
+  static uint8_t hmi_menu_opt_display_old = 0xff;
   static int16_t agc_gain_old = 1;
   static int16_t fft_gain_old = 0;
 
+#ifdef HMI_debug
+  uint16_t ndata;
+      for(ndata = 1; ndata < HMI_NMENUS-2; ndata++)
+        {   
+        if(band_vars[hmi_band][ndata] != band_vars_old[ndata])
+           break;
+        }
+      if(ndata < HMI_NMENUS-2)
+        {
+        Serialx.print("evaluate Band " + String(hmi_band) + "  band vars changed   ");
+        for(ndata = 0; ndata < HMI_NMENUS; ndata++)
+          {   
+          Serialx.print(" " + String(band_vars_old[ndata]));
+          }
+        Serialx.print("  ->  ");
+        for(ndata = 0; ndata < HMI_NMENUS; ndata++)
+          {   
+          Serialx.print(" " + String(band_vars[hmi_band][ndata]));
+          }
+        Serialx.println("\n");
+        }      
+#endif
 
-   
-
-  // Set parameters corresponding to latest entered option value 
+  // if band_var changed (after <enter>), set parameters accordingly
 
   if(hmi_freq_old != hmi_freq)
   {
@@ -522,39 +661,64 @@ void hmi_evaluate(void)
     sprintf(s, "%7.1f", (double)hmi_freq/1000.0);
     tft_writexy_plus(3, TFT_YELLOW, TFT_BLACK, 2,0,2,20,(uint8_t *)s);
     //cursor (writing the freq erase the cursor)
-    tft_cursor_plus(3, TFT_YELLOW, 2+(hmi_option>4?6:hmi_option), 0, 2, 20);
+//    tft_cursor_plus(3, TFT_YELLOW, 2+(hmi_menu_opt_display>4?6:hmi_menu_opt_display), 0, 2, 20);
+    tft_cursor_plus(3, TFT_YELLOW, 2+(band_vars[hmi_band][HMI_S_TUNE]>4?6:band_vars[hmi_band][HMI_S_TUNE]), 0, 2, 20);
     display_fft_graf_top();  //scale freqs
     hmi_freq_old = hmi_freq;
   }
-  if(hmi_sub_old[HMI_S_MODE] != hmi_sub[HMI_S_MODE])    //mode (SSB AM CW)
+  if(band_vars_old[HMI_S_MODE] != band_vars[hmi_band][HMI_S_MODE])    //mode (SSB AM CW)
   {
-    dsp_setmode(hmi_sub[HMI_S_MODE]);  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
-    sprintf(s, "%s  ", hmi_o_mode[hmi_sub[HMI_S_MODE]]);
+    dsp_setmode(band_vars[hmi_band][HMI_S_MODE]);  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
+    sprintf(s, "%s  ", hmi_o_mode[band_vars[hmi_band][HMI_S_MODE]]);
     tft_writexy_(2, TFT_GREEN, TFT_BLACK, 0,1,(uint8_t *)s);
     display_fft_graf_top();  //scale freqs, mode changes the triangle
-    hmi_sub_old[HMI_S_MODE] = hmi_sub[HMI_S_MODE];
+    band_vars_old[HMI_S_MODE] = band_vars[hmi_band][HMI_S_MODE];
   }
-  if(hmi_sub_old[HMI_S_VOX] != hmi_sub[HMI_S_VOX])
+  if(band_vars_old[HMI_S_VOX] != band_vars[hmi_band][HMI_S_VOX])
   {
-    dsp_setvox(hmi_sub[HMI_S_VOX]);
-    hmi_sub_old[HMI_S_VOX] = hmi_sub[HMI_S_VOX];
+    dsp_setvox(band_vars[hmi_band][HMI_S_VOX]);
+    band_vars_old[HMI_S_VOX] = band_vars[hmi_band][HMI_S_VOX];
   }
-  if(hmi_sub_old[HMI_S_AGC] != hmi_sub[HMI_S_AGC])
+  if(band_vars_old[HMI_S_AGC] != band_vars[hmi_band][HMI_S_AGC])
   {
-    dsp_setagc(hmi_sub[HMI_S_AGC]); 
-    hmi_sub_old[HMI_S_AGC] = hmi_sub[HMI_S_AGC];
+    dsp_setagc(band_vars[hmi_band][HMI_S_AGC]); 
+    band_vars_old[HMI_S_AGC] = band_vars[hmi_band][HMI_S_AGC];
   }
-  if(hmi_sub_old[HMI_S_BPF] != hmi_sub[HMI_S_BPF])
+  if(hmi_band_old != hmi_band)
   {
-    relay_setband(hmi_bpf[hmi_sub[HMI_S_BPF]]);
+    if(hmi_band_old < HMI_S_BPF)  //if not the first time;
+      {
+      Store_Last_Band(hmi_band_old);  // store data from old band (save freq to have it when back to this band)
+      }
+    //relay_setband(hmi_band);  // = hmi_band  
     sleep_ms(1);                  // I2C doesn't work without...
-    hmi_sub_old[HMI_S_BPF] = hmi_sub[HMI_S_BPF];
+    Setup_Band(hmi_band);  // = hmi_band  get the new band data 
+    hmi_band_old = hmi_band;  // = hmi_band  
+
+    sprintf(s, "B%d", band_vars[hmi_band][HMI_S_BPF]);  // hmi_menu_opt_display = band_vars[hmi_band][HMI_S_BPF]
+    //tft_writexy_plus(3, TFT_YELLOW, TFT_BLACK, 0,0,2,20,(uint8_t *)s);
+    tft_writexy_plus(2, TFT_BLUE, TFT_BLACK, 0,0,3,18,(uint8_t *)s);
+
   }
-  if(hmi_sub_old[HMI_S_PRE] != hmi_sub[HMI_S_PRE])
+  if(band_vars_old[HMI_S_PRE] != band_vars[hmi_band][HMI_S_PRE])
   {  
-    relay_setattn(hmi_pre[hmi_sub[HMI_S_PRE]]);
-    hmi_sub_old[HMI_S_PRE] = hmi_sub[HMI_S_PRE];
+    relay_setattn(hmi_pre[band_vars[hmi_band][HMI_S_PRE]]);
+    band_vars_old[HMI_S_PRE] = band_vars[hmi_band][HMI_S_PRE];
   }
+  if(band_vars[hmi_band][HMI_S_DFLASH] == 1)  //mem save + enter = saving
+  {
+    //sprintf(s, "%s       ", hmi_o_dflash[hmi_menu_opt_display]);
+    //tft_writexy_(1, TFT_RED, TFT_BLACK,8,0,(uint8_t *)s);  
+#ifdef HMI_debug
+    Serialx.println("Mem save   band " + String(hmi_band));
+#endif
+    band_vars[hmi_band][HMI_S_DFLASH] = 0;  //back to 0
+    Save_Actual_Band_Dflash();
+
+    //sprintf(s, "%s       ", hmi_o_dflash[hmi_menu_opt_display]);
+    //tft_writexy_(1, TFT_MAGENTA, TFT_BLACK,8,0,(uint8_t *)s);  
+  }
+
 
 
 
@@ -602,82 +766,70 @@ void hmi_evaluate(void)
   }
 
 
+  // if menu changed, print new value
 
-
-  if((hmi_state_old != hmi_state) || (hmi_option_old != hmi_option))
+  if((hmi_menu_old != hmi_menu) || (hmi_menu_opt_display_old != hmi_menu_opt_display))
   {
+#ifdef HMI_debug
+  Serialx.println("evaluate Band " + String(hmi_band));
+  Serialx.println("hmi_menu  " + String(hmi_menu_old) + " -> " + String(hmi_menu));
+  Serialx.println("hmi_menu_opt_display " + String(hmi_menu_opt_display_old) + " -> "  + String(hmi_menu_opt_display));
+#endif
 
-/*
-    if((hmi_state_old != hmi_state) && (hmi_state == HMI_S_TUNE))      // escape from menus to TUNE
-    {
-      Serialx.print("\nWrite menu configuration to DFLASH ");
-      // write modified menu configuration to data flash memory
-      if(Dflash_write_block(hmi_sub, HMI_NSTATES) == true)
-      {
-          Serialx.print("\nWrite menu configuration to DFLASH = OK   ");
-          for(int ndata = 0; ndata < HMI_NSTATES; ndata++)
-            {   
-            Serialx.print(" " + String(hmi_sub[ndata]));
-            }
-          Serialx.println("\n");
-      }
-      else
-      {
-          Serialx.println("\nWrite menu configuration to DFLASH = NOT OK\n");
-      }
-
-    }
-
-*/
-
-    
   	//menu 
-  	switch (hmi_state)
+  	switch (hmi_menu)
   	{
   	case HMI_S_TUNE:
-  		sprintf(s, "%s   %s   %s", hmi_o_vox[hmi_sub[HMI_S_VOX]], hmi_o_agc[hmi_sub[HMI_S_AGC]], hmi_o_pre[hmi_sub[HMI_S_PRE]]);
+  		sprintf(s, "%s   %s   %s", hmi_o_vox[band_vars[hmi_band][HMI_S_VOX]], hmi_o_agc[band_vars[hmi_band][HMI_S_AGC]], hmi_o_pre[band_vars[hmi_band][HMI_S_PRE]]);
       tft_writexy_(1, TFT_BLUE, TFT_BLACK,0,0,(uint8_t *)s);  
       //cursor
-      tft_cursor_plus(3, TFT_YELLOW, 2+(hmi_option>4?6:hmi_option), 0, 2, 20);    
+      tft_cursor_plus(3, TFT_YELLOW, 2+(hmi_menu_opt_display>4?6:hmi_menu_opt_display), 0, 2, 20);    
   		break;
   	case HMI_S_MODE:
-  		sprintf(s, "Set Mode: %s        ", hmi_o_mode[hmi_option]);
+  		sprintf(s, "Set Mode: %s        ", hmi_o_mode[hmi_menu_opt_display]);
       tft_writexy_(1, TFT_MAGENTA, TFT_BLACK,0,0,(uint8_t *)s);  
   		break;
   	case HMI_S_AGC:
-  		sprintf(s, "Set AGC: %s        ", hmi_o_agc[hmi_option]);
+  		sprintf(s, "Set AGC: %s        ", hmi_o_agc[hmi_menu_opt_display]);
       tft_writexy_(1, TFT_MAGENTA, TFT_BLACK,0,0,(uint8_t *)s);  
   		break;
   	case HMI_S_PRE:
-  		sprintf(s, "Set Pre: %s        ", hmi_o_pre[hmi_option]);
+  		sprintf(s, "Set Pre: %s        ", hmi_o_pre[hmi_menu_opt_display]);
       tft_writexy_(1, TFT_MAGENTA, TFT_BLACK,0,0,(uint8_t *)s);  
   		break;
   	case HMI_S_VOX:
-  		sprintf(s, "Set VOX: %s        ", hmi_o_vox[hmi_option]);
+  		sprintf(s, "Set VOX: %s        ", hmi_o_vox[hmi_menu_opt_display]);
       tft_writexy_(1, TFT_MAGENTA, TFT_BLACK,0,0,(uint8_t *)s);  
   		break;
   	case HMI_S_BPF:
-  		sprintf(s, "Band: B%d %sMHz    ", hmi_option, hmi_o_bpf[hmi_option]);
+  		sprintf(s, "Band: B%d %sMHz    ", hmi_menu_opt_display, hmi_o_bpf[hmi_menu_opt_display]);
       tft_writexy_(1, TFT_MAGENTA, TFT_BLACK,0,0,(uint8_t *)s);  
+  		break;
+  	case HMI_S_DFLASH:
+  		sprintf(s, "Memory: %s       ", hmi_o_dflash[hmi_menu_opt_display]);
+      tft_writexy_(1, TFT_MAGENTA, TFT_BLACK,0,0,(uint8_t *)s);  
+  		break;
   	default:
   		break;
   	}
    
-    hmi_state_old = hmi_state;
-    hmi_option_old = hmi_option;
+    hmi_menu_old = hmi_menu;
+    hmi_menu_opt_display_old = hmi_menu_opt_display;
   } 
 
 
 
 
- 
-  if (fft_display_graf_new == 1) //design a new graphic only when a new line is ready from FFT
+  if (tx_enabled == false)  //waterfall only during RX
   {
-    //plot waterfall graphic     
-    display_fft_graf();  // warefall 110ms
+    if (fft_display_graf_new == 1)    //design a new graphic only when a new line is ready from FFT
+    {
+      //plot waterfall graphic     
+      display_fft_graf();  // warefall 110ms
 
-    fft_display_graf_new = 0;  
-    fft_samples_ready = 2;  //ready to start new sample collect
+      fft_display_graf_new = 0;  
+      fft_samples_ready = 2;  //ready to start new sample collect
+    }
   }
 
 
@@ -695,7 +847,7 @@ void hmi_evaluate(void)
 
   
   // PTT debouncing 
-  if (hmi_sub[HMI_S_VOX] == 0)            // No VOX active
+  if (band_vars[hmi_band][HMI_S_VOX] == 0)            // No VOX active
   {
     gpio_set_dir(GP_PTT, false);          // PTT input
     if (gpio_get(GP_PTT))             // Get PTT level
