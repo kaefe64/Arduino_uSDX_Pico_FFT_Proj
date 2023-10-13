@@ -46,24 +46,32 @@ void uSDR_setup(void)  //main
   //gpio_init_mask(1<<14);  
   //gpio_set_dir(14, GPIO_OUT); 
   
-
+  
+  //Serialx.println("uSDR_setup   Wire.begin");
 	/*
 	 * i2c0 is used for the si5351 interface
 	 * i2c1 is used for the LCD and all other interfaces
 	 */
-#if TX_METHOD == I_Q_QSE
+#if TX_METHOD == I_Q_QSE   //original project
   Wire.begin();            //i2c0 master to Si5351
   //Wire.setClock(200000);   // Set i2c0 clock speed (default=100k)
 #endif
-  Wire1.begin();           //i2c1
+  Wire1.begin();           //i2c1   used for switching band and atten/LNA
+  //Wire1.setTimeout(1000);  // sets maximum milliseconds to wait for stream data, default is 1 second
 
   
 	/* Initialize units */
+  //Serialx.println("uSDR_setup   mon_init");
 	mon_init();										// Monitor shell on stdio
+  //Serialx.println("uSDR_setup   si_init");
 	si_init();										// VFO control unit
+  //Serialx.println("uSDR_setup   relay_init");
 	relay_init();
+  //Serialx.println("uSDR_setup   display_tft_setup");
   display_tft_setup();   //moved to setup0 to write into display from the beggining
+  //Serialx.println("uSDR_setup   hmi_init");
 	hmi_init();										// HMI user inputs
+  //Serialx.println("uSDR_setup   dsp_init");
   dsp_init();                   // Signal processing unit
 
   tim_loc = tim_count;          // local time for main loop
