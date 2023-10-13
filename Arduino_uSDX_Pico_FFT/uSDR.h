@@ -10,8 +10,8 @@ extern "C" {
 
 
 //choose the serial to be used
-#define Serialx   Serial    //USB virtual serial  /dev/ttyACM0
-//#define Serialx   Serial1   //UART0  /dev/ttyUSB0
+//#define Serialx   Serial1    //USB virtual serial  /dev/ttyACM0
+#define Serialx   Serial   //UART0  /dev/ttyUSB0
 
 
 
