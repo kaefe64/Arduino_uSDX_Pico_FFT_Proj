@@ -89,7 +89,7 @@ There is a **uSDX_TX** folder with code to test RF modulation using **phase and 
 ## Block Diagram
 - Arjan-5 uses the same modules connections as uSDR-pico.
 
-![Block Diagram](Pictures/Arjan_5 block_diagram.png)
+![Block Diagram](Pictures/Arjan_5_block_diagram.png)
 <br>
 
 ## Hardware changes and notes:
