@@ -31,13 +31,13 @@ There is a **uSDX_TX** folder with code to test RF modulation TX using **phase a
 <br>
 <br>
 
-## Hardware Main Board Block Diagram
+## Main Board Block Diagram
 - Arjan-5 uses the same modules connections as uSDR-pico.
 
 ![Main Block Diagram](Pictures/Arjan_5_block_diagram.png)
 <br>
 
-## Band Pass Filters, Attenuators and Low Noise Amplifier Block Diangram
+## Band Pass Filters, Attenuators and Low Noise Amplifier Board Block Diagram
 ![BPF RX Block Diagram](Pictures/Arjan_5_BPF_RX.png)
 <br>
 
@@ -55,7 +55,38 @@ There is a **uSDX_TX** folder with code to test RF modulation TX using **phase a
 
 
 <br>
+
+## Microcontroller RP2040 notes:
+- Core0 and Core1 are too much connected and affect each other. This made me lose some painful hours...
+- There are only 3 ADC ports available.
+- There are some reports at internet about the low quality of the RP2040 ADC readings (https://pico-adc.markomo.me/).
+
+
+
+
+## Hardware changes from the original SDR-Pico and notes:
+- I chose to make a main board with the Pico, Display, QSD/QSE and 5V power supply, and another board with the relays, filters and attenuators.
+- The main change from SDR-Pico ia the inclusion of ILI9341 on Pico free pins, using SPI1, and removing the LCD display.
+- Another change, as we need more frequency range on RX to show at the waterfall, the RX amplifier must amplify at least 80kHz.
+- You can see the schematic diagram at [uSDR_Pico_FFT_SCH.pdf](PCB/uSDR_Pico_FFT_SCH.pdf) and [uSDR_Pico_BPF_RX_SCH.pdf](PCB/uSDR_Pico_BPF_RX_SCH.pdf).
+- I noticed that changing the signal in one ADC input, changed the other inputs signal through the resistors for setting half Vref. To solve this, I changed the circuit to have a separate resistor divider for each ADC input.
+
+![Hardware Modification](FFT_LCD_pico_MOD.png)
 <br>
+
+- Use input/output filters for ADC Aliasing considerations (see above). 
+- Obs.: at the initial test video, I used only the RC output filter shown in the schematic, and for input filter, only what is already inside of the Softrock RXTX Ensemble.
+
+## Software Notes<br>
+### Arduino IDE setup and notes:
+- I am using Arduino IDE version 2.0.1 in Linux/Ubuntu
+- Lib used: TFT_eSPI by Bodmer
+- **IMPORTANT: Use the comments at beginning of  .ino  file to "adjust" the library files to the project.**
+- Boards Manager:  Arduino Mbed OS RP2040 Boards. My version is 4.0.2 (Every time I update it, I will need to "adjust" the library files again).
+- Do not include EarlePhilhower library (it is just conflitant with Mbed)
+- Board: "RaspberryPiPico"  >  Arduino Mbed OS RP2040 Boards  >  RaspberryPiPico
+- The code files have cpp type, but the code itself is in C (cpp type is used to help in some compiler issues).
+
 
 ### To implement the waterfall I considered this:
 
@@ -87,37 +118,10 @@ There is a **uSDX_TX** folder with code to test RF modulation TX using **phase a
 **Output:** We deliver an audio signal at 16kHz sample frequency, so we need a hardware low pass filter for less than 8kHz at the output. The sample frequency will be present and needs to be removed as it is also an audio frequency.
 
 
-## Microcontroller RP2040 notes:
-- Core0 and Core1 are too much connected and affect each other. This made me lose some painful hours...
-- There are only 3 ADC ports available.
-- There are some reports at internet about the low quality of the RP2040 ADC readings (https://pico-adc.markomo.me/).
-
-
-## Arduino IDE setup and notes:
-- I am using Arduino IDE version 2.0.1 in Linux/Ubuntu
-- Lib used: TFT_eSPI by Bodmer
-- **IMPORTANT: Use the comments at beginning of  .ino  file to "adjust" the library files to the project.**
-- Boards Manager:  Arduino Mbed OS RP2040 Boards. My version is 4.0.2 (Every time I update it, I will need to "adjust" the library files again).
-- Do not include EarlePhilhower library (it is just conflitant with Mbed)
-- Board: "RaspberryPiPico"  >  Arduino Mbed OS RP2040 Boards  >  RaspberryPiPico
-- The code files have cpp type, but the code itself is in C (cpp type is used to help in some compiler issues).
-
-
-
-## Hardware changes from the original SDR-Pico and notes:
-- I chose to make a main board with the Pico, Display, QSD/QSE and 5V power supply, and another board with the relays, filters and attenuators.
-- The main change from SDR-Pico ia the inclusion of ILI9341 on Pico free pins, using SPI1, and removing the LCD display.
-- Another change, as we need more frequency range on RX to show at the waterfall, the RX amplifier must amplify at least 80kHz.
-- You can see the schematic diagram at [uSDR_Pico_FFT_SCH.pdf](PCB/uSDR_Pico_FFT_SCH.pdf) and [uSDR_Pico_BPF_RX_SCH.pdf](PCB/uSDR_Pico_BPF_RX_SCH.pdf).
-- I noticed that changing the signal in one ADC input, changed the other inputs signal through the resistors for setting half Vref. To solve this, I changed the circuit to have a separate resistor divider for each ADC input.
-
-![Hardware Modification](FFT_LCD_pico_MOD.png)
 <br>
-
-- Use input/output filters for ADC Aliasing considerations (see above). 
-- Obs.: at the initial test video, I used only the RC output filter shown in the schematic, and for input filter, only what is already inside of the Softrock RXTX Ensemble.
-
-## Keys description<br>
+<br>
+## Operational Notes<br>
+### Keys description<br>
 **Normal operation:**<br>
 Encoder = to change the frequency at the cursor position<br>
 Left key = move the cursor to left<br>
@@ -130,9 +134,8 @@ Left key = to move between the menu items<br>
 Right key = to move between the menu items<br>
 Encoder = to change menu item value<br>
 Enter key = to confirm the menu item value<br>
+<br>
 
-<br>
-<br>
 <br>
 <br>
 
