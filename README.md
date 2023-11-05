@@ -120,6 +120,7 @@ There is a **uSDX_TX** folder with code to test RF modulation TX using **phase a
 
 <br>
 <br>
+
 ## Operational Notes<br>
 ### Keys description<br>
 **Normal operation:**<br>
