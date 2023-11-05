@@ -5,7 +5,7 @@
 
 ![uSDR-PICO FFT](Pict1.png)
 
-This project is a QSD/QSE Software Defined HF Transceiver (SDR), 5 Band, Low Power, based on  Arjan te Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico. I strongly recommend you to take a look there before trying to follow this one.
+This project is a QSD/QSE Software Defined HF Transceiver (SDR), 5 Band, Low Power, based on  Arjan te Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico. I recommend you to take a look there before trying to follow this one.
 
 My intention was to include a waterfall or panadapter to the Arjan's uSDR-pico project, for this, I included an ILI9341 240x320 2.4" TFT display without touch, and also, changed the software to generate the waterfall.
 
@@ -86,9 +86,17 @@ There is a **uSDX_TX** folder with code to test RF modulation using **phase and 
 - Board: "RaspberryPiPico"  >  Arduino Mbed OS RP2040 Boards  >  RaspberryPiPico
 - The code files have cpp type, but the code itself is in C (cpp type is used to help in some compiler issues).
 
+## Block Diagram
+- Arjan-5 uses the same modules connections as uSDR-pico.
+
+![Block Diagram](Pictures/Arjan_5 block diagram.png)
+<br>
+
 ## Hardware changes and notes:
-- Inclusion of ILI9341 on free pins, using SPI1, and removing the LCD display.
-- Schematic diagram at "FFT_LCD_pico.png".
+- I chose to make a main board with the Pico, Display, QSD/QSE and 5V power supply, and another board with the relays, filters and attenuators.
+- The main change from SDR-Pico ia the inclusion of ILI9341 on Pico free pins, using SPI1, and removing the LCD display.
+- Another change, as we need more frequency range on RX to show at the waterfall, the RX amplifier must amplify at least 80kHz.
+- You can see the schematic diagram at "FFT_LCD_pico.png".
 - I noticed that changing the signal in one ADC input, changed the other inputs signal through the resistors for setting half Vref. To solve this, I changed the circuit to have a separate resistor divider for each ADC input.
 
 ![Hardware Modification](FFT_LCD_pico_MOD.png)
