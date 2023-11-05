@@ -31,8 +31,20 @@ There is a **uSDX_TX** folder with code to test RF modulation using **phase and 
 <br>
 <br>
 
+## Hardware Block Diagram
+- Arjan-5 uses the same modules connections as uSDR-pico.
 
-### First Protpype with TX and RX
+![Block Diagram](Pictures/Arjan_5_block_diagram.png)
+<br>
+
+## Main Board
+
+![Main Board Top](Pictures/uSDR_Pico_FFT_PCB_top.png)
+<br>
+![Main Board Botton](Pictures/uSDR_Pico_FFT_PCB_botton.png)
+<br>
+
+## First Protpype with TX and RX
 
 ![Prototype](Pictures/Cardboard_box_prototype.png)
 
@@ -61,7 +73,7 @@ There is a **uSDX_TX** folder with code to test RF modulation using **phase and 
   This filter was calculated with the help of this site:  http://t-filter.engineerjs.com/
   The dificulty is that the number of filter taps can not be high (there is no much time to process it), so the filter must be chosen carefully.
 - Please consider that this waterfall is not perfect, I had to let go of some rules to make it.
-- Block diagram at "Arduino_uSDR_Pico_FFT.png":
+- Software Block diagram at "Arduino_uSDR_Pico_FFT.png":
 
 ![Block diagram](Arduino_uSDR_Pico_FFT.png)
 
@@ -86,18 +98,6 @@ There is a **uSDX_TX** folder with code to test RF modulation using **phase and 
 - Board: "RaspberryPiPico"  >  Arduino Mbed OS RP2040 Boards  >  RaspberryPiPico
 - The code files have cpp type, but the code itself is in C (cpp type is used to help in some compiler issues).
 
-## Block Diagram
-- Arjan-5 uses the same modules connections as uSDR-pico.
-
-![Block Diagram](Pictures/Arjan_5_block_diagram.png)
-<br>
-
-## Main Board
-
-![Main Board Top](Pictures/uSDR_Pico_FFT_PCB_top.png)
-<br>
-![Main Board Botton](Pictures/uSDR_Pico_FFT_PCB_botton.png)
-<br>
 
 
 ## Hardware changes from the original SDR-Pico and notes:
