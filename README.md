@@ -7,7 +7,7 @@
 
 This project is a QSD/QSE Software Defined HF Transceiver (SDR), 5 Band, Low Power, based on  Arjan te Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico. I recommend you to take a look there before trying to follow this one.
 
-My intention was to include a waterfall or panadapter to the Arjan's uSDR-pico project, for this, I included an ILI9341 240x320 2.4" TFT display without touch, and also, changed the software to generate the waterfall.
+My intention was to include a waterfall or panadapter to the Arjan's uSDR-Pico project, for this, I included an ILI9341 240x320 2.4" TFT display without touch, and also, changed the software to generate the waterfall.
 
 Initially, I have used Visual Studio, but after some considerations, I ported all code to Arduino IDE. So, to compile and run this code you need the Arduino IDE installed for a Raspberry Pi Pico project.
 
@@ -27,24 +27,28 @@ Initial msg: #15923 · May 26  2022<br>
 <br>
 
 
-There is a **uSDX_TX** folder with code to test RF modulation using **phase and amplitude**, the same method used at the **uSDX project** (https://github.com/threeme3/usdx). 
+There is a **uSDX_TX** folder with code to test RF modulation TX using **phase and amplitude**, the same method used at the **uSDX project** (https://github.com/threeme3/usdx). 
 <br>
 <br>
 
-## Hardware Block Diagram
+## Hardware Main Board Block Diagram
 - Arjan-5 uses the same modules connections as uSDR-pico.
 
-![Block Diagram](Pictures/Arjan_5_block_diagram.png)
+![Main Block Diagram](Pictures/Arjan_5_block_diagram.png)
 <br>
 
-## Main Board
+## Band Pass Filters, Attenuators and Low Noise Amplifier Block Diangram
+![BPF RX Block Diagram](Pictures/Arjan_5_BPF_RX.png)
+<br>
+
+## Main Board Top and Botton
 
 ![Main Board Top](Pictures/uSDR_Pico_FFT_PCB_top.png)
 <br>
 ![Main Board Botton](Pictures/uSDR_Pico_FFT_PCB_botton.png)
 <br>
 
-## First Protpype with TX and RX
+## First Prototype with TX and RX
 
 ![Prototype](Pictures/Cardboard_box_prototype.png)
 
