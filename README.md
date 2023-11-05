@@ -92,11 +92,19 @@ There is a **uSDX_TX** folder with code to test RF modulation using **phase and 
 ![Block Diagram](Pictures/Arjan_5_block_diagram.png)
 <br>
 
-## Hardware changes and notes:
+## Main Board
+
+![Main Board Top](Pictures/uSDR_Pico_FFT_PCB_top.png)
+<br>
+![Main Board Botton](Pictures/uSDR_Pico_FFT_PCB_botton.png)
+<br>
+
+
+## Hardware changes from the original SDR-Pico and notes:
 - I chose to make a main board with the Pico, Display, QSD/QSE and 5V power supply, and another board with the relays, filters and attenuators.
 - The main change from SDR-Pico ia the inclusion of ILI9341 on Pico free pins, using SPI1, and removing the LCD display.
 - Another change, as we need more frequency range on RX to show at the waterfall, the RX amplifier must amplify at least 80kHz.
-- You can see the schematic diagram at "FFT_LCD_pico.png".
+- You can see the schematic diagram at [uSDR_Pico_FFT_SCH.pdf](PCB/uSDR_Pico_FFT_SCH.pdf) and [uSDR_Pico_BPF_RX_SCH.pdf](PCB/uSDR_Pico_BPF_RX_SCH.pdf).
 - I noticed that changing the signal in one ADC input, changed the other inputs signal through the resistors for setting half Vref. To solve this, I changed the circuit to have a separate resistor divider for each ADC input.
 
 ![Hardware Modification](FFT_LCD_pico_MOD.png)
