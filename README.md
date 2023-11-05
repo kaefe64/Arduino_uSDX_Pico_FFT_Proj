@@ -32,7 +32,14 @@ There is a **uSDX_TX** folder with code to test RF modulation using **phase and 
 <br>
 
 
+### First Protpype with TX and RX
 
+![Prototype](Pictures/Cardboard_box_prototype.png)
+
+
+
+<br>
+<br>
 
 ### To implement the waterfall I considered this:
 
