@@ -231,9 +231,9 @@ void Init_HMI_data(uint8_t *actual_bnd)
         last_block = i;      //keep the last_block index to use on next writing to the DFLASH     
         count_block++;
         //Serialx.print("\nRead block from DFLASH = OK   ");
+        last_band = data_block[HMI_S_BPF];    //last band read
         for(j = 0; j < BAND_VARS_SIZE; j++)
           {
-          last_band = data_block[HMI_S_BPF];    //last band read
           band_vars[last_band][j] = data_block[j];  //put the data on the right band position to use in menus
           // the last band data read is the newest data and it will be in the vars for use in menu to switch bands
           
