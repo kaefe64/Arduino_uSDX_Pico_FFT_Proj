@@ -117,6 +117,7 @@ char hmi_o_mode[HMI_NUM_OPT_MODE][8] = {"USB","LSB","AM","CW"};			// Indexed by 
 char hmi_o_agc [HMI_NUM_OPT_AGC][8] = {"NoAGC","Slow","Fast"};					// Indexed by band_vars[hmi_band][HMI_S_AGC]
 char hmi_o_pre [HMI_NUM_OPT_PRE][8] = {"-30dB","-20dB","-10dB","0dB","+10dB"};	// Indexed by band_vars[hmi_band][HMI_S_PRE]
 char hmi_o_vox [HMI_NUM_OPT_VOX][8] = {"NoVOX","VOX-L","VOX-M","VOX-H"};		// Indexed by band_vars[hmi_band][HMI_S_VOX]
+#define NoVOX_pos_menu  0   //index for NoVOX option
 char hmi_o_bpf [HMI_NUM_OPT_BPF][8] = {"<2.5","2-6","5-12","10-24","20-40"};
 char hmi_o_dflash [HMI_NUM_OPT_DFLASH][8] = {"Save", "Saving"};  //only save is visible  (saving is used to start the dflash write)
 
@@ -166,13 +167,14 @@ const uint32_t hmi_minfreq[HMI_NUM_OPT_BPF] = {1000000, 2000000,  5000000, 10000
 #define HMI_MULFREQ          1      // Factor between HMI and actual frequency
 																		// Set to 1, 2 or 4 for certain types of mixer
 #endif
-#define PTT_DEBOUNCE	3											// Nr of cycles for debounce
-int ptt_state;															// Debounce counter
+//#define PTT_DEBOUNCE	3											// Nr of cycles for debounce
+//int ptt_state;															// Debounce counter
 bool ptt_active;														// Resulting state
+bool vox_active;														// Resulting state
 
 
 
-
+//uint8_t vet_audio[160000] = {0};
 
 
 
@@ -253,7 +255,7 @@ void Setup_Band(uint8_t band)
 	SI_SETFREQ(0, HMI_MULFREQ*hmi_freq);			// Set freq to hmi_freq (MULFREQ depends on mixer type)
 	SI_SETPHASE(0, 1);								// Set phase to 90deg (depends on mixer type)
 	
-	ptt_state = 0;
+	//ptt_state = 0;
 	ptt_active = false;
 	
 	dsp_setmode(band_vars[band][HMI_S_MODE]);  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
@@ -440,6 +442,12 @@ void hmi_handler(uint8_t event)
       else
       {
   		  band_vars[hmi_band][hmi_menu] = hmi_menu_opt_display;				// Store selected option	
+/*
+        if((hmi_menu == HMI_S_VOX) && (hmi_menu_opt_display == NoVOX_pos_menu))  //if switching to NoVOX
+        {
+          gpio_set_dir(GP_PTT, false);          // PTT pin input
+        }
+*/
       }
       //hmi_enter = true;                      // Mark HMI hit enter on that menu option
   	}
@@ -580,8 +588,9 @@ void hmi_init(void)
 	 */
 
 	// Init input GPIOs
-	gpio_init_mask(GP_MASK_IN);
-	
+	gpio_init_mask(GP_MASK_IN);   //	Initialise multiple GPIOs (enabled I/O and set func to GPIO_FUNC_SIO)
+                                //  Clear the output enable (i.e. set to input). Clear any output value.
+
 	// Enable pull-ups on input pins
 	gpio_pull_up(GP_ENC_A);
 	gpio_pull_up(GP_ENC_B);
@@ -590,8 +599,23 @@ void hmi_init(void)
 	gpio_pull_up(GP_AUX_2_Left);
 	gpio_pull_up(GP_AUX_3_Right);
 	gpio_pull_up(GP_PTT);
-	
-	// Enable interrupt on level low
+/*	
+  gpio_set_dir_in_masked(GP_MASK_IN);   //don't need,  already input by  gpio_init_mask()
+
+for(;;)
+{
+      gpio_put(GP_PTT, 0);      //drive PTT low (active)
+      gpio_set_dir(GP_PTT, GPIO_OUT);   // PTT output
+      delay(2000);
+
+      //gpio_put(GP_PTT, 0);      //drive PTT low (active)
+      gpio_set_dir(GP_PTT, GPIO_IN);   // PTT output
+      delay(2000);
+}
+*/
+
+
+// Enable interrupt on level low
 	gpio_set_irq_enabled(GP_ENC_A, GPIO_IRQ_EDGE_ALL, true);
 	gpio_set_irq_enabled(GP_AUX_0_Enter, GPIO_IRQ_EDGE_ALL, true);
 	gpio_set_irq_enabled(GP_AUX_1_Escape, GPIO_IRQ_EDGE_ALL, true);
@@ -602,7 +626,6 @@ void hmi_init(void)
 
 	// Set callback, one for all GPIO, not sure about correctness!
 	gpio_set_irq_enabled_with_callback(GP_ENC_A, GPIO_IRQ_EDGE_ALL, true, hmi_callback);
-
 
 
 }
@@ -842,35 +865,5 @@ void hmi_evaluate(void)
     aud_samples_state = AUD_STATE_SAMP_IN;  
   }
 
-
-/*
-
-  
-  // PTT debouncing 
-  if (band_vars[hmi_band][HMI_S_VOX] == 0)            // No VOX active
-  {
-    gpio_set_dir(GP_PTT, false);          // PTT input
-    if (gpio_get(GP_PTT))             // Get PTT level
-    {
-      if (ptt_state<PTT_DEBOUNCE)         // Increment debounce counter when high
-        ptt_state++;
-    }
-    else 
-    {
-      if (ptt_state>0)              // Decrement debounce counter when low
-        ptt_state--;
-    }
-    if (ptt_state == PTT_DEBOUNCE)          // Reset PTT when debounced level high
-      ptt_active = false;
-    if (ptt_state == 0)               // Set PTT when debounced level low
-      ptt_active = true;
-  }
-  else
-  {
-    ptt_active = false;
-    gpio_set_dir(GP_PTT, true);           // PTT output
-  }
-
-*/
 
 }

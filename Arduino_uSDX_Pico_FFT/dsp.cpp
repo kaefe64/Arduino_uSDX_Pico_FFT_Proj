@@ -1650,7 +1650,8 @@ The sampling is at 160kHz but for audio we only need 16kHz samples, so the filte
 // 
 void core0_irq_handler() 
 {
-            
+  static bool vox_active_old = false;
+           
   gpio_set_mask(1<<LED_BUILTIN);
 
 
@@ -1673,16 +1674,23 @@ void core0_irq_handler()
   
     //use audio samples
     //tx_enabled = ptt_active || vox();  // Sample audio and check level - watch out - this way it does not run vox() if ptt_active is true
-    tx_enabled = vox();     // Sample audio and check level 
-    tx_enabled |= ptt_active;     //tx_enabled is used at next DMA int
-  
-    if (tx_enabled)
+    vox_active = vox();     // Sample audio and check level    if (VOX enable and audio)  vox = true
+    tx_enabled = vox_active || ptt_active;     //tx_enabled is used at next DMA int
+
+    if ((vox_active == true) && (vox_active_old == false))      // TX enabled through VOX (VOX enabled and audio with some level)
     {
-      if (vox_level != VOX_OFF)       // vox enabled with some level
-      {
-        //set PTT as output ??
-        gpio_put(GP_PTT, false);      //drive PTT low (active)
-      }
+      gpio_put(GP_PTT, 0);      //drive PTT low (active)
+      gpio_set_dir(GP_PTT, GPIO_OUT);   // PTT output
+    }
+    if ((vox_active == false) && (vox_active_old == true))      // TX enabled through VOX (VOX enabled and audio with some level)
+    {
+      gpio_set_dir(GP_PTT, GPIO_IN);          // PTT input
+    //  gpio_put(GP_PTT, true);      //drive PTT high (but it is input)
+    }
+
+
+    if (tx_enabled)  //commanded to TX through PTT or VOX
+    {
 #if TX_METHOD == PHASE_AMPLITUDE    // uSDX TX method used for Class E RF amplifier
       uSDX_TX_PhaseAmpl();
 #endif
@@ -1692,14 +1700,10 @@ void core0_irq_handler()
     }
     else
     {
-      if (vox_level != VOX_OFF)         // vox enabled with some level
-      {
-        //set PTT as input ??
-        gpio_put(GP_PTT, true);       //     drive PTT high (inactive)
-      }
       rx();
     }
 
+    vox_active_old = vox_active;
   }
 
          
@@ -2030,18 +2034,18 @@ bool vox(void)
 
   if(dsp_mode != MODE_CW)   //no vox at CW
   {
-  	/*
-  	 * Detect level of audio signal
-  	 * Return true if VOX enabled and:
-  	 * - Audio level higher than threshold 
-  	 * - Linger time sill active 
-  	 */
-    vox_sample = ABS(vox_sample);   // Absolute value
-  	//a_level += (vox_sample - a_level)/128;			//   running average, 16usec * 128 = 2msec
-    a_level += (vox_sample - a_level)>>7u;      //   running average, 16usec * 128 = 2msec
-  
   	if (vox_level != VOX_OFF)						// Only when VOX is enabled
   	{
+      /*
+      * Detect level of audio signal
+      * Return true if VOX enabled and:
+      * - Audio level higher than threshold 
+      * - Linger time sill active 
+      */
+      vox_sample = ABS(vox_sample);   // Absolute value
+    	//a_level += (vox_sample - a_level)/128;			//   running average, 16usec * 128 = 2msec
+      a_level += (vox_sample - a_level)>>7u;      //   running average, 16usec * 128 = 2msec
+  
   		if (a_level > vox_level)
   		{
   			vox_count = VOX_LINGER;					// While audio present, reset linger timer
@@ -2068,7 +2072,7 @@ bool vox(void)
 
 
 
-// 666Hz cw tone @ 16kHz sample freq 
+// 666.66Hz cw tone @ 16kHz sample freq 
 #define CW_TONE_NUM  24
 int16_t cw_tone_to_play_pos = 0;
 // ADC_RANGE 4095  >>4 = DAC_RANGE 255
@@ -2167,7 +2171,7 @@ bool tx(void)
 	 * Need to multiply AC with DAC_RANGE/ADC_RANGE (appr 1/16)
 	 * Any case: clip to range
 	 */
-	a_accu = DAC_BIAS + (qh>>5);  //>>4 to change from ADC 4096 range to 256 PWM range  (>>4 seems saturate)
+	a_accu = DAC_BIAS + (qh>>2);  //5);  //>>4 to change from ADC 4096 range to 256 PWM range  (>>4 seems saturate)
 	if (a_accu<0)
 		q_dac = 0;
 	else if (a_accu>(int16_t)(DAC_RANGE))
@@ -2175,7 +2179,7 @@ bool tx(void)
 	else
 		q_dac = a_accu;
 	
-	a_accu = DAC_BIAS + (a_s[7]>>5);  //>>4 to change from ADC 4096 range to 256 PWM range  (>>4 seems saturate)
+	a_accu = DAC_BIAS + (a_s[7]>>2);  //5);  //>>4 to change from ADC 4096 range to 256 PWM range  (>>4 seems saturate)
 	if (a_accu<0)
 		i_dac = 0;
 	else if (a_accu>(int16_t)(DAC_RANGE))
@@ -2189,6 +2193,8 @@ bool tx(void)
 	pwm_set_gpio_level(21, i_dac);
 	pwm_set_gpio_level(20, q_dac);
 	
+//pwm_set_chan_level(dac_audio, PWM_CHAN_A, i_dac);  //debug LSB to audio out
+//pwm_set_chan_level(dac_audio, PWM_CHAN_A, q_dac);  //debug LSB to audio out
 
   //store variables for scope graphic
   if(aud_samples_state == AUD_STATE_SAMP_IN)
@@ -2536,7 +2542,7 @@ void dsp_core1_setup_and_loop()
       }
 
       
-      // FFT  I - H(Q)
+      // FFT  I + H(Q)
       kiss_fftr(fft_cfg , fft_in_plus, fft_out);  // ***  about 30ms
 
 

@@ -110,6 +110,7 @@ extern "C" {
 extern uint32_t hmi_freq;  
 extern uint8_t  hmi_band;	
 extern bool ptt_active;
+extern bool vox_active;
 
 //#define BAND_INDEX   HMI_S_BPF    // = 5
 extern uint8_t  band_vars[HMI_NUM_OPT_BPF][BAND_VARS_SIZE];
