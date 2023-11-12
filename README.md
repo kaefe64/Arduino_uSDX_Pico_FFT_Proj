@@ -143,6 +143,10 @@ Enter key = to confirm the menu item value<br>
 
 ## Last changes and notes:<br>
 
+### Nov12 2023
+- Correcting Arjan's name.
+- Switching the PTT pin when TX in VOX mode.
+
 ### Oct13 2023
 - Now, each band has its own setup, including last frequency used. When changing bands, it will remember the last menu options for each band.
 - Included new menu option to save the band setup on Data Flash (non volatile memory), including the frequency. The menu Save will save the actual band and frequency to DFlash. The last band saved will be the one selected after power on.
