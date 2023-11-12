@@ -180,7 +180,7 @@ Control Si5351 (see AN619):
 
 
 #ifdef PY2KLA_setup
-#define SI_XTAL_FREQ  (25000000UL-300UL)  // Replace with measured crystal frequency of XTAL for CL = 10pF (default)  0.0
+#define SI_XTAL_FREQ  (25000000UL-375UL)  // Replace with measured crystal frequency of XTAL for CL = 10pF (default)  0.0
 #else
 #define SI_XTAL_FREQ  (25000000UL-250UL)  // Replace with measured crystal frequency of XTAL for CL = 10pF (default)
 #endif
