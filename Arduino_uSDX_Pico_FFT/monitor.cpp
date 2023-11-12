@@ -72,7 +72,7 @@ void mon_init()
 	Serialx.print(" 5 Band SSB/AM/CW  \n");
 	Serialx.print("  HF Transceiver   \n");
 	Serialx.print("======= by ========\n");
-	Serialx.print(" Arjan te Malverde \n");
+	Serialx.print(" Arjan te Marvelde \n");
 	Serialx.print("Klaus Fensterseifer\n");
 	Serialx.print("=======2023========\n");
 	Serialx.print("Pico> ");								// prompt

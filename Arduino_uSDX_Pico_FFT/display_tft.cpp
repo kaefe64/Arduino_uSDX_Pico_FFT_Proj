@@ -510,7 +510,7 @@ void display_tft_setup0(void) {
 //  sprintf(s, "PE1ATM");
 //  sprintf(s, "by");
 //  tft_writexy_plus(1, TFT_LIGHTGREY, TFT_BLACK, 0,0,7,0,(uint8_t *)s);
-  sprintf(s, "Arjan te Malverde");
+  sprintf(s, "Arjan te Marvelde");
   tft_writexy_plus(1, TFT_SKYBLUE, TFT_BLACK, 3,0,9,0,(uint8_t *)s);
 //  sprintf(s, "and");
 //  tft_writexy_plus(1, TFT_LIGHTGREY, TFT_BLACK, 0,0,8,0,(uint8_t *)s);
