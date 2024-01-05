@@ -34,6 +34,7 @@
 //#include "lcd.h"
 #include "si5351.h"
 #include "dsp.h"
+#include "hmi.h"
 #include "relay.h"
 #include "monitor.h"
 #include "uSDR.h"
@@ -57,6 +58,7 @@ typedef struct
 	const char *cmdsyn;									// Command syntax
 	const char *help;										// Command help text
 } shell_t;
+
 
 
 
@@ -114,20 +116,20 @@ void mon_lt(void)
 /*
  * Toggles the PTT status, overriding the HW signal
  */
-bool ptt = false;
+
 void mon_pt(void)
 {
-	if (ptt)
+	if (ptt_mon_active)
 	{
-		ptt = false;
+		ptt_mon_active = false;
 		Serialx.print("PTT released\n");
 	}
 	else
 	{
-		ptt = true;
+		ptt_mon_active = true;
 		Serialx.print("PTT active\n");
 	}
-	tx_enabled = ptt;
+//	tx_enabled = ptt;
 }
 
 /*
