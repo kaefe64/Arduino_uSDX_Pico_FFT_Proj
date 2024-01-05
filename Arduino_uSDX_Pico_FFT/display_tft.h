@@ -119,6 +119,7 @@ void display_fft_graf(void);
 void display_fft_graf_top(void);
 void display_tft_setup0(void);
 void display_tft_setup(void);
+void display_tft_countdown(bool show, uint16_t val);
 void display_tft_loop(void);
 
 void display_aud_graf(void);

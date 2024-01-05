@@ -573,7 +573,6 @@ char s[32];
   tft_writexy_plus(1, TFT_MAGENTA, TFT_BLACK, 10,4,3,0,(uint8_t *)s);
 
 
-
 /* 
   tft.setFreeFont(FONT1);                 // Select the font
   txt_size = 1;
@@ -671,6 +670,39 @@ char s[32];
 */
    
 } // main
+
+
+
+
+/*********************************************************
+  Initial msgs on display  (after reset)
+*********************************************************/
+void display_tft_countdown(bool show, uint16_t val) 
+{
+  char s[32];
+
+  if(show == true)
+  {
+    tft.drawRoundRect(260, 100, 50, 40, 10, TFT_ORANGE);
+    sprintf(s, "%d", val);  //name changed from uSDR Pico FFT
+
+    //tft.fillRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t radius, uint32_t color)
+    if(val < 10)
+    {
+      tft_writexy_plus(1, TFT_ORANGE, TFT_BLACK, 20,4,5,0,(uint8_t *)s);
+      //tft.drawRoundRect(275, 100, 35, 40, 10, TFT_ORANGE);
+    }
+    else
+    {
+      tft_writexy_plus(1, TFT_ORANGE, TFT_BLACK, 19,4,5,0,(uint8_t *)s);
+      //tft.drawRoundRect(260, 100, 50, 40, 10, TFT_ORANGE);
+    }
+  }
+  else  //fill with black = erase = close the window
+  {
+    tft.fillRoundRect(260, 100, 50, 40, 10, TFT_BLACK);
+  }
+}
 
 
 
