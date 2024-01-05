@@ -63,7 +63,6 @@
 #define GP_AUX_1_Escape	7								// Escape, Cancel
 #define GP_AUX_2_Left	8								// Left move
 #define GP_AUX_3_Right	9								// Right move
-#define GP_PTT		15
 #define GP_MASK_IN	((1<<GP_ENC_A)|(1<<GP_ENC_B)|(1<<GP_AUX_0_Enter)|(1<<GP_AUX_1_Escape)|(1<<GP_AUX_2_Left)|(1<<GP_AUX_3_Right)|(1<<GP_PTT))
 //#define GP_MASK_PTT	(1<<GP_PTT)
 
@@ -120,8 +119,9 @@ char hmi_o_vox [HMI_NUM_OPT_VOX][8] = {"NoVOX","VOX-L","VOX-M","VOX-H"};		// Ind
 #define NoVOX_pos_menu  0   //index for NoVOX option
 char hmi_o_bpf [HMI_NUM_OPT_BPF][8] = {"<2.5","2-6","5-12","10-24","20-40"};
 char hmi_o_dflash [HMI_NUM_OPT_DFLASH][8] = {"Save", "Saving"};  //only save is visible  (saving is used to start the dflash write)
+char hmi_o_audio [HMI_NUM_OPT_AUDIO][20] = {"Rec from TX", "Rec from RX", "Play to TX", "Play to Speaker"};
 
-const uint8_t  hmi_num_opt[HMI_NMENUS] = { HMI_NUM_OPT_TUNE, HMI_NUM_OPT_MODE, HMI_NUM_OPT_AGC, HMI_NUM_OPT_PRE, HMI_NUM_OPT_VOX, HMI_NUM_OPT_BPF, HMI_NUM_OPT_DFLASH };	 // number of options for each menu
+//const uint8_t  hmi_num_opt[HMI_NMENUS] = { HMI_NUM_OPT_TUNE, HMI_NUM_OPT_MODE, HMI_NUM_OPT_AGC, HMI_NUM_OPT_PRE, HMI_NUM_OPT_VOX, HMI_NUM_OPT_BPF, HMI_NUM_OPT_DFLASH, HMI_NUM_OPT_AUDIO };	 // number of options for each menu
 
 
 // Map option to setting
@@ -167,14 +167,163 @@ const uint32_t hmi_minfreq[HMI_NUM_OPT_BPF] = {1000000, 2000000,  5000000, 10000
 #define HMI_MULFREQ          1      // Factor between HMI and actual frequency
 																		// Set to 1, 2 or 4 for certain types of mixer
 #endif
-//#define PTT_DEBOUNCE	3											// Nr of cycles for debounce
-//int ptt_state;															// Debounce counter
-bool ptt_active;														// Resulting state
-bool vox_active;														// Resulting state
+
+															
 
 
 
-//uint8_t vet_audio[160000] = {0};
+/*
+<Aud Rec TX> = Record the transmission audio
+ - When menu option <Aud Rec Tx> pressed:
+   Clear the audio_rec_pos
+ - and then
+   When put audio I/Q PWM output to transmission, store at the vet_audio
+
+<Aud Rec RX> = Record the reception audio
+ - When menu option <Aud Rec Rx> pressed:
+   Clear the audio_rec_pos
+ - and then
+   When put audio PWM to speaker, store at the vet_audio
+
+<Aud Play TX> = Transmit the audio in memory
+ - When menu option <Aud Play Tx> pressed:
+   Clear the audio_play_pos
+   Set ptt_aud_active = TRUE (ptt active)
+ - and then
+   for each audio memory I calculate the hilbert Q = H(I)
+   Put the audio memory I/Q PWM output to transmission 
+ - Set ptt_aud_active = FALSE (ptt active)
+
+<Aud Play SPK> = Play the memory audio to the speaker
+ - When menu option <Aud Play SPK> pressed:
+   Clear the audio_play_pos
+ - and then
+   Put the audio memory PWM to the speaker
+
+
+*/
+uint8_t audio_buf[AUDIO_BUF_MAX] = {0};  //160k bytes(memory used) * (1 / 16khz(sample freq)) = 10s
+uint32_t audio_rec_pos = 0;
+uint32_t audio_play_pos = 0;
+
+#define AUDIO_TIME_AFTER  (1*(1000/LOOP_MS))      //1s * (1000/LOOP_MS) = 10
+#define AUDIO_TIME_MAIN   ((AUDIO_BUF_MAX/FSAMP_AUDIO)*(1000/LOOP_MS))    //160k/16k * 1000/100 = 100
+
+bool tx_enabled = false;
+bool ptt_internal_active = false;    //PTT output = true for vox, mon and mem
+bool ptt_external_active = false;    //external = from mike
+//these inputs will generate the tx_enabled to transmit
+bool ptt_vox_active = false;	  //if vox whants to transmit
+bool ptt_mon_active = false;
+bool ptt_aud_active = false;
+
+
+uint16_t Aud_Rec_Tx = AUDIO_STOPPED;
+uint16_t Aud_Rec_Rx = AUDIO_STOPPED;
+uint16_t Aud_Play_Tx = AUDIO_STOPPED;
+uint16_t Aud_Play_Spk = AUDIO_STOPPED;
+
+
+
+//***********************************************************************
+//
+//  Audio_Rec_Play - checks if audio menu started
+//                   sets the correspondent command
+//                   shows a counter on display
+// 
+//***********************************************************************
+void Audio_Rec_Play(void)
+{
+  static uint16_t time_main = 0;
+  static uint16_t time_after = 0;
+
+
+  if(Aud_Rec_Tx == AUDIO_RUNNING)
+  {
+    if(ptt_external_active == false)
+    {
+      Aud_Rec_Tx = AUDIO_STOPPED;
+    }
+  }
+/*
+Serialx.println("Time main=" + String(time_main) +
+                "   Aud_Rec_Tx=" + String(Aud_Rec_Tx) +
+                "   Aud_Rec_Rx=" + String(Aud_Rec_Rx) +
+                "   Aud_Play_Tx=" + String(Aud_Play_Tx) +
+                "   Aud_Play_Spk=" + String(Aud_Play_Spk) +
+                "   ptt_ext_act=" + (ptt_external_active ? "true" : "false"));
+*/
+
+  if(time_main > 0)     //if counting time 10s
+  {
+    if( (Aud_Rec_Tx == AUDIO_STOPPED) &&   //<escape> condition  stops audio
+        (Aud_Rec_Rx == AUDIO_STOPPED) &&
+        (Aud_Play_Tx == AUDIO_STOPPED) &&
+        (Aud_Play_Spk == AUDIO_STOPPED) )
+    {
+      time_main = 0;
+      time_after = AUDIO_TIME_AFTER;
+      ptt_aud_active = false;
+    }
+    else
+    {
+      time_main--;
+      if(time_main == 0)
+      {
+        time_after = AUDIO_TIME_AFTER;
+        ptt_aud_active = false;
+
+        Aud_Rec_Tx = AUDIO_STOPPED;
+        Aud_Rec_Rx = AUDIO_STOPPED;
+        Aud_Play_Tx = AUDIO_STOPPED;
+        Aud_Play_Spk = AUDIO_STOPPED;
+      }
+      //if <enter> on any Audio menu, draw a count down window from 0 to 10s
+      display_tft_countdown(true, (AUDIO_TIME_MAIN-time_main)/10);
+    }
+  }
+  else if(time_after > 0)     //if time after 10s, 1s more to clear the count down window
+  {
+    time_after--;
+    if(time_after == 0)
+    {
+      display_tft_countdown(false, 0);     //close count down window
+    }
+    else
+    {
+      //display_tft_countdown(true, AUDIO_TIME_MAIN-time_main);  //not necessary?  already on screen
+    }
+  }
+  else if(Aud_Rec_Tx == AUDIO_START) 
+    {
+      display_tft_countdown(true, 0);
+      if(ptt_external_active == true)
+      {
+        audio_rec_pos = 0;
+        time_main = AUDIO_TIME_MAIN;
+        Aud_Rec_Tx = AUDIO_RUNNING;
+      }
+    }
+  else if(Aud_Rec_Rx == AUDIO_START)
+  {
+    audio_rec_pos = 0;
+    time_main = AUDIO_TIME_MAIN;
+    Aud_Rec_Rx = AUDIO_RUNNING;
+  }
+  else if(Aud_Play_Tx == AUDIO_START)
+  {
+    audio_play_pos = 0;
+    time_main = AUDIO_TIME_MAIN;
+    Aud_Play_Tx = AUDIO_RUNNING;
+    ptt_aud_active = true;
+  }
+  else if(Aud_Play_Spk == AUDIO_START)
+  {
+    audio_play_pos = 0;
+    time_main = AUDIO_TIME_MAIN;
+    Aud_Play_Spk = AUDIO_RUNNING;
+  }
+}
 
 
 
@@ -256,15 +405,14 @@ void Setup_Band(uint8_t band)
 	SI_SETPHASE(0, 1);								// Set phase to 90deg (depends on mixer type)
 	
 	//ptt_state = 0;
-	ptt_active = false;
+	ptt_external_active = false;
 	
 	dsp_setmode(band_vars[band][HMI_S_MODE]);  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
 	dsp_setvox(band_vars[band][HMI_S_VOX]);
 	dsp_setagc(band_vars[band][HMI_S_AGC]);	
 	relay_setattn(hmi_pre[band_vars[band][HMI_S_PRE]]);
 	relay_setband(hmi_bpf[band_vars[band][HMI_S_BPF]]);
-	//hmi_enter = false;
-
+	
 
 
 //	hmi_menu = HMI_S_BPF;  //changing band on band menu
@@ -284,14 +432,25 @@ void Setup_Band(uint8_t band)
 //***********************************************************************
 void Save_Actual_Band_Dflash(void)
 {
-  // save freq to band vars (after menu data)
-  band_vars[hmi_band][HMI_NMENUS] = (uint8_t)(hmi_freq >> 24);  //uint32_t
-  band_vars[hmi_band][HMI_NMENUS+1] = (uint8_t)((hmi_freq >> 16) & 0xff); 
-  band_vars[hmi_band][HMI_NMENUS+2] = (uint8_t)((hmi_freq >> 8) & 0xff); 
-  band_vars[hmi_band][HMI_NMENUS+3] = (uint8_t)(hmi_freq & 0xff); 
+  uint8_t   data_block[DATA_BLOCK_SIZE];
+  uint16_t  i;
+
+  //copy data from band vars to dflash block (not all menus are saved at dflash)
+  for (i=0; i<HMI_NMENUS_DFLASH; i++)
+    {
+    data_block[i] = band_vars[hmi_band][i];
+    }
+
+  // copy freq to dflash block and save freq to band vars (after menu data)
+  data_block[HMI_NMENUS_DFLASH] = band_vars[hmi_band][HMI_NMENUS] = (uint8_t)(hmi_freq >> 24);  //uint32_t
+  data_block[HMI_NMENUS_DFLASH+1] = band_vars[hmi_band][HMI_NMENUS+1] = (uint8_t)((hmi_freq >> 16) & 0xff); 
+  data_block[HMI_NMENUS_DFLASH+2] = band_vars[hmi_band][HMI_NMENUS+2] = (uint8_t)((hmi_freq >> 8) & 0xff); 
+  data_block[HMI_NMENUS_DFLASH+3] = band_vars[hmi_band][HMI_NMENUS+3] = (uint8_t)(hmi_freq & 0xff); 
+
 
   // write last menu configuration to data flash memory
-  if(Dflash_write_block(&band_vars[hmi_band][0]) == true)
+//  if(Dflash_write_block(&band_vars[hmi_band][0]) == true)
+  if(Dflash_write_block(data_block) == true)
   {
 #ifdef HMI_debug
       Serialx.println("\nWrite block to DFLASH = OK");
@@ -320,19 +479,20 @@ void hmi_handler(uint8_t event)
 {
   static uint8_t hmi_menu_last = HMI_S_BPF;    //last menu when <escape>, used to come back to the same menu
 
-	/* Special case for TUNE state */
-	if (hmi_menu == HMI_S_TUNE)  //on main tune
-	{
 
-    if (event==HMI_PTT_ON)    
+    if ((event==HMI_PTT_ON) && (ptt_internal_active == false))  //if internal is taking the ptt control, not from mike, ignores mike
     {
-      ptt_active = true;
+      ptt_external_active = true;
     }
     else if (event==HMI_PTT_OFF)   
     {
-      ptt_active = false;
+      ptt_external_active = false;
     }
-		else if (event==HMI_E_ESCAPE)										// Enter submenus
+
+	/* Special case for TUNE state */
+	if (hmi_menu == HMI_S_TUNE)  //on main tune
+	{
+		if (event==HMI_E_ESCAPE)										// Enter submenus
 		{
 			//band_vars[hmi_band][hmi_menu] = hmi_menu_opt_display;							// Store cursor position on TUNE
 			hmi_menu = hmi_menu_last;										// go to last menu selected before TUNE
@@ -426,12 +586,36 @@ void hmi_handler(uint8_t event)
   			hmi_menu_opt_display = (hmi_menu_opt_display>0)?hmi_menu_opt_display-1:0;
       */
   		break;
+  	case HMI_S_AUDIO:
+  		if (event==HMI_E_INCREMENT)
+  			hmi_menu_opt_display = (hmi_menu_opt_display<HMI_NUM_OPT_AUDIO-1)?hmi_menu_opt_display+1:HMI_NUM_OPT_AUDIO-1;
+  		else if (event==HMI_E_DECREMENT)
+  			hmi_menu_opt_display = (hmi_menu_opt_display>0)?hmi_menu_opt_display-1:0;
+  		break;
   	}
   	
   	/* General actions for all submenus */
   	if (event==HMI_E_ENTER)
     {
-      if(hmi_menu == HMI_S_BPF)
+      if(hmi_menu == HMI_S_AUDIO)
+      {
+        switch(hmi_menu_opt_display)
+        {
+        case AUDIO_REC_TX:
+          Aud_Rec_Tx = AUDIO_START;
+          break;
+        case AUDIO_REC_RX:
+          Aud_Rec_Rx = AUDIO_START;
+          break;
+        case AUDIO_PLAY_TX:
+          Aud_Play_Tx = AUDIO_START;
+          break;
+        case AUDIO_PLAY_SPK:
+          Aud_Play_Spk = AUDIO_START;
+          break;
+        }        
+      }
+      else if(hmi_menu == HMI_S_BPF)
       {
         hmi_band = hmi_menu_opt_display;  //band changed
       }
@@ -449,13 +633,26 @@ void hmi_handler(uint8_t event)
         }
 */
       }
-      //hmi_enter = true;                      // Mark HMI hit enter on that menu option
   	}
   	else if (event==HMI_E_ESCAPE)
   	{
-      hmi_menu_last = hmi_menu;
-  		hmi_menu = HMI_S_TUNE;										// Leave submenus
-  		hmi_menu_opt_display = band_vars[hmi_band][hmi_menu];							// Restore selection of new state
+      if((hmi_menu == HMI_S_AUDIO) &&
+         ((Aud_Rec_Tx != AUDIO_STOPPED) ||   //audio active
+          (Aud_Rec_Rx != AUDIO_STOPPED) ||
+          (Aud_Play_Tx != AUDIO_STOPPED) ||
+          (Aud_Play_Spk != AUDIO_STOPPED)))
+      {
+        Aud_Rec_Tx = AUDIO_STOPPED;   //stops audio
+        Aud_Rec_Rx = AUDIO_STOPPED;
+        Aud_Play_Tx = AUDIO_STOPPED;
+        Aud_Play_Spk = AUDIO_STOPPED;
+      }
+      else
+      {
+        hmi_menu_last = hmi_menu;
+        hmi_menu = HMI_S_TUNE;										// Leave submenus
+        hmi_menu_opt_display = band_vars[hmi_band][hmi_menu];							// Restore selection of new state
+      }
   	}
   	else if (event==HMI_E_RIGHT)
   	{
@@ -527,7 +724,7 @@ void hmi_callback(uint gpio, uint32_t events)
     }
 		break;
 
-  case GP_PTT:                  // Next
+  case GP_PTT:                  // PTT TX
 /*
     if (events&GPIO_IRQ_EDGE_ALL)
     {
@@ -638,7 +835,7 @@ for(;;)
  * Redraw the display, representing current state
  * This function is called regularly from the main loop.
  */
-void hmi_evaluate(void)
+void hmi_evaluate(void)   //hmi loop
 {
 	char s[32];
   int16_t rec_level;
@@ -803,7 +1000,7 @@ void hmi_evaluate(void)
   	switch (hmi_menu)
   	{
   	case HMI_S_TUNE:
-  		sprintf(s, "%s   %s   %s", hmi_o_vox[band_vars[hmi_band][HMI_S_VOX]], hmi_o_agc[band_vars[hmi_band][HMI_S_AGC]], hmi_o_pre[band_vars[hmi_band][HMI_S_PRE]]);
+  		sprintf(s, "%s   %s   %s        ", hmi_o_vox[band_vars[hmi_band][HMI_S_VOX]], hmi_o_agc[band_vars[hmi_band][HMI_S_AGC]], hmi_o_pre[band_vars[hmi_band][HMI_S_PRE]]);
       tft_writexy_(1, TFT_BLUE, TFT_BLACK,0,0,(uint8_t *)s);  
       //cursor
       tft_cursor_plus(3, TFT_YELLOW, 2+(hmi_menu_opt_display>4?6:hmi_menu_opt_display), 0, 2, 20);    
@@ -832,12 +1029,17 @@ void hmi_evaluate(void)
   		sprintf(s, "Memory: %s       ", hmi_o_dflash[hmi_menu_opt_display]);
       tft_writexy_(1, TFT_MAGENTA, TFT_BLACK,0,0,(uint8_t *)s);  
   		break;
+  	case HMI_S_AUDIO:
+  		sprintf(s, "Audio: %s       ", hmi_o_audio[hmi_menu_opt_display]);
+      tft_writexy_(1, TFT_MAGENTA, TFT_BLACK,0,0,(uint8_t *)s);  
+  		break;
   	default:
   		break;
   	}
    
     hmi_menu_old = hmi_menu;
     hmi_menu_opt_display_old = hmi_menu_opt_display;
+
   } 
 
 
@@ -866,4 +1068,6 @@ void hmi_evaluate(void)
   }
 
 
+
+  Audio_Rec_Play();  //check for audio rec play function
 }

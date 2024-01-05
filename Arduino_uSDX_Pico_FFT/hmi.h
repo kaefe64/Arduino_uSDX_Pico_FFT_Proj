@@ -16,7 +16,7 @@ extern "C" {
 
 
 
-/* Menu definitions */
+/* Menu definitions (band vars array position) */
 #define HMI_S_TUNE			0
 #define HMI_S_MODE			1
 #define HMI_S_AGC			2
@@ -24,7 +24,10 @@ extern "C" {
 #define HMI_S_VOX			4
 #define HMI_S_BPF			5
 #define HMI_S_DFLASH   6
-#define HMI_NMENUS			7  //number of possible menus
+#define HMI_S_AUDIO   7
+#define HMI_NMENUS			8  //number of possible menus
+#define HMI_NMENUS_DFLASH			7   //number of menus saved on DFLASH (only the first ones from the array of menus are saved on dflash)
+                                  //(HMI_NMENUS_DFLASH + 4) must be less than DFLASH DATA_BLOCK_SIZE (16)
 
 /* Event definitions */
 #define HMI_E_NOEVENT		0
@@ -38,10 +41,11 @@ extern "C" {
 #define HMI_E_PTTOFF		8
 #define HMI_PTT_ON      9
 #define HMI_PTT_OFF     10
-#define HMI_NEVENTS			11
-//#define HMI_NEVENTS      9
+#define HMI_E_ENTER_RELEASE			11
+#define HMI_NEVENTS			12  //number of events
 
-/* Sub menu option string sets */
+
+/* Sub menu number of options (string sets) */
 #define HMI_NUM_OPT_TUNE	7  // = num pos cursor
 #define HMI_NUM_OPT_MODE	4
 #define HMI_NUM_OPT_AGC	3
@@ -49,6 +53,7 @@ extern "C" {
 #define HMI_NUM_OPT_VOX	4
 #define HMI_NUM_OPT_BPF	5
 #define HMI_NUM_OPT_DFLASH	2
+#define HMI_NUM_OPT_AUDIO 4
 
 
 //"USB","LSB","AM","CW"
@@ -56,6 +61,20 @@ extern "C" {
 #define MODE_LSB  1
 #define MODE_AM   2
 #define MODE_CW   3
+
+
+// hmi_o_audio "Rec from TX", "Rec from RX", "Play to TX", "Play to Speaker"
+#define AUDIO_REC_TX   0
+#define AUDIO_REC_RX   1
+#define AUDIO_PLAY_TX   2
+#define AUDIO_PLAY_SPK   3
+
+
+
+#define BAND_VARS_SIZE   (HMI_NMENUS + 4)   //menus + frequency
+#define BAND_VARS_SIZE_DFLASH   (HMI_NMENUS_DFLASH + 4)   //menus + frequency saved on dflash
+//#define BAND_INDEX   HMI_S_BPF    // = 5
+extern uint8_t  band_vars[HMI_NUM_OPT_BPF][BAND_VARS_SIZE];
 
 
 
@@ -103,17 +122,33 @@ extern "C" {
 #define b4_3 (uint8_t)(band4_hmi_freq_default&0xff)
 
 
-
-#define BAND_VARS_SIZE   (HMI_NMENUS + 4)   //must be less than DATA_BLOCK_SIZE
+#define GP_PTT		15
 
 //extern uint8_t  hmi_sub[HMI_NMENUS];							// Stored option selection per state
 extern uint32_t hmi_freq;  
 extern uint8_t  hmi_band;	
-extern bool ptt_active;
-extern bool vox_active;
+extern bool tx_enabled;
+extern bool ptt_internal_active;    //PTT output = true for vox, mon and mem
+extern bool ptt_external_active;
+extern bool ptt_vox_active;	
+extern bool ptt_mon_active;
+extern bool ptt_aud_active;
 
-//#define BAND_INDEX   HMI_S_BPF    // = 5
-extern uint8_t  band_vars[HMI_NUM_OPT_BPF][BAND_VARS_SIZE];
+
+
+#define AUDIO_BUF_MAX    160000  //160k bytes(memory used) * (1 / 16khz(sample freq)) = 10s
+extern uint8_t audio_buf[AUDIO_BUF_MAX];
+extern uint32_t audio_rec_pos;
+extern uint32_t audio_play_pos;
+
+#define AUDIO_STOPPED   0
+#define AUDIO_START     1
+#define AUDIO_RUNNING   2
+
+extern uint16_t Aud_Rec_Tx;
+extern uint16_t Aud_Rec_Rx;
+extern uint16_t Aud_Play_Tx;
+extern uint16_t Aud_Play_Spk;
 
 
 void Setup_Band(uint8_t band);

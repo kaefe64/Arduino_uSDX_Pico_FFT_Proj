@@ -53,6 +53,7 @@ extern "C" {
 #define TX_METHOD    I_Q_QSE            // uSDR_Pico original project generating I and Q signal to a QSE mixer
 //#define TX_METHOD    PHASE_AMPLITUDE    // DO NOT USE - is not ready - used for Class E RF amplifier - see description at: uSDX_TX_PhaseAmpl.cpp
 
+#define IQ_TX_ATTENUATION   2    //practical value after testing min value without saturate the IQ output for TX
 
 
 #define  LOW_PASS_16KHZ_AVERAGE_SUM   11
@@ -109,8 +110,6 @@ extern volatile uint16_t agc_gain;
 extern volatile uint16_t fft_gain;
 
 extern volatile uint16_t dac_iq, dac_audio;
-extern volatile bool tx_enabled;
-//#define DSP_SETPTT(x)			tx_enabled = (x)
 
 #define FIFO_START_FFT  10
 #define FIFO_FFT_READY  20

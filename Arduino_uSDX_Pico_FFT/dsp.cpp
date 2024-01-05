@@ -53,7 +53,6 @@
 #endif
 
 
-
 #define ADC0_IRQ_FIFO 		22		// FIFO IRQ number
 #define GP_PTT				    15		// PTT pin 20 (GPIO 15)
 
@@ -65,7 +64,6 @@ volatile uint16_t tim_count_loc = 0;
 
 
 volatile uint16_t dac_iq, dac_audio;
-volatile bool tx_enabled; //, vox_active;
 
 
 
@@ -83,7 +81,7 @@ volatile bool tx_enabled; //, vox_active;
 
 //local functions
 bool rx(void);
-bool tx(void);
+void tx(void);
 bool vox(void);
 
 
@@ -1028,7 +1026,7 @@ static int16_t filter_taps[FILTER_TAP_NUM] = {
 
 #define FILTER_SHIFT  16  // 16 bits coef 
 
-// Obs.: *** i_s_raw[], q_s_raw[] and a_s_raw[]  need to use the size from the filter with more taps
+// Obs.: *** i_s_raw[], q_s_raw[] and a_s_raw[]  need to use the size as the filter with more taps
 // CW_BPF_TAP_NUM  or  AM_LPF_TAP_NUM  or  SBB_LPF_TAP_NUM  ->   MAX_TAP_NUM
 #define MAX_TAP_NUM  CW_BPF_TAP_NUM
 #if AM_LPF_TAP_NUM > MAX_TAP_NUM
@@ -1640,6 +1638,7 @@ The sampling is at 160kHz but for audio we only need 16kHz samples, so the filte
 
 
 
+  static bool ptt_internal_active_old = false;
 
 /************************************************************************************** 
  * CORE0:  FIFO IRQ
@@ -1650,7 +1649,6 @@ The sampling is at 160kHz but for audio we only need 16kHz samples, so the filte
 // 
 void core0_irq_handler() 
 {
-  static bool vox_active_old = false;
            
   gpio_set_mask(1<<LED_BUILTIN);
 
@@ -1673,23 +1671,22 @@ void core0_irq_handler()
     //it must be treated as soon as possible
   
     //use audio samples
-    //tx_enabled = ptt_active || vox();  // Sample audio and check level - watch out - this way it does not run vox() if ptt_active is true
-    vox_active = vox();     // Sample audio and check level    if (VOX enable and audio)  vox = true
-    tx_enabled = vox_active || ptt_active;     //tx_enabled is used at next DMA int
+    ptt_vox_active = vox();     // Compress + store sample audio + check level    if (VOX enable and audio)  vox = true
+    ptt_internal_active = ptt_vox_active || ptt_mon_active || ptt_aud_active;
+    tx_enabled = ptt_external_active || ptt_internal_active;     //tx_enabled is used at next DMA int
 
-    if ((vox_active == true) && (vox_active_old == false))      // TX enabled through VOX (VOX enabled and audio with some level)
+    if ((ptt_internal_active == true) && (ptt_internal_active_old == false))      // TX enabled internally
     {
       gpio_put(GP_PTT, 0);      //drive PTT low (active)
-      gpio_set_dir(GP_PTT, GPIO_OUT);   // PTT output
+      gpio_set_dir(GP_PTT, GPIO_OUT);   // PTT output - internal unction drives the PTT pin
     }
-    if ((vox_active == false) && (vox_active_old == true))      // TX enabled through VOX (VOX enabled and audio with some level)
+    if ((ptt_internal_active == false) && (ptt_internal_active_old == true))      // vox disabled, change PTT pin to input
     {
       gpio_set_dir(GP_PTT, GPIO_IN);          // PTT input
-    //  gpio_put(GP_PTT, true);      //drive PTT high (but it is input)
     }
 
 
-    if (tx_enabled)  //commanded to TX through PTT or VOX
+    if (tx_enabled)  //commanded to TX through PTT or internally (VOX, mon, audio play)
     {
 #if TX_METHOD == PHASE_AMPLITUDE    // uSDX TX method used for Class E RF amplifier
       uSDX_TX_PhaseAmpl();
@@ -1703,7 +1700,7 @@ void core0_irq_handler()
       rx();
     }
 
-    vox_active_old = vox_active;
+    ptt_internal_active_old = ptt_internal_active;
   }
 
          
@@ -1906,7 +1903,40 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
 	else if (out_sample<0)
 		out_sample = 0;
 
-  pwm_set_chan_level(dac_audio, PWM_CHAN_A, out_sample);
+
+  if(Aud_Play_Spk == AUDIO_RUNNING)
+  {
+    //if((audio_play_pos < AUDIO_BUF_MAX) &&
+    if(audio_play_pos < audio_rec_pos)
+    {
+      pwm_set_chan_level(dac_audio, PWM_CHAN_A, audio_buf[audio_play_pos]);  //rx audio out
+      audio_play_pos++;
+    }
+    else
+    {
+      Aud_Play_Spk = AUDIO_STOPPED;
+    }
+  }
+  else
+  {
+    /* audio output in normal use */
+    pwm_set_chan_level(dac_audio, PWM_CHAN_A, out_sample);  //rx audio out
+
+    if(Aud_Rec_Rx == AUDIO_RUNNING)
+    {
+      if(audio_rec_pos < AUDIO_BUF_MAX)
+      {
+        audio_buf[audio_rec_pos] = out_sample;
+        audio_rec_pos++;
+      }
+      else
+      {
+        Aud_Rec_Rx = AUDIO_STOPPED;
+      }
+    }
+  }
+
+
 
 
 #if 0
@@ -1994,14 +2024,10 @@ int16_t compress(int16_t mic_sample)
  * The VOX function is called separately every cycle, to check audio level.
  * Execute TX branch signal processing when tx enabled
  **************************************************************************************/
-volatile int16_t a_level=0;							// Average level of raw sample stream
-volatile int16_t a_s[HILBERT_TAP_NUM];							// Filtered and decimated samples
-volatile int16_t a_dc;								// DC level
-//volatile int tx_cnt=0;								// Decimation counter
 //bool vox() __attribute__ ((section (".scratch_x.")));
 bool vox(void)
 {
-
+  static int16_t a_level=0;							// Average level of raw sample stream
 	int16_t vox_sample;
 	uint i;
 
@@ -2018,7 +2044,7 @@ bool vox(void)
   //store variables for scope graphic
   if(aud_samples_state == AUD_STATE_SAMP_IN)  
   {
-    aud_samp[AUD_SAMP_MIC][aud_samp_block_pos] = vox_sample>>3;
+    aud_samp[AUD_SAMP_MIC][aud_samp_block_pos] = vox_sample>>3;  //ADC 12 bits = 4096 steps  ->  9 bits = 512 steps
   }
 
  
@@ -2029,7 +2055,7 @@ bool vox(void)
 	 */
 	for (i=0; i<(mode_filter_tap_num-1u); i++) 							//   and store in shift register
 		a_s_raw[i] = a_s_raw[i+1];
-	a_s_raw[mode_filter_tap_num-1u] = vox_sample;
+	a_s_raw[mode_filter_tap_num-1u] = vox_sample;  //audio from MIC = ADC 12 bits = 4096 steps
 
 
   if(dsp_mode != MODE_CW)   //no vox at CW
@@ -2080,83 +2106,119 @@ int16_t cw_tone_to_play_pos = 0;
 int16_t cw_tone_to_play[CW_TONE_NUM] = {0, 518, 1000, 1414, 1732, 1932, 2000, 1932, 1732, 1414, 1000, 517, 0, -518, -1000, -1415, -1732, -1932, -2000, -1932, -1732,  -1414,  -1000,  -517};
 // max -2000 to 2000     to fit at 255  ->  cw_tone_to_play[] >> 4  (the filter makes << 4)
 //int16_t cw_tone_to_play[CW_TONE_NUM] = {0, 31, 60, 85, 104, 116, 120, 116, 104, 85, 60, 31, 0, -31, -60, -85, -104, -116, -120, -116, -104,  -85,  -60,  -31};
+volatile int16_t a_s[HILBERT_TAP_NUM];							// Filtered and decimated samples
 
 /************************************************************************************** 
  * CORE0: inside DMA IRQ
  * Tx 
  **************************************************************************************/
 //bool tx() __attribute__ ((section (".scratch_x.")));
-bool tx(void) 
+void tx(void) 
 {
   int32_t a_accu, q_accu;
   int16_t qh=0;
   uint i;
   uint16_t i_dac, q_dac;
     
-  /*** RAW Audio SAMPLES from VOX function ***/
-  /*** Low pass filter ***/
 
-  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
-  if(dsp_mode != MODE_CW)  //no filter for CW  - direct generated
+  if(Aud_Play_Tx == AUDIO_RUNNING)
   {
-    //sample already saved at a_s_raw[] in vox()
-    a_accu = 0;                   // Initialize accumulator
-    for (i=0; i<mode_filter_tap_num; i++)              // Low pass FIR filter, using raw samples
-      a_accu += (int32_t)a_s_raw[i]*mode_filter_taps[i];    
-    for (i=0; i<(HILBERT_TAP_NUM-1); i++)              // Shift decimated samples
-      a_s[i] = a_s[i+1];
-    a_s[(HILBERT_TAP_NUM-1)] = (a_accu >> FILTER_SHIFT);             // Store rescaled accumulator
+    if(audio_play_pos < audio_rec_pos)
+    {
+      a_accu = ((int32_t)audio_buf[audio_play_pos]-DAC_BIAS) << IQ_TX_ATTENUATION;  //undo the output IQ attenuation
+
+      for (i=0; i<(HILBERT_TAP_NUM-1); i++)              // Shift decimated samples
+        a_s[i] = a_s[i+1];
+      a_s[(HILBERT_TAP_NUM-1)] = a_accu;             // Store rescaled accumulator
+
+      audio_play_pos++;
+    }
+    else
+    {
+      Aud_Play_Tx = AUDIO_STOPPED;
+    }
   }
+  else  //normal tx
+  {
+
+    //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
+    if(dsp_mode != MODE_CW)  //no audio input filter for TX CW - audio out direct generated
+    {
+      /*** RAW Audio SAMPLES from VOX function ***/
+      /*** Low pass filter ***/
+      //sample already saved at a_s_raw[] in vox()
+      a_accu = 0;                   // Initialize accumulator
+      for (i=0; i<mode_filter_tap_num; i++)              // Low pass FIR filter, using raw samples
+        a_accu += (int32_t)a_s_raw[i]*mode_filter_taps[i];   
+      for (i=0; i<(HILBERT_TAP_NUM-1); i++)              // Shift decimated samples
+        a_s[i] = a_s[i+1];
+      a_s[(HILBERT_TAP_NUM-1)] = (a_accu >> FILTER_SHIFT);             // Store rescaled accumulator
+    }
+
+  }
+    
 
 
-	/*** MODULATION ***/
+  /*** MODULATION ***/
   //mode_USB=0 mode_LSB=1  mode_AM=2  mode_CW=3
-	switch (dsp_mode)
-	{
-	case MODE_USB:											// USB
-		/* 
-		 * qh is Classic Hilbert transform 15 taps, 12 bits (see Iowa Hills calculator)
-		 */	
-		q_accu = (a_s[0]-a_s[14])*315L + (a_s[2]-a_s[12])*440L + (a_s[4]-a_s[10])*734L + (a_s[6]-a_s[ 8])*2202L;
-		qh = -(q_accu >> 12);   // / 4096L; 						// USB: sign is negative
-		break;
-	case MODE_LSB:											// LSB
-		/* 
-		 * qh is Classic Hilbert transform 15 taps, 12 bits (see Iowa Hills calculator)
-		 */	
-		q_accu = (a_s[0]-a_s[14])*315L + (a_s[2]-a_s[12])*440L + (a_s[4]-a_s[10])*734L + (a_s[6]-a_s[ 8])*2202L;
-		qh = (q_accu >> 12);     // / 4096L; 						// LSB: sign is positive
-		break;
-	case MODE_AM:											// AM
-		/*
-		 * I and Q values are identical
-		 */
-		qh = a_s[7];
-		break;
-  case MODE_CW:                     // CW
-    /*
-     * Tx CW I=0 Q=tone
-     */
-    cw_tone_to_play_pos++;
-    if(cw_tone_to_play_pos >= CW_TONE_NUM)
-    {
-      cw_tone_to_play_pos = 0;
-    }
-    qh = cw_tone_to_play[cw_tone_to_play_pos];  //it uses a 4096 range, similar to the filters output (it makes >>4 below)
-    i = cw_tone_to_play_pos + (CW_TONE_NUM/4);  // 90 degrees
-    if(i >= CW_TONE_NUM)
-    {
-      i -= CW_TONE_NUM;
-    }
-    a_s[7] = cw_tone_to_play[i]; //it uses a 4096 range, similar to the filters output (it makes >>4 below)
-
-    //audio side tone
-    pwm_set_chan_level(dac_audio, PWM_CHAN_A, (cw_tone_to_play[cw_tone_to_play_pos]>>6)+DAC_BIAS);  //>>4 = max value, more >>2 to attenuate the side tone sound level
-    //pwm_set_chan_level(dac_audio, PWM_CHAN_A, ((a_s_raw[mode_filter_tap_num-1u]>>4)+DAC_BIAS));  //>>4 = max value, more >>2 to attenuate the side tone sound level
+  switch (dsp_mode)
+  {
+  case MODE_USB:											// USB
+    /* 
+    * qh is Classic Hilbert transform 15 taps, 12 bits (see Iowa Hills calculator)
+    */	
+    q_accu = (a_s[0]-a_s[14])*315L + (a_s[2]-a_s[12])*440L + (a_s[4]-a_s[10])*734L + (a_s[6]-a_s[ 8])*2202L;
+    qh = -(q_accu >> 12);   // / 4096L; 						// USB: sign is negative
     break;
-	default:
-		break;
-	}
+  case MODE_LSB:											// LSB
+    /* 
+    * qh is Classic Hilbert transform 15 taps, 12 bits (see Iowa Hills calculator)
+    */	
+    q_accu = (a_s[0]-a_s[14])*315L + (a_s[2]-a_s[12])*440L + (a_s[4]-a_s[10])*734L + (a_s[6]-a_s[ 8])*2202L;
+    qh = (q_accu >> 12);     // / 4096L; 						// LSB: sign is positive
+    break;
+  case MODE_AM:											// AM
+    /*
+    * I and Q values are identical
+    */
+    qh = a_s[7];
+    break;
+  case MODE_CW:                     // CW
+
+    if(Aud_Play_Tx == AUDIO_RUNNING)
+    {
+        /* play audio CW as LSB */
+        q_accu = (a_s[0]-a_s[14])*315L + (a_s[2]-a_s[12])*440L + (a_s[4]-a_s[10])*734L + (a_s[6]-a_s[ 8])*2202L;
+        qh = (q_accu >> 12);     // / 4096L; 						// LSB: sign is positive        
+    }
+    else  //normal tx
+    {
+
+      /*
+      * Tx CW I=0 Q=tone
+      */
+      cw_tone_to_play_pos++;
+      if(cw_tone_to_play_pos >= CW_TONE_NUM)
+      {
+        cw_tone_to_play_pos = 0;
+      }
+      qh = cw_tone_to_play[cw_tone_to_play_pos];  //it uses a 4096 range, similar to the filters output (it makes >>4 below)
+      i = cw_tone_to_play_pos + (CW_TONE_NUM/4);  // 90 degrees
+      if(i >= CW_TONE_NUM)
+      {
+        i -= CW_TONE_NUM;
+      }
+      a_s[7] = cw_tone_to_play[i]; //it uses a 4096 range, similar to the filters output (it makes >>4 below)
+
+      //audio side tone
+      pwm_set_chan_level(dac_audio, PWM_CHAN_A, (cw_tone_to_play[cw_tone_to_play_pos]>>6)+DAC_BIAS);  //>>4 = max value, more >>2 to attenuate the side tone sound level
+      //pwm_set_chan_level(dac_audio, PWM_CHAN_A, ((a_s_raw[mode_filter_tap_num-1u]>>4)+DAC_BIAS));  //>>4 = max value, more >>2 to attenuate the side tone sound level
+
+    }
+    break;
+  default:
+    break;
+  }
 
 
   if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphic
@@ -2166,32 +2228,55 @@ bool tx(void)
     }
   
 
-	/* 
-	 * Write I and Q to QSE DACs, phase is 7 samples back.
-	 * Need to multiply AC with DAC_RANGE/ADC_RANGE (appr 1/16)
-	 * Any case: clip to range
-	 */
-	a_accu = DAC_BIAS + (qh>>2);  //5);  //>>4 to change from ADC 4096 range to 256 PWM range  (>>4 seems saturate)
-	if (a_accu<0)
-		q_dac = 0;
-	else if (a_accu>(int16_t)(DAC_RANGE))
-		q_dac = DAC_RANGE;
-	else
-		q_dac = a_accu;
-	
-	a_accu = DAC_BIAS + (a_s[7]>>2);  //5);  //>>4 to change from ADC 4096 range to 256 PWM range  (>>4 seems saturate)
-	if (a_accu<0)
-		i_dac = 0;
-	else if (a_accu>(int16_t)(DAC_RANGE))
-		i_dac = DAC_RANGE;
-	else
-		i_dac = a_accu;
-		
-	// pwm_set_both_levels(dac_iq, q_dac, i_dac);		// Set both channels of the IQ slice simultaneously
-	// pwm_set_chan_level(dac_iq, PWM_CHAN_A, q_dac);
-	// pwm_set_chan_level(dac_iq, PWM_CHAN_B, i_dac);
-	pwm_set_gpio_level(21, i_dac);
-	pwm_set_gpio_level(20, q_dac);
+  /* 
+  * Write I and Q to QSE DACs, phase is 7 samples back.
+  * Need to multiply AC with DAC_RANGE/ADC_RANGE (appr 1/16)
+  * Any case: clip to range
+  */
+  a_accu = DAC_BIAS + (qh>>IQ_TX_ATTENUATION);  //5);  //>>4 to change from ADC 4096 range to 256 PWM range  (>>4 seems saturate)
+  if (a_accu<0)
+    q_dac = 0;
+  else if (a_accu>(int16_t)(DAC_RANGE))
+    q_dac = DAC_RANGE;
+  else
+    q_dac = a_accu;
+  
+  a_accu = DAC_BIAS + (a_s[7]>>IQ_TX_ATTENUATION);  //5);  //>>4 to change from ADC 4096 range to 256 PWM range  (>>4 seems saturate)
+  if (a_accu<0)
+    i_dac = 0;
+  else if (a_accu>(int16_t)(DAC_RANGE))
+    i_dac = DAC_RANGE;
+  else
+    i_dac = a_accu;
+    
+
+
+  // pwm_set_both_levels(dac_iq, q_dac, i_dac);		// Set both channels of the IQ slice simultaneously
+  // pwm_set_chan_level(dac_iq, PWM_CHAN_A, q_dac);
+  // pwm_set_chan_level(dac_iq, PWM_CHAN_B, i_dac);
+  pwm_set_gpio_level(21, i_dac);
+  pwm_set_gpio_level(20, q_dac);
+
+
+
+  if(Aud_Play_Tx == AUDIO_RUNNING)
+  {
+    //audio feedback when audio play TX
+    pwm_set_chan_level(dac_audio, PWM_CHAN_A, q_dac);
+  }
+
+  if((Aud_Rec_Tx == AUDIO_RUNNING) &&
+     (audio_rec_pos < AUDIO_BUF_MAX))
+  {
+    audio_buf[audio_rec_pos] = i_dac;
+    audio_rec_pos++;
+/*
+    if(ptt_external_active == false)
+    {
+      Aud_Rec_Tx = AUDIO_STOPPED;
+    }
+*/  
+  }
 	
 //pwm_set_chan_level(dac_audio, PWM_CHAN_A, i_dac);  //debug LSB to audio out
 //pwm_set_chan_level(dac_audio, PWM_CHAN_A, q_dac);  //debug LSB to audio out
@@ -2212,7 +2297,7 @@ bool tx(void)
 
 
 
-	return true;
+//	return true;
 }
 
 
