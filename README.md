@@ -149,11 +149,11 @@ Enter key = to confirm the menu item value<br>
 ## Last changes and notes:<br>
 
 ### Jan05 2024
-- Correcting internal PTT activation from Monitor and Vox.
-  There are some necessary hardware changes to be made:
-    Include a 1K resistor between GPIO15 (pin 20) and 3V3 (pin 36).
-    Increase the value of C44 from 1n to 100n
-    Reduce the value of R25 to 10R
+- Correcting internal PTT activation from Monitor and Vox.<br>
+  There are some necessary hardware changes to be made:<br>
+    Include a 1K resistor between GPIO15 (pin 20) and 3V3 (pin 36).<br>
+    Increase the value of C44 from 1n to 100n.<br>
+    Reduce the value of R25 to 10R.
 - New functions on menu to record or play the audio from reception(RX) or transmission(TX) (max. 10s)
 
 ### Nov12 2023
