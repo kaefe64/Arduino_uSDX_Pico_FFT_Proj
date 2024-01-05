@@ -146,6 +146,13 @@ Comment out this #define and set your own configuration
 //---------------------------------------------------------------------------
 //---------------------------------------------------------------------------
 void setup() {
+
+  //RP2040 initialize the GPIOs as inputs with pulldown as default, and this is like PTT active 
+  //it needs a strong pullup = 1K to 3v3 on pin GPIO15 (pin 20) to force high level during initialization
+  gpio_pull_up(GP_PTT);             // PTT pullup  (it takes about 1s to reach this point after power up / reset)
+  gpio_set_dir(GP_PTT, GPIO_IN);    // PTT input (just to confirm) - true for out, false for in 
+
+
   // initialize digital pin LED_BUILTIN as an output.
   //pinMode(LED_BUILTIN, OUTPUT);
   gpio_init_mask(1<<LED_BUILTIN);  
@@ -159,12 +166,11 @@ void setup() {
   uint16_t tim = millis();
 
   //special jobs while waiting initial display print
-  uSDR_setup0();  //write something into display while waiting for the serial
+  uSDR_setup0();  //write something into display while waiting for the serial and DFLASH read
   hmi_init0();     //it could take some time to read all DFLASH data
 
   // some delay required for Serial to open
-  //for(int i=0; i<50; i++)  //try for 5s to connect to serial
-  while((millis() - tim) < 5000)   //try for 5s to connect to serial
+   while((millis() - tim) < 5000)   //try for 5s to connect to serial
   {
   //digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
   gpio_set_mask(1<<LED_BUILTIN);
