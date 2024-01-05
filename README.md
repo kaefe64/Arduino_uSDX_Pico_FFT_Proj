@@ -77,6 +77,11 @@ There is a **uSDX_TX** folder with code to test RF modulation TX using **phase a
 - Use input/output filters for ADC Aliasing considerations (see above). 
 - Obs.: at the initial test video, I used only the RC output filter shown in the schematic, and for input filter, only what is already inside of the Softrock RXTX Ensemble.
 
+- The signal PTT output generated on GPIO15 (pin 20) used to switch the filters and the Power Amplifier need a transistor to convert from 3v3 to 12V.
+
+![Main Block Diagram](Pictures/PTTout.png)
+<br>
+
 ## Software Notes<br>
 ### Arduino IDE setup and notes:
 - I am using Arduino IDE version 2.0.1 in Linux/Ubuntu
@@ -142,6 +147,14 @@ Enter key = to confirm the menu item value<br>
 
 
 ## Last changes and notes:<br>
+
+### Jan05 2024
+- Correcting internal PTT activation from Monitor and Vox.
+  There are some necessary hardware changes to be made:
+    Include a 1K resistor between GPIO15 (pin 20) and 3V3 (pin 36).
+    Increase the value of C44 from 1n to 100n
+    Reduce the value of R25 to 10R
+- New functions on menu to record or play the audio from reception(RX) or transmission(TX) (max. 10s)
 
 ### Nov12 2023
 - Correcting Arjan's name.
