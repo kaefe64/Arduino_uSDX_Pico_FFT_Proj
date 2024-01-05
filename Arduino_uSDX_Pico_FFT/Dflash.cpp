@@ -183,13 +183,13 @@ uint16_t Dflash_read_block(uint16_t block_num, uint8_t *data_bl, uint16_t data_s
     data_bl[ndata] = chksum; 
 
 #ifdef DFLASH_debug
-      freq = data_bl[HMI_NMENUS+0];
+      freq = data_bl[HMI_NMENUS_DFLASH+0];
       freq <<= 8;
-      freq += data_bl[HMI_NMENUS+1];
+      freq += data_bl[HMI_NMENUS_DFLASH+1];
       freq <<= 8;
-      freq += data_bl[HMI_NMENUS+2];
+      freq += data_bl[HMI_NMENUS_DFLASH+2];
       freq <<= 8;
-      freq += data_bl[HMI_NMENUS+3];
+      freq += data_bl[HMI_NMENUS_DFLASH+3];
     PRT_LN("--- found block ok    band = " + String(data_bl[HMI_S_BPF]) + "   freq = " + String(freq));
 #endif
     
@@ -225,18 +225,27 @@ void Init_HMI_data(uint8_t *actual_bnd)
   // read all block saving the last data for each band
   for(i=0; i < MAX_NBLOCK; i++)
     {
-    ret_read = Dflash_read_block(i, data_block, BAND_VARS_SIZE);     
+    ret_read = Dflash_read_block(i, data_block, BAND_VARS_SIZE_DFLASH);     
     if(ret_read == 1)  //block ok
       {
         last_block = i;      //keep the last_block index to use on next writing to the DFLASH     
         count_block++;
         //Serialx.print("\nRead block from DFLASH = OK   ");
+        // the last band data read is the newest data and it will be in the vars for use in menu to switch bands
         last_band = data_block[HMI_S_BPF];    //last band read
-        for(j = 0; j < BAND_VARS_SIZE; j++)
+        for(j = 0; j < HMI_NMENUS_DFLASH; j++)
           {
           band_vars[last_band][j] = data_block[j];  //put the data on the right band position to use in menus
-          // the last band data read is the newest data and it will be in the vars for use in menu to switch bands
-          
+          //Serialx.print(" " + String(band_vars[hmi_band][ndata]));
+          }
+        for(; j < HMI_NMENUS; j++)
+          {
+          band_vars[last_band][j] = 0;  //fill not saved menu with zeros
+          //Serialx.print(" " + String(band_vars[hmi_band][ndata]));
+          } 
+        for(j = 0; j < 4; j++)
+          {    
+          band_vars[last_band][HMI_NMENUS+j] = data_block[HMI_NMENUS_DFLASH+j];  //copy freq saved
           //Serialx.print(" " + String(band_vars[hmi_band][ndata]));
           }
         //Serialx.println("\n");
@@ -524,13 +533,13 @@ bool Dflash_write_block(uint8_t *data_bl)
       pg[next_block_pos_in_page + BAND_VARS_SIZE] = chksum;
 
 #ifdef DFLASH_debug      
-      freq = data_bl[HMI_NMENUS+0];
+      freq = data_bl[HMI_NMENUS_DFLASH+0];
       freq <<= 8;
-      freq += data_bl[HMI_NMENUS+1];
+      freq += data_bl[HMI_NMENUS_DFLASH+1];
       freq <<= 8;
-      freq += data_bl[HMI_NMENUS+2];
+      freq += data_bl[HMI_NMENUS_DFLASH+2];
       freq <<= 8;
-      freq += data_bl[HMI_NMENUS+3];
+      freq += data_bl[HMI_NMENUS_DFLASH+3];
 
       PRT_LN("  freq = " + String(freq));
 #endif
