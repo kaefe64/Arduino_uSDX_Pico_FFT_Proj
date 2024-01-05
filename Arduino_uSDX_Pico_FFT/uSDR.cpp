@@ -81,12 +81,10 @@ void uSDR_setup(void)  //main
 
 
 
-#define LOOP_MS    100u  //miliseconds
-
 void uSDR_loop(void)
 { 
 
-  if((uint16_t)(tim_count - tim_loc) >= LOOP_MS)  //run the tasks every 100ms 
+  if((uint16_t)(tim_count - tim_loc) >= (uint16_t)LOOP_MS)  //run the tasks every 100ms  (LOOP_MS = 100)
   {
     hmi_evaluate();               // Refresh HMI
     si_evaluate();                // Refresh VFO settings

@@ -13,6 +13,7 @@ extern "C" {
 //#define Serialx   Serial1    //USB virtual serial  /dev/ttyACM0
 #define Serialx   Serial   //UART0  /dev/ttyUSB0
 
+#define LOOP_MS    100  //100 miliseconds
 
 
 void uSDR_setup0(void);
