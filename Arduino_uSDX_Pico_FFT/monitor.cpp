@@ -106,7 +106,7 @@ void mon_si(void)
  */
 void mon_lt(void)
 {
-	Serialx.print("Check LCD...");
+	Serialx.print("Check LCD... not available");
 	//lcd_test();
 	Serialx.print("\n");
 }
