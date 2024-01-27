@@ -77,7 +77,7 @@ There is a **uSDX_TX** folder with code to test RF modulation TX using **phase a
 - Use input/output filters for ADC Aliasing considerations (see above). 
 - Obs.: at the initial test video, I used only the RC output filter shown in the schematic, and for input filter, only what is already inside of the Softrock RXTX Ensemble.
 
-- The signal PTT output generated on GPIO15 (pin 20) used to switch the filters and the Power Amplifier need a transistor to convert from 3v3 to 12V.
+- The signal PTT output generated on GPIO15 (pin 20) used to switch the filters and the Power Amplifier needs a transistor to convert from 3v3 to 12V.
 
 ![Main Block Diagram](Pictures/PTTout.png)
 <br>
@@ -154,7 +154,7 @@ Enter key = to confirm the menu item value<br>
     Include a 1K resistor between GPIO15 (pin 20) and 3V3 (pin 36).<br>
     Increase the value of C44 from 1n to 100n.<br>
     Reduce the value of R25 to 10R.
-- New functions on menu to record or play the audio from reception(RX) or transmission(TX) (max. 10s)
+- New functions on menu **to record and play the audio** from reception(RX) or transmission(TX) (max. 10s)
 
 ### Nov12 2023
 - Correcting Arjan's name.
@@ -193,11 +193,6 @@ Obs.: to use manual gain adjust, press Enter button and turn the frequncy knob.
 
 ### Apr29 2023
 - Minor changes, improve comments at .ino file. Trying to get the new PCB running and getting back to software improvement.
-
-![PCB assembly top](uSDR_Pico_FFT_PCB_top.png)
-
-![PCB assembly botton](uSDR_Pico_FFT_PCB_botton.png)
-
 
 ### Ago17 2022
 - Included sketch folder uSDX_TX to test the Phase and Amplitude TX method.
