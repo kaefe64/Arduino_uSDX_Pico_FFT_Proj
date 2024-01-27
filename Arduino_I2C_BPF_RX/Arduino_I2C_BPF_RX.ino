@@ -2,9 +2,12 @@
 
 I2C Slave with multiple addresses
 
-Receiving commands as more than one I2C slave (multiple addresses)
-   to replace the PCF8574 (can replace two of them, and adding read swr option) in uSDX Pico FFT project
-
+It receives I2C commands to activate the BandPass and/or Receiver Relays.
+It receives I2C commands as more than one I2C slave (multiple addresses)
+    to replace the two PCF8574 in Arjan-5 (uSDX Pico FFT project)
+Adding new I2C command to read the SWR
+    it uses A0 and A1 analog inputs to read the SWR Forward and Reflected information.
+  
 Reference:
 https://stackoverflow.com/questions/34691478/arduino-as-slave-with-multiple-i2c-addresses
 https://github.com/alexisgaziello/TwoWireSimulator
@@ -15,7 +18,9 @@ https://github.com/arduino/ArduinoCore-avr/pull/90/files#diff-e4603cea13a2a6370b
 
 
 Arduino Pro Mini 3V3   ATmega328P 8Mhz
-
+Flash: 32KB
+SRAM: 2KB
+EEPROM: 1KB
 14 digital pins, input or output
 Serial: 0 (RX) and 1 (TX)
 External Interrupts: 2 and 3
@@ -66,18 +71,20 @@ https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj
 #define REL_PRE_00_val	0x00
 
 /* SWR read */
-#define I2C_SWR 		I2C_BPF	//=0x20 read (use the same address to make easy to build the multi I2C mask)
+#define I2C_SWR 	    	0x20   // read (use the same I2C_BPF address to make easy to build the multi I2C mask)
+#define I2C_SWR_FOR 		0x21   // read
+#define I2C_SWR_REF 		0x22   // read
 #define vForwardPin       A0    // select the input pin for the swr analog reading
 #define vReflectedPin     A1    // select the input pin for the swr analog reading
 #define VMIN              20    // min forward AD value for swr
-#define SWR_BASE          10    // numeric base for SWR decimal
-#define SWR_MIN           (1 * SWR_BASE)    // SWR = 1.0
-#define SWR_MAX          255                // byte max value, SWR max = 255/SWR_BASE
+#define SWR_BASE10        10    // numeric base for SWR decimal
+#define SWR_MIN           (1 * SWR_BASE10)    // SWR = 1.0
+#define SWR_MAX           ((15 * SWR_BASE10)+(SWR_BASE10-1))  // byte max value, SWR max = 15.9
 
-uint8_t swr_8bits;
+uint8_t swr_8bits, swr_for, swr_ref;  //swr info to send to I2C master
 
 #define I2C_ADDR (I2C_BPF | I2C_RX)
-#define I2C_MASK ((I2C_BPF | I2C_RX) ^ (I2C_BPF & I2C_RX))  /* xor */
+#define I2C_MASK ((I2C_BPF | I2C_RX | I2C_SWR_REF) ^ (I2C_BPF & I2C_RX & I2C_SWR_REF))  /* xor */
 
 
 
@@ -156,6 +163,14 @@ void requestEvent (){    // master read = request data from slave
     case (I2C_SWR):
       Wire.write(swr_8bits);   // send back 8bits value
       //Wire.write((byte *)&swr, 2);   //send 2 bytes
+      break;
+
+    case (I2C_SWR_FOR):
+      Wire.write(swr_for);   // send back 8bits value
+      break;
+
+    case (I2C_SWR_REF):
+      Wire.write(swr_ref);   // send back 8bits value
       break;
 
     default:
@@ -299,7 +314,7 @@ void SWR_read()
   static uint16_t  vForward1;  //last AD reading
   uint16_t vReflected, vReflected0;
   static uint16_t vReflected1;  //last AD reading
-  uint16_t swr;
+  uint16_t swr, swr_unid, swr_dec;
   
   /* read the AD for SWR */
   vForward0 = analogRead(vForwardPin);      //actual value
@@ -320,24 +335,34 @@ void SWR_read()
   }    
   else
   {    
-    swr = (SWR_BASE * (vForward + vReflected)) / (vForward - vReflected);
+    swr = (SWR_BASE10 * (vForward + vReflected)) / (vForward - vReflected);
     if(swr > SWR_MAX)      
     {
       swr = SWR_MAX;
     }      
   }
-  /* swr value will be from 1*8 to 25*8 meaning 1.0 to 25 */
-  /* 1 byte -> bit7-bit3 = integer    bit2-bit0 = decimal base 8 */
+  /* swr value will be from 1.0 to 15.9 */
+  /* 1 byte -> bit7-bit4 = integer    bit3-bit0 = decimal base 10 */
 
-  Serial.print("SWR  For= ");  
-  Serial.print(vForward);
-  Serial.print("   Ref= ");  
-  Serial.print(vReflected);
-  Serial.print("   swr= ");  
-  Serial.print(swr/SWR_BASE);
-  Serial.print('.');
-  Serial.println(swr%SWR_BASE);  /* RPI Pico will need to make a division by 10 to get the integer and decimal part */
+  swr_unid = swr/SWR_BASE10;  //integer part  max = 15
+  if(swr_unid > 15) swr_unid = 15;
+  swr_dec = swr%SWR_BASE10;   //decimal part
+  if(swr_dec > 9) swr_dec = 9;  //double check, just in case SWR_BASE10 changed
+  swr_8bits = (swr_unid << 4) + swr_dec;
+  swr_for = vForward >> 2;  //10 bits AD to 8 bits
+  swr_ref = vReflected >> 2;
 
+  if(vForward > 0)
+    {
+    Serial.print("SWR  For= ");  
+    Serial.print(vForward);
+    Serial.print("   Ref= ");  
+    Serial.print(vReflected);
+    Serial.print("   swr= ");  
+    Serial.print(swr_8bits>>4);  //swr_unid
+    Serial.print('.');
+    Serial.println(swr_8bits&0x0f);   //swr_dec
+    }
 }
 
 
