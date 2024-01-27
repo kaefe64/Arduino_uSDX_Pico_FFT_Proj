@@ -80,10 +80,6 @@ There is a **uSDX_TX** folder with code to test RF modulation TX using **phase a
 
 - Use input/output filters for ADC Aliasing considerations (see above). 
 - Obs.: at the initial test video, I used only the RC output filter shown in the schematic, and for input filter, only what is already inside of the Softrock RXTX Ensemble.
-
-- The signal PTT output generated on GPIO15 (pin 20) used to switch the filters and the Power Amplifier needs a transistor to convert from 3v3 to 12V.
-
-![Main Block Diagram](Pictures/PTTout.png)
 <br>
 
 ## Hardware changes from initial version of my Schematic and PCB:
@@ -91,7 +87,14 @@ There is a **uSDX_TX** folder with code to test RF modulation TX using **phase a
 ![Diode_VCC](Pictures/Mod_include_diode_Vcc.png)
 
 - Include an extra RC to the audio output filter  
-![Diode_VCC](Pictures/Mod_include_RC_audio.png)
+![RC_audio](Pictures/Mod_include_RC_audio.png)
+
+- The PTT output signal generated on GPIO15 (pin 20) used to switch the filters and the Power Amplifier needs:  
+    A transistor to convert from 3v3 to 12V.<br>
+    Include a 1K resistor between GPIO15 (pin 20) and 3V3 (pin 36).<br>
+    Increase the value of C44 from 1n to 100n.<br>
+    Reduce the value of R25 to 10R.
+![Main Block Diagram](Pictures/PTTout.png)
 <br>
 
 ## Software Notes<br>
