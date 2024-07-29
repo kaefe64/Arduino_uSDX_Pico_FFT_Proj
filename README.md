@@ -168,7 +168,7 @@ Enter key = to confirm the menu item value<br>
 - S Meter implementation.<br>
   Starting tests with a S Meter and Bar Graph.<br>
   There is a table (Smeter_table_level[]) to make the correspondence between the audio level and the S meter level.<br>
-  My RF Generator is with fixed level output, so, I made some RF Attenuators to calibrate the S Meter (https://leleivre.com/rf_pipad.html), but it didn't work well, I need to improve it. The values on the code are not calibrated.<br>
+  My RF Generator is with fixed level output, so, I made some RF Attenuators to calibrate the S Meter (https://leleivre.com/rf_pipad.html), but it didn't work well, I need to improve it. The values on the code are **not calibrated**.<br>
   To get the audio level on the display, to make your own calibration, uncomment this line :   //#define   SMETER_TEST   10    on "hmi.h".<br>
 
 ### Jan05 2024
