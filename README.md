@@ -5,11 +5,11 @@
 
 ![uSDR-PICO FFT](Pict1.png)
 
-This project is a QSD/QSE Software Defined HF Transceiver (SDR), 5 Band, Low Power, based on  Arjan te Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico. I recommend you to take a look there before trying to follow this one.
+This project is a QSD/QSE Software Defined HF Transceiver (SDR), 5 Band, Low Power, based on  Arjan te Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico. Since than, Arjan made some changes on his code, so, to clarify, I started this project based on Arjan's version https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/package/CODEv2.zip from 2021 with documentation at https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/doc/uSDR%20-%20v2.02.pdf .
 
 My intention was to include a waterfall or panadapter to the Arjan's uSDR-Pico project, for this, I included an ILI9341 240x320 2.4" TFT display without touch, and also, changed the software to generate the waterfall.
 
-Initially, I have used Visual Studio, but after some considerations, I ported all code to Arduino IDE. So, to compile and run this code you need the Arduino IDE installed for a Raspberry Pi Pico project.
+Initially, I used Visual Studio, but after some considerations, I ported all code to Arduino IDE. So, to compile and run this code you need the Arduino IDE installed for a Raspberry Pi Pico project.
 
 I also, chose not to change the original software as much as possible, and focused on the waterfall implementation, mostly in the dsp.c.
 
@@ -27,7 +27,8 @@ Initial msg: #15923 · May 26  2022<br>
 <br>
 
 
-There is a **uSDX_TX** folder with code to test RF modulation TX using **phase and amplitude**, the same method used at the **uSDX project** (https://github.com/threeme3/usdx). 
+There is a **uSDX_TX** folder with code to test RF modulation TX using **phase and amplitude**, the same method used at the **PE1NNZ uSDX project** (https://github.com/threeme3/usdx) running at RP2040 just for transmission. 
+Obs.: The Arjan-5 and uSDR-Pico do not use this method.
 <br>
 <br>
 
@@ -70,7 +71,7 @@ There is a **uSDX_TX** folder with code to test RF modulation TX using **phase a
 
 ## Hardware changes from the original SDR-Pico and notes:
 - I chose to make a main board with the Pico, Display, QSD/QSE and 5V power supply, and another board with the relays, filters and attenuators.
-- The main change from SDR-Pico ia the inclusion of ILI9341 on Pico free pins, using SPI1, and removing the LCD display.
+- The main change from SDR-Pico is the inclusion of ILI9341 on Pico free pins, using SPI1, and removing the LCD display.
 - Another change, as we need more frequency range on RX to show at the waterfall, the RX amplifier must amplify at least 80kHz.
 - You can see the schematic diagram at [uSDR_Pico_FFT_SCH.pdf](PCB/uSDR_Pico_FFT_SCH.pdf) and [uSDR_Pico_BPF_RX_SCH.pdf](PCB/uSDR_Pico_BPF_RX_SCH.pdf).
 - I noticed that changing the signal in one ADC input, changed the other inputs signal through the resistors for setting half Vref. To solve this, I changed the circuit to have a separate resistor divider for each ADC input.
@@ -78,7 +79,7 @@ There is a **uSDX_TX** folder with code to test RF modulation TX using **phase a
 ![Hardware Modification](FFT_LCD_pico_MOD.png)
 <br>
 
-- Use input/output filters for ADC Aliasing considerations (see above). 
+- Use input/output filters for ADC Aliasing considerations (see below). 
 - Obs.: at the initial test video, I used only the RC output filter shown in the schematic, and for input filter, only what is already inside of the Softrock RXTX Ensemble.
 <br>
 
@@ -162,6 +163,14 @@ Enter key = to confirm the menu item value<br>
 
 
 ## Last changes and notes:<br>
+
+### Jul29 2024
+- S Meter implementation
+  Starting tests with a S Meter and Bar Graph.
+  There is a table (Smeter_table_level[]) to make the correspondence between the audio level and the S meter level.
+  My RF Generator is with fixed level output, so, I made some RF Attenuators to calibrate the S Meter (https://leleivre.com/rf_pipad.html), but it didn't work well, I need to improve it. The values on the code are not calibrated.
+  To get the audio level on the display, to make your own calibration, uncomment this line :   //#define PY2KLA_setup  1 
+   on hmi.h.<br>
 
 ### Jan05 2024
 - Correcting internal PTT activation from Monitor and Vox.<br>

@@ -69,7 +69,10 @@ extern "C" {
 //extern volatile uint16_t adc_waterfall_count;
 extern volatile int16_t adc_result[3];   //
 
-
+#define MAX_SMETER_DISPLAY_TIME      (250  *16)   // 50ms / (1/16kHz) = number of 16kHz ints to get 50ms
+extern volatile int16_t max_a_sample;
+extern volatile int16_t display_a_sample;
+extern volatile int16_t smeter_display_time;
 
 void dsp_setagc(int agc);
 void dsp_setmode(int mode);

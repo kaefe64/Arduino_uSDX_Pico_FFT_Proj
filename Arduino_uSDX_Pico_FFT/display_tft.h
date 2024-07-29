@@ -102,7 +102,8 @@ uint16_t yellow = tft.color565(255, 255, 0);
 extern uint8_t vet_graf_fft[GRAPH_NUM_LINES][GRAPH_NUM_COLS];    // [NL][NCOL]
 //extern uint16_t vet_graf_fft_pos;
 
-
+// Use hardware SPI
+//extern TFT_eSPI tft;
 
 
 
@@ -114,6 +115,7 @@ void tft_cursor(uint16_t font, uint16_t color, uint8_t x, uint8_t y);
 void tft_cursor_plus(uint16_t font, uint16_t color, uint8_t x, uint8_t x_plus, uint8_t y, uint8_t y_plus);
 uint16_t tft_color565(uint16_t r, uint16_t g, uint16_t b);
 
+int16_t Smeter(int16_t v); 
 
 void display_fft_graf(void);
 void display_fft_graf_top(void);

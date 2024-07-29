@@ -39,7 +39,6 @@
 #include "hardware/structs/bus_ctrl.h"
 #include "uSDR.h"
 #include "dsp.h"
-#include "display_tft.h"
 #include "kiss_fftr.h"
 #include "TFT_eSPI.h"
 #include "display_tft.h"
@@ -1731,6 +1730,8 @@ volatile int16_t i_s[HILBERT_TAP_NUM], q_s[HILBERT_TAP_NUM];					// Filtered I/Q
 volatile int16_t i_dc, q_dc; 						// DC bias for I/Q channel
 //bool rx() __attribute__ ((section (".scratch_x.")));
 volatile int16_t q_sample, i_sample, a_sample;
+volatile int16_t agc_a_sample, abs_a_sample,  avg_a_sample,max_a_sample, display_a_sample;;
+volatile int16_t smeter_display_time;
 bool rx(void) 
 {
   int16_t out_sample;
@@ -1747,6 +1748,7 @@ bool rx(void)
 	 * Attenuate with AGC feedback from AUDIO GENERATION stage
 	 * This behavior in essence is exponential, complementing the logarithmic peak detector
 	 */
+/*
 #ifdef EXCHANGE_I_Q
   // Take last ADC 0 result, connected to Q input  (16 bits size)
   i_sample = ((int32_t)(agc_gain * fft_gain) * (int32_t)adc_result[0])>>(AGC_GAIN_SHIFT + FFT_GAIN_SHIFT);
@@ -1758,6 +1760,19 @@ bool rx(void)
   // Take last ADC 1 result, connected to I input  (16 bits size)
   i_sample = ((int32_t)(agc_gain * fft_gain) * (int32_t)adc_result[1])>>(AGC_GAIN_SHIFT + FFT_GAIN_SHIFT);
 #endif
+*/
+#ifdef EXCHANGE_I_Q
+  // Take last ADC 0 result, connected to I input  (16 bits size)
+  i_sample = adc_result[0];
+  // Take last ADC 1 result, connected to Q input  (16 bits size)
+  q_sample = adc_result[1];
+#else
+  // Take last ADC 0 result, connected to Q input  (16 bits size)
+  q_sample = adc_result[0];
+  // Take last ADC 1 result, connected to I input  (16 bits size)
+  i_sample = adc_result[1];
+#endif
+
 
   /*
    * IIR filter: dc = a*sample + (1-a)*dc  where a = 1/128
@@ -1846,6 +1861,45 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
 
 
 
+  /***  S Meter audio peak detector ***/
+  /*  
+  when show S-meter on display
+       show max_a_sample
+       smeter_display = 1
+
+  */
+
+
+  /***  S Meter audio peak detector ***/
+  /* after calculation of a_sample without AGC */
+  //abs_a_sample = ABS(a_sample);
+  //avg_a_sample += abs_a_sample;
+  //avg_a_sample >>= 1;
+
+  avg_a_sample -= (avg_a_sample >> 2);
+  avg_a_sample += (ABS(a_sample) >> 2);
+
+
+
+  if(smeter_display_time < MAX_SMETER_DISPLAY_TIME)   //for some time, look for the bigger signal
+  {
+    if(avg_a_sample > max_a_sample)  //bigger than displayed (if the value is bigger, print on display right now)
+    {
+      max_a_sample = avg_a_sample;  //save the bigger audio signal received
+      if(max_a_sample > display_a_sample)  //bigger than displayed (if the value is bigger, print on display right now)
+      {
+        smeter_display_time = MAX_SMETER_DISPLAY_TIME;  //indicate the new (bigger) value is ready to show at display
+      }
+    }
+    else
+    {
+      smeter_display_time++;  //count time
+    }
+  }
+
+
+  // apply AGC after filters
+  agc_a_sample = ((int32_t)(agc_gain * fft_gain) * (int32_t)a_sample)>>(AGC_GAIN_SHIFT + FFT_GAIN_SHIFT);
   
 	/*** AUDIO GENERATION ***/
 	/*
@@ -1854,7 +1908,7 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
 	 */
   // average method, results ave_x4 = average value x 4
   // int ave_x4 += new_value - (ave_x4/4)
-  peak_avg_shifted += ((int16_t)ABS(a_sample) - (int16_t)(peak_avg_shifted>>PEAK_AVG_SHIFT));  
+  peak_avg_shifted += ((int16_t)ABS(agc_a_sample) - (int16_t)(peak_avg_shifted>>PEAK_AVG_SHIFT));  
   
   k=0; i=(peak_avg_shifted>>PEAK_AVG_SHIFT);     
 	if (i&0xff00) {k+=8; i>>=8;}				// Logarithmic peak detection
@@ -1897,7 +1951,7 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
 	 * Scale and clip output,  
 	 * Send to audio DAC output
 	 */
-	out_sample = a_sample + DAC_BIAS;			// Add bias level
+	out_sample = agc_a_sample + DAC_BIAS;			// Add bias level
 	if (out_sample > (int16_t)DAC_RANGE)						// Clip to DAC range
 		out_sample = DAC_RANGE;
 	else if (out_sample<0)
@@ -1968,7 +2022,7 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
   //store variables for scope graphic
   if(aud_samples_state == AUD_STATE_SAMP_IN)
   {
-    aud_samp[AUD_SAMP_A][aud_samp_block_pos] = a_sample>>1;
+    aud_samp[AUD_SAMP_A][aud_samp_block_pos] = agc_a_sample>>1;
     aud_samp[AUD_SAMP_PEAK][aud_samp_block_pos] = k;  //peak_avg_shifted>>PEAK_AVG_SHIFT;
     aud_samp[AUD_SAMP_GAIN][aud_samp_block_pos] = agc_gain;
 

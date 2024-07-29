@@ -839,6 +839,7 @@ void hmi_evaluate(void)   //hmi loop
 {
 	char s[32];
   int16_t rec_level;
+  static int16_t rec_level_old = 1;
   
   static uint8_t  band_vars_old[HMI_NMENUS] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };          // Stored last option selection
   static uint32_t hmi_freq_old = 0xff;
@@ -846,7 +847,7 @@ void hmi_evaluate(void)   //hmi loop
   static bool tx_enable_old = true;
   static uint8_t hmi_menu_old = 0xff;
   static uint8_t hmi_menu_opt_display_old = 0xff;
-  static int16_t agc_gain_old = 1;
+//  static int16_t agc_gain_old = 1;
   static int16_t fft_gain_old = 0;
 
 #ifdef HMI_debug
@@ -947,18 +948,18 @@ void hmi_evaluate(void)   //hmi loop
   {
     if(tx_enabled == true)
     {
-      sprintf(s, "T   ");
-      tft_writexy_(2, TFT_RED, TFT_BLACK, 0,2,(uint8_t *)s);
+      //sprintf(s, "T   ");
+      tft_writexy_(2, TFT_RED, TFT_BLACK, 0,2,(uint8_t *)"T   ");
     }
     else
     {
-      sprintf(s, "R");
-      tft_writexy_(2, TFT_GREEN, TFT_BLACK, 0,2,(uint8_t *)s);
+      //sprintf(s, "R");
+      tft_writexy_(2, TFT_GREEN, TFT_BLACK, 0,2,(uint8_t *)"R");
 
-      sprintf(s, "x");
-      tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 4, 9, 3, 5, (uint8_t *)s);
+      //sprintf(s, "x");
+      tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 4, 9, 3, 5, (uint8_t *)"x");
     }
-    agc_gain_old = agc_gain+1;
+    rec_level_old = rec_level+1;
 
     tx_enable_old = tx_enabled;
   }
@@ -968,6 +969,7 @@ void hmi_evaluate(void)   //hmi loop
   //Smeter rec level
   if(tx_enabled == false)
   {
+/*
     if(agc_gain_old != agc_gain)
     {
       rec_level = AGC_GAIN_MAX - agc_gain;
@@ -975,7 +977,48 @@ void hmi_evaluate(void)   //hmi loop
       tft_writexy_(2, TFT_GREEN, TFT_BLACK, 1,2,(uint8_t *)s);
       agc_gain_old = agc_gain;
     }
-    
+*/
+    if(smeter_display_time >= MAX_SMETER_DISPLAY_TIME)  //new value ready to display, and avoid to write variable at same time on int
+    {
+      rec_level = Smeter(max_a_sample);
+
+#ifdef SMETER_TEST  //used to get the audio level for a RF input signal -> to fill the Smeter_table_level[] 
+      //prints the audio level to display, 
+      sprintf(s, "%3d", max_a_sample);
+      //s[3] = 0;  //remove the low digit
+      tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 1, 5, 3, 5, (uint8_t *)s);   
+      display_a_sample = max_a_sample;  //save the last value printed on display
+#else
+      if(rec_level <= 9)
+      {
+        sprintf(s, "%d", rec_level);
+        tft_writexy_(2, TFT_GREEN, TFT_BLACK, 1,2,(uint8_t *)s);
+
+        if(rec_level_old > 9)
+        {
+          tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 3, 0, 3, 5, (uint8_t *)" ");
+          tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 3, 8, 2, 14, (uint8_t *)" ");
+        }
+      }
+      else
+      {
+        tft_writexy_(2, TFT_GREEN, TFT_BLACK, 1,2,(uint8_t *)"9");
+
+        tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 3, 0, 3, 5, (uint8_t *)"+");
+
+        if(rec_level == 11)
+        {
+          tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 3, 8, 2, 14, (uint8_t *)"+");
+        }
+
+      }
+      rec_level_old = rec_level;
+#endif
+
+      max_a_sample = 0;  //restart the search for big signal
+      smeter_display_time = 0;
+    }
+     
     if(fft_gain_old != fft_gain)
     {
       sprintf(s, "%d  ",fft_gain);

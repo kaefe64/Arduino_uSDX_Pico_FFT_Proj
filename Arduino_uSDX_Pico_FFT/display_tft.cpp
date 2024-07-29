@@ -11,8 +11,8 @@
 #include "SPI.h"
 #include "uSDR.h"  //Serialx
 #include "dsp.h"
-#include "display_tft.h"
 #include "TFT_eSPI.h"
+#include "display_tft.h"
 #include "hmi.h"
 
 
@@ -192,6 +192,62 @@ uint16_t tft_color565(uint16_t r, uint16_t g, uint16_t b)
   return tft.color565(r, g, b);
 }
 
+
+
+
+
+
+
+
+
+// Smeter barr graph definitions
+#define MAX_Smeter_table  11   // S1, S2..   S9, S9+  S9++  = 11 steps
+#define Smeter_Y   96   //line of display
+#define Smeter_dY  6    //block high
+#define Smeter_X   0     //initial column 
+#define Smeter_dX  4    //block wide
+#define Smeter_dX_space  1  //space between blocks
+int16_t Smeter_table_level[MAX_Smeter_table] = {  1, 2, 4, 9, 18, 35, 75, 150, 300, 400, 600 };
+int16_t Smeter_table_color[MAX_Smeter_table] = {  TFT_GREEN, TFT_GREEN, TFT_GREEN, TFT_GREEN, TFT_YELLOW, TFT_YELLOW, TFT_YELLOW, TFT_YELLOW, TFT_RED, TFT_RED, TFT_RED };
+
+
+int16_t Smeter(int16_t v)
+{
+  int16_t Smeter_index_new, i;
+  static int16_t Smeter_index = 0;  //smeter table index = number of blocks to draw on smeter bar graph
+
+  //look for smeter table index
+  for(Smeter_index_new=(MAX_Smeter_table-1);  Smeter_index_new>0; Smeter_index_new--)
+  {
+    if(v > Smeter_table_level[Smeter_index_new])
+      {
+      break;
+      }
+  }
+
+  if(Smeter_index_new > Smeter_index)
+  {
+    //bigger signal
+    for(i=Smeter_index+1; i<=Smeter_index_new; i++)
+    {
+      //draw blocks from actual to the new index
+      tft.fillRect((Smeter_X + ((Smeter_dX + Smeter_dX_space) * i)), Smeter_Y, Smeter_dX, Smeter_dY, Smeter_table_color[i]);
+    }
+  }
+  else if(Smeter_index_new < Smeter_index)
+  {
+    //smaller signal
+    for(i=Smeter_index_new+1; i<=Smeter_index; i++)
+    {
+      //erase blocks from actual to the new index
+      tft.fillRect((Smeter_X + ((Smeter_dX + Smeter_dX_space) * i)), Smeter_Y, Smeter_dX, Smeter_dY, TFT_BLACK);
+    }
+  }
+
+  Smeter_index = Smeter_index_new;
+
+  return (Smeter_index+1);  // S level = index + 1
+}
 
 
 
@@ -668,6 +724,13 @@ char s[32];
 
 
 */
+
+
+
+  //draw Smeter first block
+  tft.fillRect((Smeter_X + ((Smeter_dX + Smeter_dX_space) * 0)), Smeter_Y, Smeter_dX, Smeter_dY, Smeter_table_color[0]);
+
+
    
 } // main
 

@@ -16,6 +16,9 @@ extern "C" {
 
 
 
+//#define   SMETER_TEST   10     //uncomment this line to see the audio level direct on display (used to generate the S Meter levels)
+
+
 /* Menu definitions (band vars array position) */
 #define HMI_S_TUNE			0
 #define HMI_S_MODE			1

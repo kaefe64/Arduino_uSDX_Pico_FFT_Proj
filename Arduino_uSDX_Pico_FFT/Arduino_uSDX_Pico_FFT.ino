@@ -65,7 +65,7 @@
 #define SMOOTH_FONT
 
 >>Choose SPI 1
-#define TFT_SPI_PORT 1   // Set to 0 if SPI0 pins are used, or 1 if spi1 pins used
+#define TFT_SPI_PORT 1   // Set to 0 if SPI0 pins are used, or 1 if SPI1 pins used
 
 
 
@@ -118,7 +118,7 @@ Compilation error: 'Wire1' was not declared in this scope
 
 --------------------------------------------------------------
 >>Check the correct RX I and Q inputs at dsp.h  
-#define EXCHANGE_I_Q  1    //include or remove this #define in case the LSB/USB and the lower/upper frequency of waterfall display are reverted - hardware dependent
+#define EXCHANGE_I_Q  1    //include or comment this #define in case the LSB/USB and the lower/upper frequency of waterfall display are reverted - hardware dependent
 
 --------------------------------------------------------------
 >>Choose one TX method at uSDR.h
