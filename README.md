@@ -164,6 +164,9 @@ Enter key = to confirm the menu item value<br>
 
 ## Last changes and notes:<br>
 
+### Ago03 2024
+- S Meter corrections.<br>
+
 ### Jul29 2024
 - S Meter implementation.<br>
   Starting tests with a S Meter and Bar Graph.<br>
