@@ -829,8 +829,11 @@ for(;;)
 
 
 
-
-
+// SMeter adjust for "-30dB","-20dB","-10dB","0dB","+10dB"
+//                    x22     x8.48   x2.8    x1     x2
+int32_t  smeter_pre_mult[HMI_NUM_OPT_PRE] =  { 353, 136, 46, 1, 2 };  // S level =  (max_a_sample * smeter_pre_mult) >> smeter_pre_shift
+int16_t  smeter_pre_shift[HMI_NUM_OPT_PRE] = {   4,   4,  4, 0, 0 };  // it makes "shift" instead of "division", tries to save processing
+//int16_t contk = 0;
 /*
  * Redraw the display, representing current state
  * This function is called regularly from the main loop.
@@ -980,41 +983,63 @@ void hmi_evaluate(void)   //hmi loop
 */
     if(smeter_display_time >= MAX_SMETER_DISPLAY_TIME)  //new value ready to display, and avoid to write variable at same time on int
     {
+      //correcting input ADC value with attenuators
+      max_a_sample = (max_a_sample * smeter_pre_mult[band_vars[hmi_band][HMI_S_PRE]]) >> smeter_pre_shift[band_vars[hmi_band][HMI_S_PRE]];
       rec_level = Smeter(max_a_sample);
-
+/*
+      rec_level = rec_level_old;
+      if(++contk > 5)
+      {
+        rec_level = rec_level_old + 1;
+        if (rec_level > 11)  rec_level = 1;
+        contk = 0;
+      }
+*/
 #ifdef SMETER_TEST  //used to get the audio level for a RF input signal -> to fill the Smeter_table_level[] 
       //prints the audio level to display, 
       sprintf(s, "%3d", max_a_sample);
       //s[3] = 0;  //remove the low digit
       tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 1, 5, 3, 5, (uint8_t *)s);   
-      display_a_sample = max_a_sample;  //save the last value printed on display
 #else
-      if(rec_level <= 9)
+      if(rec_level != rec_level_old)  //try to save some processing if the level is the same
       {
-        sprintf(s, "%d", rec_level);
-        tft_writexy_(2, TFT_GREEN, TFT_BLACK, 1,2,(uint8_t *)s);
-
-        if(rec_level_old > 9)
+        if(rec_level <= 9)  // S1 .. S9
         {
-          tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 3, 0, 3, 5, (uint8_t *)" ");
-          tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 3, 8, 2, 14, (uint8_t *)" ");
+          sprintf(s, "%d", rec_level);
+          tft_writexy_(2, TFT_GREEN, TFT_BLACK, 1,2,(uint8_t *)s);
+
+          if(rec_level_old > 9)  //erase the +
+          {
+            //erase the area for the font 1 = font used for "+"
+            tft.fillRect((3*X_CHAR1)+0, (3*Y_CHAR1)+5, X_CHAR1, Y_CHAR1, TFT_BLACK);
+            if(rec_level_old > 10)  //erase the other +
+            {
+            tft.fillRect((3*X_CHAR1)+8, (2*Y_CHAR1)+14, X_CHAR1, Y_CHAR1, TFT_BLACK);
+            }
+          }
         }
-      }
-      else
-      {
-        tft_writexy_(2, TFT_GREEN, TFT_BLACK, 1,2,(uint8_t *)"9");
-
-        tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 3, 0, 3, 5, (uint8_t *)"+");
-
-        if(rec_level == 11)
+        else   // S9+ or S9++
         {
-          tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 3, 8, 2, 14, (uint8_t *)"+");
-        }
+          if(rec_level_old < 9)  //try to save some processing, if was S9, don't need to write again
+          {
+            tft_writexy_(2, TFT_GREEN, TFT_BLACK, 1,2,(uint8_t *)"9");
+          }
 
+          if((rec_level > 9) && (rec_level_old < 10))  //try to save some processing if already +
+          {
+            tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 3, 0, 3, 5, (uint8_t *)"+");
+          }
+
+          if((rec_level == 11) && (rec_level_old < 11))  //try to save some processing if already ++
+          {
+            tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 3, 8, 2, 14, (uint8_t *)"+");
+          }
+        }
+        rec_level_old = rec_level;
       }
-      rec_level_old = rec_level;
 #endif
 
+      display_a_sample = max_a_sample;  //save the last value printed on display
       max_a_sample = 0;  //restart the search for big signal
       smeter_display_time = 0;
     }

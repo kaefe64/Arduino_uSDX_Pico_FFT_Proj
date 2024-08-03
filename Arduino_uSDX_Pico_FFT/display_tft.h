@@ -103,7 +103,7 @@ extern uint8_t vet_graf_fft[GRAPH_NUM_LINES][GRAPH_NUM_COLS];    // [NL][NCOL]
 //extern uint16_t vet_graf_fft_pos;
 
 // Use hardware SPI
-//extern TFT_eSPI tft;
+extern TFT_eSPI tft;
 
 
 
