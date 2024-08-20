@@ -5,7 +5,8 @@
 
 ![uSDR-PICO FFT](Pict1.png)
 
-This project is a QSD/QSE Software Defined HF Transceiver (SDR), 5 Band, Low Power, based on  Arjan te Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico. Since than, Arjan made some changes on his code, so, to clarify, I started this project based on Arjan's version https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/package/CODEv2.zip from 2021 with documentation at https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/doc/uSDR%20-%20v2.02.pdf .
+This project is a QSD/QSE Software Defined HF Transceiver (SDR), 5 Band, Low Power, based on  Arjan te Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico.<br>
+Since than, Arjan made some changes on his code, so, to clarify, I started this project based on Arjan's version https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/package/CODEv2.zip from 2021 with documentation at https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/doc/uSDR%20-%20v2.02.pdf .
 
 My intention was to include a Waterfall or Panadapter to the Arjan's uSDR-Pico project, for this, I included an ILI9341 240x320 2.4" TFT display, without touch, and also, changed the software to generate the Waterfall.
 
@@ -172,7 +173,7 @@ Enter key = to confirm the menu item value<br>
 ## Last changes and notes:<br>
 
 ### Ago20 2024
-- It moves the Waterfall in block when changing the frequency (instead of moving only the last line received).<br>
+- It will move the Waterfall in block (all limes) when changing the frequency (instead of moving only the last line received).<br>
 
 ### Ago03 2024
 - S Meter corrections.<br>
