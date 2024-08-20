@@ -173,7 +173,7 @@ Enter key = to confirm the menu item value<br>
 ## Last changes and notes:<br>
 
 ### Ago20 2024
-- It will move the Waterfall in block (all limes) when changing the frequency (instead of moving only the last line received).<br>
+- It will move the Waterfall in block (all lines) when changing the frequency (instead of moving only the last line received).<br>
 
 ### Ago03 2024
 - S Meter corrections.<br>
