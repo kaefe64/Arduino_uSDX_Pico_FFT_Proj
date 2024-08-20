@@ -7,11 +7,13 @@
 
 This project is a QSD/QSE Software Defined HF Transceiver (SDR), 5 Band, Low Power, based on  Arjan te Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico. Since than, Arjan made some changes on his code, so, to clarify, I started this project based on Arjan's version https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/package/CODEv2.zip from 2021 with documentation at https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/doc/uSDR%20-%20v2.02.pdf .
 
-My intention was to include a waterfall or panadapter to the Arjan's uSDR-Pico project, for this, I included an ILI9341 240x320 2.4" TFT display without touch, and also, changed the software to generate the waterfall.
+My intention was to include a Waterfall or Panadapter to the Arjan's uSDR-Pico project, for this, I included an ILI9341 240x320 2.4" TFT display, without touch, and also, changed the software to generate the Waterfall.
 
-Initially, I used Visual Studio, but after some considerations, I ported all code to Arduino IDE. So, to compile and run this code you need the Arduino IDE installed for a Raspberry Pi Pico project.
+Initially, I used Visual Studio, but after some considerations, I ported all code to Arduino IDE. So, to compile and run this code you need the Arduino IDE installed for a Raspberry Pi Pico project (see "Arduino IDE setup and notes:" below).
 
-I also, chose not to change the original software as much as possible, and focused on the waterfall implementation, mostly in the dsp.c.
+I also, chose not to change the original software as much as possible, and focused on the Waterfall implementation, mostly in the dsp.c.
+
+The Arjan-5 and uSDR-Pico **DO NOT USE** the uSDX Amplitude/Phase for transmission like the PE1NNZ uSDX project.
 
 I used the word "uSDX" instead of "uSDR" to name some files. This was a mistake. My intention was to follow Arjan's project with the same names.
 
@@ -26,9 +28,12 @@ Subject: uSDR-pico on GitHUB<br>
 Initial msg: #15923 · May 26  2022<br>
 <br>
 
-
-There is a **uSDX_TX** folder with code to test RF modulation TX using **phase and amplitude**, the same method used at the **PE1NNZ uSDX project** (https://github.com/threeme3/usdx) running at RP2040 just for transmission. 
-Obs.: The Arjan-5 and uSDR-Pico do not use this method.
+## Repository folders:
+**Arduino_I2C_BPF_RX** - Code to control the Band Pass Filter (BPF) board, runs at Arduino Pro Mini, compiled with Arduino IDE. The Arduino Pro Mini is used replacing the uSDR-Pico I2C interfaces PCF8574's to allow extra features: SWR reading and others (future). It uses the same I2C protocol, as uSDR-Pico.
+**Arduino_uSDX_Pico_FFT** - Main code for Ajan-5, runs at Raspberry Pi Pico, compiled with Arduino IDE (look "Arduino IDE setup and notes" below).
+**PCB** - Schematic and PCB Layout on Kicad format.
+**Pictures** - Pictures in general used in this Readme file.
+**uSDX_TX** - Code to test RF modulation TX using Amplitude/Phase, the same method used at the PE1NNZ uSDX project (https://github.com/threeme3/usdx) running at RP2040, only for transmission.
 <br>
 <br>
 
@@ -47,6 +52,8 @@ Obs.: The Arjan-5 and uSDR-Pico do not use this method.
 ![Main Board Top](Pictures/uSDR_Pico_FFT_PCB_top.png)
 <br>
 ![Main Board Botton](Pictures/uSDR_Pico_FFT_PCB_botton.png)
+<br>
+Obs.: Don't mind the red wires on the PCB, they are only test for separted 5V power supply.
 <br>
 
 ## First Prototype with TX and RX
@@ -72,7 +79,7 @@ Obs.: The Arjan-5 and uSDR-Pico do not use this method.
 ## Hardware changes from the original SDR-Pico and notes:
 - I chose to make a main board with the Pico, Display, QSD/QSE and 5V power supply, and another board with the relays, filters and attenuators.
 - The main change from SDR-Pico is the inclusion of ILI9341 on Pico free pins, using SPI1, and removing the LCD display.
-- Another change, as we need more frequency range on RX to show at the waterfall, the RX amplifier must amplify at least 80kHz.
+- Another change, as we need more frequency range on RX to show at the Waterfall, the RX amplifier must amplify at least 80kHz.
 - You can see the schematic diagram at [uSDR_Pico_FFT_SCH.pdf](PCB/uSDR_Pico_FFT_SCH.pdf) and [uSDR_Pico_BPF_RX_SCH.pdf](PCB/uSDR_Pico_BPF_RX_SCH.pdf).
 - I noticed that changing the signal in one ADC input, changed the other inputs signal through the resistors for setting half Vref. To solve this, I changed the circuit to have a separate resistor divider for each ADC input.
 
@@ -109,13 +116,13 @@ Obs.: The Arjan-5 and uSDR-Pico do not use this method.
 - The code files have cpp type, but the code itself is in C (cpp type is used to help in some compiler issues).
 
 
-### To implement the waterfall I considered this:
+### To implement the Waterfall I considered this:
 
 - There are 3 ADC inputs: I, Q and MIC  (if we remove the VOX function, we could remove the MIC ADC during reception, this will increase the ADC frequency for I and Q, improving the frequencies we can see at the display - for now I will keep it like the original).
 - The max ADC frequency is 500kHz, I have changed it to 480kHz (close to the original) to make the divisions "rounded".
 - The ADC for audio reception has frequency of 16kHz (close to the original). I have tested higher frequencies, but the time became critical, without so much benefit.
 - The max ADC frequency for each sample = 480kHz / 3 = 160kHz   (because there is only one internal ADC used to read the 3 inputs in sequence).
-- With 160kHz of samples, we can see 80kHz range after the FFT, but applying Hilbert to get the lower band and the upper band, we get two bands of 80kHz, above and below the center frequency.
+- With 160kHz of samples, we can see 80kHz range after the FFT, but applying Hilbert to get the lower and the upper band, we get two bands of 80kHz, above and below the center frequency.
 - There is no time to process each sample at 160kHz and generate the "live" audio, so I use this method:
     Set the DMA to receive 10 samples of each ADC input (10 x 3 = 30) and generate an interrupt.
     So, we get 16kHz interrupts with 10 x 3 samples to deal.<br>
@@ -123,19 +130,19 @@ Obs.: The Arjan-5 and uSDR-Pico do not use this method.
     For FFT, we need all samples (raw samples), so they are copied to a FFT buffer for later use.
 - There is also no time to process the samples and run the audio receiver part at 16kHz, so I chose to split it. The interrupt and buffer/filter part is done at Core1, and the audio original reception is in the Core0.
 - Every 16kHz interrupt, after filtering the I, Q and MIC, these samples are passed to Core0 to follow the audio reception tasks.
-- For the waterfall, when we have received 320 I and Q samples, it stops filling the buffer and indicates to the Core1 main loop to process FFT/Hilbert for a new graphic line.
+- For the Waterfall, when we have received 320 I and Q samples, it stops filling the buffer and indicates to the Core1 main loop to process FFT/Hilbert for a new graphic line.
 - The original processes run at Core0, every 100ms.
 - There is a digital low pass filter FIR implemented at the code (like the original) that will give the passband we want for audio.
   This filter was calculated with the help of this site:  http://t-filter.engineerjs.com/
   The dificulty is that the number of filter taps can not be high (there is no much time to process it), so the filter must be chosen carefully.
-- Please consider that this waterfall is not perfect, I had to let go of some rules to make it.
+- Please consider that this Waterfall is not perfect, I had to let go of some rules to make it.
 - Software Block diagram at "Arduino_uSDR_Pico_FFT.png":
 
 ![Block diagram](Arduino_uSDR_Pico_FFT.png)
 
 
 ### ADC Aliasing filter considerations:
-**Input:** We sample each signal I, Q and MIC at 160kHz, so it is necessary to have a hardware low pass filter for 80kHz on each input (anti-aliasing filter). If the input filter is set to lower than 80kHz, the waterfall will show less than +-80kHz of signals. If the input filter is set to higher then 80kHz, the audio and the waterfall could peek some signals greater than 80kHz and treat them as lower than 80kHz (this is the ADC aliasing problem).<br>
+**Input:** We sample each signal I, Q and MIC at 160kHz, so it is necessary to have a hardware low pass filter for 80kHz on each input (anti-aliasing filter). If the input filter is set to lower than 80kHz, the Waterfall will show less than +-80kHz of signals. If the input filter is set to higher then 80kHz, the audio and the Waterfall could peek some signals greater than 80kHz and treat them as lower than 80kHz (this is the ADC aliasing problem).<br>
 **Output:** We deliver an audio signal at 16kHz sample frequency, so we need a hardware low pass filter for less than 8kHz at the output. The sample frequency will be present and needs to be removed as it is also an audio frequency.
 
 
@@ -171,8 +178,7 @@ Enter key = to confirm the menu item value<br>
 - S Meter implementation.<br>
   Starting tests with a S Meter and Bar Graph.<br>
   There is a table (Smeter_table_level[]) to make the correspondence between the audio level and the S meter level.<br>
-  My RF Generator is with fixed level output, so, I made some RF Attenuators to calibrate the S Meter (https://leleivre.com/rf_pipad.html), but it didn't work well, I need to improve it. The values on the code are **not calibrated**.<br>
-  To get the audio level on the display, to make your own calibration, uncomment this line :   //#define   SMETER_TEST   10    on "hmi.h".<br>
+  The values on the code are **not calibrated**. To get the audio level on the display, to make your own calibration, uncomment this line :   //#define   SMETER_TEST   10    on "hmi.h".<br>
 
 ### Jan05 2024
 - Correcting internal PTT activation from Monitor and Vox.<br>
@@ -211,11 +217,11 @@ Obs.: to use manual gain adjust, press Enter button and turn the frequncy knob.
 - Testing an 80KHz Low Pass Filter for I and Q inputs because I can hear some frequency distant strong stations.
 - New schematics and PCB for LPF and RX at the same board.
 - Added software for Arduino Pro Mini to work as two I2C slaves, replacing the PCF8574's.
-- There are some mirror signal at the waterfall, I am looking for the reason.
+- There are some mirror signal at the Waterfall, I am looking for the reason.
 - I really like the quality of the audio received.
 
 ### Apr30 2023
-- Included an adjust to the gain in the waterfall, it helps to reduce the noise in the waterfall. Press and keep the Enter button, and turn the frequency knob. This adjust also affects the audio AGC.
+- Included an adjust to the gain in the Waterfall, it helps to reduce the noise in the Waterfall. Press and keep the Enter button, and turn the frequency knob. This adjust also affects the audio AGC.
 
 ### Apr29 2023
 - Minor changes, improve comments at .ino file. Trying to get the new PCB running and getting back to software improvement.
@@ -232,7 +238,7 @@ Obs.: to use manual gain adjust, press Enter button and turn the frequncy knob.
 
 ### Ago05 2022
 - Now the frequency changes at each encoder step (I am using EC11 encoder and it changed the frequency at every second step)
-- Plot to the waterfall improved to spend less time
+- Plot to the Waterfall improved to spend less time
 - Included separate audio filters for CW and AM
 - Included side tone for CW TX
 - Writing to display and programming Si5351 only when necessary (finally)
@@ -264,7 +270,7 @@ Connecting 3v3_EN to Gnd disables the on board DC-DC 3v3.<br>
 I used a TPS79933 + caps from VSYS to 3V3 pin.<br>
 I can connect and disconnect it easily.<br>
 The first impression is that this does not improve the sensibility.<br>
-I have found a limit position from RF generator to Softrock receiver to start showing something at the waterfall.
+I have found a limit position from RF generator to Softrock receiver to start showing something at the Waterfall.
 And both DC-DC and TPS look the same to me.
 
 ![Reg 3v3](VREF_TPS79933_AXX.png)
@@ -274,7 +280,7 @@ And both DC-DC and TPS look the same to me.
 
 ### Jun10 2022
 - AGC uncommented and adapted to work.<br>
-	 The AGC is only used at the output audio, not for waterfall.
+	 The AGC is only used at the output audio, not for Waterfall.
 - A visual scope was implemented to allow visualization of some internal variables.<br>
 	 The variables plotted are:<br>
 	 - I, Q and MIC = ADC inputs<br>
@@ -292,13 +298,9 @@ And both DC-DC and TPS look the same to me.
 
 
 ## Wish list:
-- Improve the S meter, at least to show the AD input signal level (include SWR measurements on TX)
-- The AGC needs to be improved (some bug happens with some high level noise)
-- Include zoom in the waterfall (frequency range)
 - Include RIT (receiver incremental tuning)
 - Reduce the minimum step to change the frequency to 50Hz or less
-- Check the trasmission on all modes (it is affected the hardware)
-- Tests: reception/transmission SSB...  menus...  switches/debounce...   display appearance
+- Tests: reception/transmission modes, bands, menus, ...
 
 
 ## Copyright notice

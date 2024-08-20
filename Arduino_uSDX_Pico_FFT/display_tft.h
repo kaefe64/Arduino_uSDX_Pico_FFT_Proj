@@ -98,6 +98,8 @@ uint16_t yellow = tft.color565(255, 255, 0);
 #define GRAPH_NUM_COLS    (FFT_NSAMP)
 #define Y_MIN_DRAW   (display_HEIGHT - GRAPH_NUM_LINES)
 
+#define WATERFALL_IN_BLOCK   1   // all lines in the waterfall move with the freq change (not only the new line)
+
 
 extern uint8_t vet_graf_fft[GRAPH_NUM_LINES][GRAPH_NUM_COLS];    // [NL][NCOL]
 //extern uint16_t vet_graf_fft_pos;
@@ -117,7 +119,7 @@ uint16_t tft_color565(uint16_t r, uint16_t g, uint16_t b);
 
 int16_t Smeter(int16_t v); 
 
-void display_fft_graf(void);
+void display_fft_graf(uint16_t freq);
 void display_fft_graf_top(void);
 void display_tft_setup0(void);
 void display_tft_setup(void);

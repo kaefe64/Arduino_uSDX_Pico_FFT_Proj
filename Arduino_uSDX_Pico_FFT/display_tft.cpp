@@ -207,7 +207,23 @@ uint16_t tft_color565(uint16_t r, uint16_t g, uint16_t b)
 #define Smeter_X   0     //initial column 
 #define Smeter_dX  4    //block wide
 #define Smeter_dX_space  1  //space between blocks
-int16_t Smeter_table_level[MAX_Smeter_table] = {  1, 2, 4, 9, 18, 35, 75, 150, 300, 400, 600 };
+/*
+S Meter  	Antenna input
+Reading   uVrms @ 50R
+S9+20	    500
+S9+10	    160
+S9 	       50
+S8 	       25
+S7 	       12,5
+S6 	       6,25
+S5 	       3,125
+S4 	       1,5625
+S3 	       0,78125
+S2 	       0,39063
+S1 	       0,19531
+*/
+//                                             S  1  2  3  4   5   6   7    8    9   9+  9++
+int16_t Smeter_table_level[MAX_Smeter_table] = {  1, 2, 4, 9, 18, 35, 75, 150, 300, 400, 600 };  //audio signal value after filters for each antenna level input
 int16_t Smeter_table_color[MAX_Smeter_table] = {  TFT_GREEN, TFT_GREEN, TFT_GREEN, TFT_GREEN, TFT_YELLOW, TFT_YELLOW, TFT_YELLOW, TFT_YELLOW, TFT_RED, TFT_RED, TFT_RED };
 
 
@@ -382,12 +398,14 @@ uint8_t vet_graf_fft[GRAPH_NUM_LINES][FFT_NSAMP];    // [NL][NCOL]
 /*********************************************************
   
 *********************************************************/
-void display_fft_graf(void) 
-{
-  uint16_t x, y;
+void display_fft_graf(uint16_t freq)    //receive the actual freq to move the waterfall as changing the dial
+{                                       //consider 1kHz for each pixel on horizontal
+  int16_t x, y;
   uint16_t extra_color;
+  static uint16_t freq_old = 7080;
+  int16_t freq_change;
 
-
+  freq_change = ((int16_t)freq - (int16_t)freq_old);  //how much then dial (freq) changed
 
   //erase waterfall area
   //tft.fillRect(0, Y_MIN_DRAW, GRAPH_NUM_COLS, GRAPH_NUM_LINES, TFT_BLACK);
@@ -396,11 +414,63 @@ void display_fft_graf(void)
 
   //plot waterfall
   //vet_graf_fft[GRAPH_NUM_LINES][GRAPH_NUM_COLS]   [NL][NCOL]
-  for(y=0; y<GRAPH_NUM_LINES; y++)
+  for(y=0; y<GRAPH_NUM_LINES; y++)   // y=0 is the line at the bottom   y=(GRAPH_NUM_LINES-1) is the new line
   {
     //erase one waterfall line
     tft.drawFastHLine (0, (GRAPH_NUM_LINES + Y_MIN_DRAW - y), GRAPH_NUM_COLS, TFT_BLACK);
 
+#ifdef WATERFALL_IN_BLOCK   // all lines in the waterfall move with the freq change (not only the new line)
+    //move the waterfall in block according the freq change
+    //if (freq changed) and (its is not the last line) // new line does not move, it is in the right position
+    if((freq_change != 0) && (y < (GRAPH_NUM_LINES-1)))
+    {      
+      //  move the waterfall line to left or right  according to the freq change
+      if(freq_change > 0)    // new freq greater than old
+      {
+        if(freq_change < GRAPH_NUM_COLS)   //change in the visible area
+        {
+          for(x=0; x<GRAPH_NUM_COLS; x++)
+          {
+            if((x + freq_change) < GRAPH_NUM_COLS)
+            {
+              vet_graf_fft[y][x] = vet_graf_fft[y][x + freq_change];   //move to left
+            }
+            else
+            {
+              vet_graf_fft[y][x] = 0;  //fill with empty
+            }
+          }    
+        }
+        else  //big change, make a empty line (erase the old data)
+        {
+          vet_graf_fft[y][x] = 0;
+        }
+      }
+      else   // new freq smaller than old = freq_change is negative
+      {
+        if((-freq_change) < GRAPH_NUM_COLS)   //change in the visible area
+        {
+          for(x=GRAPH_NUM_COLS-1; x>=0; x--)
+          {
+            if((x + freq_change) > 0)
+            {
+              vet_graf_fft[y][x] = vet_graf_fft[y][x + freq_change];   //move to right
+            }
+            else
+            {
+              vet_graf_fft[y][x] = 0;  //fill with empty
+            }
+          }    
+        }
+        else  //big change, make a empty line (erase the old data)
+        {
+          vet_graf_fft[y][x] = 0;
+        }
+      }
+    }      
+#endif
+
+    //plot waterfall line
     for(x=0; x<GRAPH_NUM_COLS; x++)
     {
       //plot one waterfall line
@@ -426,7 +496,8 @@ void display_fft_graf(void)
   }
 
 
-  //move graph data one line up to open space for next FFT (= last line)
+
+  //move graph data array one line up to open space for next FFT (new line will be the last line)
   for(y=0; y<(GRAPH_NUM_LINES-1); y++)
   {
     for(x=0; x<GRAPH_NUM_COLS; x++)
@@ -436,7 +507,7 @@ void display_fft_graf(void)
   }
 
 
- 
+  freq_old = freq;  //take note of the freq center on last waterfall printed on display
 }
 
 
@@ -773,7 +844,27 @@ void display_tft_countdown(bool show, uint16_t val)
 
 void display_tft_loop(void) 
 {
+  static uint32_t hmi_freq_fft;
 
+  if (tx_enabled == false)  //waterfall only during RX
+  {
+    if (fft_display_graf_new == 1)    //design a new graphic only when a new line is ready from FFT
+    {
+      if(hmi_freq == hmi_freq_fft)
+      {
+        //plot waterfall graphic     
+        display_fft_graf((uint16_t)(hmi_freq/500));  // warefall 110ms
+      }
+      else
+      {
+        //plot waterfall graphic     
+        display_fft_graf((uint16_t)(hmi_freq_fft/500));  // warefall 110ms
+        hmi_freq_fft = hmi_freq;
+      }
 
+      fft_display_graf_new = 0;  
+      fft_samples_ready = 2;  //ready to start new sample collect
+    }
+  }
 
 }

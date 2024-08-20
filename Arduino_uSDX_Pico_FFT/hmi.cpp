@@ -852,6 +852,7 @@ void hmi_evaluate(void)   //hmi loop
   static uint8_t hmi_menu_opt_display_old = 0xff;
 //  static int16_t agc_gain_old = 1;
   static int16_t fft_gain_old = 0;
+//  static uint32_t hmi_freq_fft;
 
 #ifdef HMI_debug
   uint16_t ndata;
@@ -967,7 +968,35 @@ void hmi_evaluate(void)   //hmi loop
     tx_enable_old = tx_enabled;
   }
 
-  
+
+
+/*
+  if (tx_enabled == false)  //waterfall only during RX
+  {
+    if (fft_display_graf_new == 1)    //design a new graphic only when a new line is ready from FFT
+    {
+      if(hmi_freq == hmi_freq_fft)
+      {
+        //plot waterfall graphic     
+        display_fft_graf((uint16_t)(hmi_freq/500));  // warefall 110ms
+      }
+      else
+      {
+        //plot waterfall graphic     
+        display_fft_graf((uint16_t)(hmi_freq_fft/500));  // warefall 110ms
+        hmi_freq_fft = hmi_freq;
+      }
+
+      fft_display_graf_new = 0;  
+      fft_samples_ready = 2;  //ready to start new sample collect
+    }
+  }
+
+*/
+
+
+
+
    
   //Smeter rec level
   if(tx_enabled == false)
@@ -1024,12 +1053,14 @@ void hmi_evaluate(void)   //hmi loop
           {
             tft_writexy_(2, TFT_GREEN, TFT_BLACK, 1,2,(uint8_t *)"9");
           }
-
           if((rec_level > 9) && (rec_level_old < 10))  //try to save some processing if already +
           {
             tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 3, 0, 3, 5, (uint8_t *)"+");
           }
-
+          if((rec_level == 10) && (rec_level_old == 11))  //erase the second +
+          {
+          tft.fillRect((3*X_CHAR1)+8, (2*Y_CHAR1)+14, X_CHAR1, Y_CHAR1, TFT_BLACK);
+          }
           if((rec_level == 11) && (rec_level_old < 11))  //try to save some processing if already ++
           {
             tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 3, 8, 2, 14, (uint8_t *)"+");
@@ -1113,20 +1144,6 @@ void hmi_evaluate(void)   //hmi loop
 
 
 
-  if (tx_enabled == false)  //waterfall only during RX
-  {
-    if (fft_display_graf_new == 1)    //design a new graphic only when a new line is ready from FFT
-    {
-      //plot waterfall graphic     
-      display_fft_graf();  // warefall 110ms
-
-      fft_display_graf_new = 0;  
-      fft_samples_ready = 2;  //ready to start new sample collect
-    }
-  }
-
-
- 
   if (aud_samples_state == AUD_STATE_SAMP_RDY) //design a new graphic only when data is ready
   {
     //plot audio graphic     

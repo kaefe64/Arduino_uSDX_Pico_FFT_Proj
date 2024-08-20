@@ -34,9 +34,9 @@ void si_init(void);
 void si_evaluate(void);
 
 
-#define SI_GETFREQ(i)		((((i)>=0)&&((i)<2))?vfo[(i)].freq:0)
-#define SI_INCFREQ(i, d)	if ((((i)>=0)&&((i)<2))&&((vfo[(i)].freq)<(150000000-(d)))) { vfo[(i)].freq += (d); vfo[(i)].flag = 1;}
-#define SI_DECFREQ(i, d)	if ((((i)>=0)&&((i)<2))&&((vfo[(i)].freq)>(d))) { (vfo[(i)].freq) -= (d); vfo[(i)].flag = 1;}
+//#define SI_GETFREQ(i)		((((i)>=0)&&((i)<2))?vfo[(i)].freq:0)
+//#define SI_INCFREQ(i, d)	if ((((i)>=0)&&((i)<2))&&((vfo[(i)].freq)<(150000000-(d)))) { vfo[(i)].freq += (d); vfo[(i)].flag = 1;}
+//#define SI_DECFREQ(i, d)	if ((((i)>=0)&&((i)<2))&&((vfo[(i)].freq)>(d))) { (vfo[(i)].freq) -= (d); vfo[(i)].flag = 1;}
 #define SI_SETFREQ(i, f)	if ((((i)>=0)&&((i)<2))&&((f)<150000000)) { vfo[(i)].freq = (f); vfo[(i)].flag = 1;}
 #define SI_SETPHASE(i, p)	if (((i)>=0)&&((i)<2)) {vfo[(i)].phase = ((uint8_t)p)&3; vfo[(i)].flag = 1;}
 
