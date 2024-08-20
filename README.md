@@ -171,6 +171,9 @@ Enter key = to confirm the menu item value<br>
 
 ## Last changes and notes:<br>
 
+### Ago20 2024
+- It moves the Waterfall in block when changing the frequency (instead of moving only the last line received).<br>
+
 ### Ago03 2024
 - S Meter corrections.<br>
 
