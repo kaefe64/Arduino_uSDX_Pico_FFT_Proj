@@ -29,11 +29,11 @@ Initial msg: #15923 · May 26  2022<br>
 <br>
 
 ## Repository folders:
-**Arduino_I2C_BPF_RX** - Code to control the Band Pass Filter (BPF) board, runs at Arduino Pro Mini, compiled with Arduino IDE. The Arduino Pro Mini is used replacing the uSDR-Pico I2C interfaces PCF8574's to allow extra features: SWR reading and others (future). It uses the same I2C protocol, as uSDR-Pico.
-**Arduino_uSDX_Pico_FFT** - Main code for Ajan-5, runs at Raspberry Pi Pico, compiled with Arduino IDE (look "Arduino IDE setup and notes" below).
-**PCB** - Schematic and PCB Layout on Kicad format.
-**Pictures** - Pictures in general used in this Readme file.
-**uSDX_TX** - Code to test RF modulation TX using Amplitude/Phase, the same method used at the PE1NNZ uSDX project (https://github.com/threeme3/usdx) running at RP2040, only for transmission.
+**Arduino_I2C_BPF_RX** - Code to control the Band Pass Filter (BPF) board, runs at Arduino Pro Mini, compiled with Arduino IDE. The Arduino Pro Mini is used replacing the uSDR-Pico I2C interfaces PCF8574's to allow extra features: SWR reading and others (future). It uses the same I2C protocol, as uSDR-Pico.<br>
+**Arduino_uSDX_Pico_FFT** - Main code for Ajan-5, runs at Raspberry Pi Pico, compiled with Arduino IDE (look "Arduino IDE setup and notes" below).<br>
+**PCB** - Schematic and PCB Layout on Kicad format.<br>
+**Pictures** - Pictures in general used in this Readme file.<br>
+**uSDX_TX** - Code to test RF modulation TX using Amplitude/Phase, the same method used at the PE1NNZ uSDX project (https://github.com/threeme3/usdx) running at RP2040, only for transmission.<br>
 <br>
 <br>
 
