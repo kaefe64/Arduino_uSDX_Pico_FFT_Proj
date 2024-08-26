@@ -16,8 +16,11 @@ I also, chose not to change the original software as much as possible, and focus
 
 The Arjan-5 and uSDR-Pico **DO NOT USE** the uSDX Amplitude/Phase for transmission like the PE1NNZ uSDX project.
 
-I used the word "uSDX" instead of "uSDR" to name some files. This was a mistake. My intention was to follow Arjan's project with the same names.
+I used the word "uSDX" instead of "uSDR" to name some files. This was a mistake. My intention was to follow Arjan's project with the same names.<br>
 
+## Basic connections for initial tests
+![Main Block Diagram](FFT_LCD_pico.png)
+<br>
 
 Initial tests video:  https://youtu.be/0zGAnkRjizE<br>
 AGC and Visual Scope video: https://youtu.be/BiaS002xZfw<br>
@@ -29,8 +32,8 @@ Subject: uSDR-pico on GitHUB<br>
 Initial msg: #15923 · May 26  2022<br>
 <br>
 
-## Repository folders:
-**Arduino_I2C_BPF_RX** - Code to control the Band Pass Filter (BPF) board, runs at Arduino Pro Mini, compiled with Arduino IDE. The Arduino Pro Mini is used replacing the uSDR-Pico I2C interfaces PCF8574's to allow extra features: SWR reading and others (future). It uses the same I2C protocol, as uSDR-Pico.<br>
+## Repository folders
+**Arduino_I2C_BPF_RX** - Code to control the Band Pass Filter (BPF) board. It runs at Arduino Pro Mini, compiled with Arduino IDE. The Arduino Pro Mini is used replacing the uSDR-Pico I2C interfaces PCF8574's to allow extra features: SWR reading and others (future). It uses the same I2C protocol, as uSDR-Pico.<br>
 **Arduino_uSDX_Pico_FFT** - Main code for Ajan-5, runs at Raspberry Pi Pico, compiled with Arduino IDE (look "Arduino IDE setup and notes" below).<br>
 **PCB** - Schematic and PCB Layout on Kicad format.<br>
 **Pictures** - Pictures in general used in this Readme file.<br>
@@ -80,7 +83,7 @@ Obs.: Don't mind the red wires on the PCB, they are only test for separted 5V po
 ## Hardware changes from the original SDR-Pico and notes:
 - I chose to make a main board with the Pico, Display, QSD/QSE and 5V power supply, and another board with the relays, filters and attenuators.
 - The main change from SDR-Pico is the inclusion of ILI9341 on Pico free pins, using SPI1, and removing the LCD display.
-- Another change, as we need more frequency range on RX to show at the Waterfall, the RX amplifier must amplify at least 80kHz.
+- Another change, as we need more frequency range on RX to show at the Waterfall, the RX amplifier must amplify at least 80kHz of signal band. The opamp must be changed to one with wider bandwidth.
 - You can see the schematic diagram at [uSDR_Pico_FFT_SCH.pdf](PCB/uSDR_Pico_FFT_SCH.pdf) and [uSDR_Pico_BPF_RX_SCH.pdf](PCB/uSDR_Pico_BPF_RX_SCH.pdf).
 - I noticed that changing the signal in one ADC input, changed the other inputs signal through the resistors for setting half Vref. To solve this, I changed the circuit to have a separate resistor divider for each ADC input.
 
