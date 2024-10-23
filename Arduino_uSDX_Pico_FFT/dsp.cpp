@@ -1046,7 +1046,6 @@ volatile int16_t a_s_raw[MAX_TAP_NUM];             // Raw MIC samples, minus DC 
 
 
 
-
 /**************************************************************************************
  * AGC reference level is log2(0x40) = 6, where 0x40 is the MSB of half DAC_RANGE
  * 1/AGC_DECAY and 1/AGC_ATTACK are multipliers before agc_gain value integrator
@@ -1225,6 +1224,8 @@ volatile uint16_t cw_int_count=0;  //used to count 2 times the 16kHz int to gene
 #if TX_METHOD == PHASE_AMPLITUDE    // uSDX TX method used for Class E RF amplifier
 volatile uint16_t st_int_count=0;
 #endif
+//volatile uint32_t hmi_freq_fft = 0xff;
+
 /************************************************************************************** 
  * CORE1:  DMA IRQ
  * dma handler - IRQ when a block of samples was read
@@ -1575,6 +1576,13 @@ The sampling is at 160kHz but for audio we only need 16kHz samples, so the filte
   //collect FFT raw samples
   if(fft_samples_ready == 0)  //receiving the samples
   {
+/*
+    if(hmi_freq != hmi_freq_fft)   //freq must be the same for all fft samples - if freq changing, wait
+    {
+      fft_samp_block_pos = 0;
+      hmi_freq_fft = hmi_freq;
+    }
+*/
     //copy new samples to FFT buffer  (raw adc sample values for FFT)
     for(i_int=0; i_int<BLOCK_NSAMP; )
     {  
@@ -2576,7 +2584,6 @@ void dsp_core1_setup_and_loop()
 
 
 #endif    //send FFT samples to serial 
-
 
 
 

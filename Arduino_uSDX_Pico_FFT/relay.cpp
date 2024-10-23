@@ -44,12 +44,6 @@
 #include "uSDR.h"
 
 
-/* I2C address and pins */
-#define I2C_RX 				0x21
-#define I2C_BPF				0x20
-
-//#define I2C_WAIT_us   (uint64_t)500000  absolute_time_t
-#define I2C_TIMEOUT_us   10000
 
 
 void relay_setband(uint8_t val)

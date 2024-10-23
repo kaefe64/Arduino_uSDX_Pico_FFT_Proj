@@ -197,76 +197,121 @@ uint16_t tft_color565(uint16_t r, uint16_t g, uint16_t b)
 
 
 
-
-
-
-// Smeter barr graph definitions
-#define MAX_Smeter_table  11   // S1, S2..   S9, S9+  S9++  = 11 steps
-#define Smeter_Y   96   //line of display
-#define Smeter_dY  6    //block high
-#define Smeter_X   0     //initial column 
-#define Smeter_dX  4    //block wide
-#define Smeter_dX_space  1  //space between blocks
-/*
-S Meter  	Antenna input
-Reading   uVrms @ 50R
-S9+20	    500
-S9+10	    160
-S9 	       50
-S8 	       25
-S7 	       12,5
-S6 	       6,25
-S5 	       3,125
-S4 	       1,5625
-S3 	       0,78125
-S2 	       0,39063
-S1 	       0,19531
-*/
-//                                             S  1  2  3  4   5   6   7    8    9   9+  9++
-int16_t Smeter_table_level[MAX_Smeter_table] = {  1, 2, 4, 9, 18, 35, 75, 150, 300, 400, 600 };  //audio signal value after filters for each antenna level input
+#define bargraph_Y   (35+Y_CHAR2-3-8)   //line of display
+#define bargraph_dY  6    //block high
+#define bargraph_X   10     //initial column 
+#define bargraph_dX  6    //block wide
+#define bargraph_dX_space  1  //space between blocks
 int16_t Smeter_table_color[MAX_Smeter_table] = {  TFT_GREEN, TFT_GREEN, TFT_GREEN, TFT_GREEN, TFT_YELLOW, TFT_YELLOW, TFT_YELLOW, TFT_YELLOW, TFT_RED, TFT_RED, TFT_RED };
 
-
-int16_t Smeter(int16_t v)
+/*
+    Smeter_bargraph
+*/
+void Smeter_bargraph(int16_t index_new)
 {
-  int16_t Smeter_index_new, i;
-  static int16_t Smeter_index = 0;  //smeter table index = number of blocks to draw on smeter bar graph
+  static int16_t index_old = 0;  //smeter table index = number of blocks to draw on smeter bar graph
+  int16_t i;
 
-  //look for smeter table index
-  for(Smeter_index_new=(MAX_Smeter_table-1);  Smeter_index_new>0; Smeter_index_new--)
+#ifdef TST_MAX_SMETER_SWR
+index_new = 10;
+index_old = 0;
+#endif
+
+  if(index_new >= MAX_Smeter_table)
   {
-    if(v > Smeter_table_level[Smeter_index_new])
-      {
-      break;
-      }
+    index_new = MAX_Smeter_table - 1;
   }
 
-  if(Smeter_index_new > Smeter_index)
+  if(tx_enable_changed == true)  //if changed tx-rx = display clear
+  {
+    index_old = 0;  //print all bargraph
+  }
+
+  if(index_old == 0) 
+  {
+    //draw Smeter first block = fixed one = min one block
+    tft.fillRect((bargraph_X + ((bargraph_dX + bargraph_dX_space) * 0)), bargraph_Y, bargraph_dX, bargraph_dY, Smeter_table_color[0]);
+  }
+
+  if(index_new > index_old)
   {
     //bigger signal
-    for(i=Smeter_index+1; i<=Smeter_index_new; i++)
+    for(i=index_old+1; i<=index_new; i++)
     {
       //draw blocks from actual to the new index
-      tft.fillRect((Smeter_X + ((Smeter_dX + Smeter_dX_space) * i)), Smeter_Y, Smeter_dX, Smeter_dY, Smeter_table_color[i]);
+      tft.fillRect((bargraph_X + ((bargraph_dX + bargraph_dX_space) * i)), bargraph_Y, bargraph_dX, bargraph_dY, Smeter_table_color[i]);
     }
   }
-  else if(Smeter_index_new < Smeter_index)
+  else if(index_new < index_old)
   {
     //smaller signal
-    for(i=Smeter_index_new+1; i<=Smeter_index; i++)
+    for(i=index_new+1; i<=index_old; i++)
     {
       //erase blocks from actual to the new index
-      tft.fillRect((Smeter_X + ((Smeter_dX + Smeter_dX_space) * i)), Smeter_Y, Smeter_dX, Smeter_dY, TFT_BLACK);
+      tft.fillRect((bargraph_X + ((bargraph_dX + bargraph_dX_space) * i)), bargraph_Y, bargraph_dX, bargraph_dY, TFT_BLACK);
     }
   }
 
-  Smeter_index = Smeter_index_new;
+  index_old = index_new;
 
-  return (Smeter_index+1);  // S level = index + 1
 }
 
 
 
+
+int16_t TxPower_table_color[MAX_Smeter_table] = {  TFT_RED, TFT_RED, TFT_RED, TFT_RED, TFT_MAROON, TFT_MAROON, TFT_MAROON, TFT_MAROON, TFT_ORANGE, TFT_ORANGE, TFT_ORANGE };
+
+
+/*
+    TxPower_bargraph
+*/
+void TxPower_bargraph(int16_t index_new)
+{
+  static int16_t index_old = 0;  //smeter table index = number of blocks to draw on smeter bar graph
+  int16_t i;
+
+#ifdef TST_MAX_SMETER_SWR
+index_new = 10;
+index_old = 0;
+#endif
+
+  if(index_new >= MAX_Smeter_table)
+  {
+    index_new = MAX_Smeter_table - 1;
+  }
+
+  if(tx_enable_changed == true)  //if changed tx-rx = display clear
+  {
+    index_old = 0;  //print all bargraph
+  }
+
+  if(index_old == 0)
+  {
+    //draw Smeter first block = fixed one = min one block
+    tft.fillRect((bargraph_X + ((bargraph_dX + bargraph_dX_space) * 0)), bargraph_Y, bargraph_dX, bargraph_dY, TxPower_table_color[0]);
+  }
+
+  if(index_new > index_old)
+  {
+    //bigger signal
+    for(i=index_old+1; i<=index_new; i++)
+    {
+      //draw blocks from actual to the new index
+      tft.fillRect((bargraph_X + ((bargraph_dX + bargraph_dX_space) * i)), bargraph_Y, bargraph_dX, bargraph_dY, TxPower_table_color[i]);
+    }
+  }
+  else if(index_new < index_old)
+  {
+    //smaller signal
+    for(i=index_new+1; i<=index_old; i++)
+    {
+      //erase blocks from actual to the new index
+      tft.fillRect((bargraph_X + ((bargraph_dX + bargraph_dX_space) * i)), bargraph_Y, bargraph_dX, bargraph_dY, TFT_BLACK);
+    }
+  }
+
+  index_old = index_new;
+}
 
 
 
@@ -799,7 +844,7 @@ char s[32];
 
 
   //draw Smeter first block
-  tft.fillRect((Smeter_X + ((Smeter_dX + Smeter_dX_space) * 0)), Smeter_Y, Smeter_dX, Smeter_dY, Smeter_table_color[0]);
+  //tft.fillRect((bargraph_X + ((bargraph_dX + bargraph_dX_space) * 0)), bargraph_Y, bargraph_dX, bargraph_dY, Smeter_table_color[0]);
 
 
    

@@ -112,9 +112,9 @@
  
 
 //char hmi_o_menu[HMI_NMENUS][8] = {"Tune","Mode","AGC","Pre","VOX"};	// Indexed by hmi_menu  not used - menus done direct in Evaluate()
-char hmi_o_mode[HMI_NUM_OPT_MODE][8] = {"USB","LSB","AM","CW"};			// Indexed by band_vars[hmi_band][HMI_S_MODE]  MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
-char hmi_o_agc [HMI_NUM_OPT_AGC][8] = {"NoAGC","Slow","Fast"};					// Indexed by band_vars[hmi_band][HMI_S_AGC]
-char hmi_o_pre [HMI_NUM_OPT_PRE][8] = {"-30dB","-20dB","-10dB","0dB","+10dB"};	// Indexed by band_vars[hmi_band][HMI_S_PRE]
+char hmi_o_mode[HMI_NUM_OPT_MODE][8] = {"USB","LSB","AM ","CW "};			// Indexed by band_vars[hmi_band][HMI_S_MODE]  MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
+char hmi_o_agc [HMI_NUM_OPT_AGC][8] = {"NoAGC","Slow ","Fast "};					// Indexed by band_vars[hmi_band][HMI_S_AGC]
+char hmi_o_pre [HMI_NUM_OPT_PRE][8] = {"-30dB","-20dB","-10dB","0dB  ","+10dB"};	// Indexed by band_vars[hmi_band][HMI_S_PRE]
 char hmi_o_vox [HMI_NUM_OPT_VOX][8] = {"NoVOX","VOX-L","VOX-M","VOX-H"};		// Indexed by band_vars[hmi_band][HMI_S_VOX]
 #define NoVOX_pos_menu  0   //index for NoVOX option
 char hmi_o_bpf [HMI_NUM_OPT_BPF][8] = {"<2.5","2-6","5-12","10-24","20-40"};
@@ -169,6 +169,7 @@ const uint32_t hmi_minfreq[HMI_NUM_OPT_BPF] = {1000000, 2000000,  5000000, 10000
 #endif
 
 															
+char s[32];   //aux to print to the screen
 
 
 
@@ -210,6 +211,7 @@ uint32_t audio_play_pos = 0;
 #define AUDIO_TIME_MAIN   ((AUDIO_BUF_MAX/FSAMP_AUDIO)*(1000/LOOP_MS))    //160k/16k * 1000/100 = 100
 
 bool tx_enabled = false;
+bool tx_enable_changed = true;
 bool ptt_internal_active = false;    //PTT output = true for vox, mon and mem
 bool ptt_external_active = false;    //external = from mike
 //these inputs will generate the tx_enabled to transmit
@@ -829,10 +831,273 @@ for(;;)
 
 
 
+
+#define x_RT  10      //position for R+smeter and T+power
+#define y_RT  (31-7)
+
+#define x_xGain ((1*X_CHAR1))  //position for fft gain
+#define y_yGain ((3*Y_CHAR1)+8-8)
+
+#define x_plus1  (x_RT+(2*X_CHAR2)) //position for the first +
+#define y_plus1  (y_RT+6)
+
+#define x_plus2  (x_RT+(2*X_CHAR2)+13)  //position for the second +
+#define y_plus2  (y_RT-3)
+
+
+
+
+
+
+
+
+
+/*
+S Meter  	Antenna input
+Reading   uVrms @ 50R
+S9+20	    500
+S9+10	    160
+S9 	       50
+S8 	       25
+S7 	       12,5
+S6 	       6,25
+S5 	       3,125
+S4 	       1,5625
+S3 	       0,78125
+S2 	       0,39063
+S1 	       0,19531
+*/
+//                                             S  1  2  3  4   5   6   7    8    9   9+  9++
+int16_t Smeter_table_level[MAX_Smeter_table] = {  1, 2, 4, 9, 18, 35, 75, 150, 300, 400, 600 };  //audio signal value after filters for each antenna level input
+
+
+
 // SMeter adjust for "-30dB","-20dB","-10dB","0dB","+10dB"
 //                    x22     x8.48   x2.8    x1     x2
-int32_t  smeter_pre_mult[HMI_NUM_OPT_PRE] =  { 353, 136, 46, 1, 2 };  // S level =  (max_a_sample * smeter_pre_mult) >> smeter_pre_shift
-int16_t  smeter_pre_shift[HMI_NUM_OPT_PRE] = {   4,   4,  4, 0, 0 };  // it makes "shift" instead of "division", tries to save processing
+const int32_t  smeter_pre_mult[HMI_NUM_OPT_PRE] =  { 353, 136, 46,  1,  2 };  // S level =  (max_a_sample * smeter_pre_mult) >> smeter_pre_shift
+const int16_t  smeter_pre_shift[HMI_NUM_OPT_PRE] = {   4,   4,  4,  0,  0 };  // it makes "shift" instead of "division", tries to save processing
+int16_t rec_level;
+int16_t rec_level_old = 1;
+
+/*
+    hmi_smeter - writes the S metr value on display
+*/
+void hmi_smeter(void)
+{
+//  static int16_t agc_gain_old = 1;
+  static int16_t fft_gain_old = 0;
+  int16_t Smeter_index_new;
+  static int16_t Smeter_index = 0;  //smeter table index = number of blocks to draw on smeter bar graph
+
+
+/*
+    if(agc_gain_old != agc_gain)
+    {
+      rec_level = AGC_GAIN_MAX - agc_gain;
+      sprintf(s, "%d", rec_level);
+      tft_writexy_(2, TFT_GREEN, TFT_BLACK, 1,2,(uint8_t *)s);
+      agc_gain_old = agc_gain;
+    }
+*/
+    if(smeter_display_time >= MAX_SMETER_DISPLAY_TIME)  //new value ready to display, and avoid to write variable at same time on int
+    {
+      //correcting input ADC value with attenuators
+      max_a_sample = (max_a_sample * smeter_pre_mult[band_vars[hmi_band][HMI_S_PRE]]) >> smeter_pre_shift[band_vars[hmi_band][HMI_S_PRE]];
+
+      //look for smeter table index
+      for(Smeter_index_new=(MAX_Smeter_table-1);  Smeter_index_new>0; Smeter_index_new--)
+      {
+        if(max_a_sample > Smeter_table_level[Smeter_index_new])
+          {
+          break;
+          }
+      }
+      Smeter_bargraph(Smeter_index_new);   
+
+      rec_level = Smeter_index_new + 1;  // S level = index + 1
+
+#ifdef TST_MAX_SMETER_SWR
+      rec_level = 11;
+      rec_level_old = 6;
+            //tft.fillRect(x_plus1, y_plus1, X_CHAR1-1, Y_CHAR1-4, TFT_LIGHTGREY); //TFT_BLACK);
+            //tft.fillRect(x_plus2, y_plus2, X_CHAR1-1, Y_CHAR1-4, TFT_LIGHTGREY); //TFT_BLACK);
+#endif
+
+      if(tx_enable_changed == true)  //if changed tx-rx = display clear
+      {
+        rec_level_old = 0;  //print all
+        fft_gain_old = 0;
+      }
+
+/*
+      rec_level = rec_level_old;
+      if(++contk > 5)
+      {
+        rec_level = rec_level_old + 1;
+        if (rec_level > 11)  rec_level = 1;
+        contk = 0;
+      }
+*/
+#ifdef SMETER_TEST  //used to get the audio level for a RF input signal -> to fill the Smeter_table_level[] 
+      //prints the audio level to display, 
+      sprintf(s, "%3d", max_a_sample);
+      //s[3] = 0;  //remove the low digit
+      tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 1, 5, 3, 5, (uint8_t *)s);   
+#else
+      if(rec_level != rec_level_old)  //try to save some processing if the level is the same
+      {
+        if(rec_level <= 9)  // S1 .. S9
+        {
+          sprintf(s, "%d", rec_level);
+          tft_writexy_plus(2, TFT_GREEN, TFT_BLACK, 0, x_RT+(1*X_CHAR2), 0, y_RT, (uint8_t *)s);
+
+          if(rec_level_old > 9)  //erase the +
+          {
+            //erase the area for the font 1 = font used for "+"
+            tft.fillRect(x_plus1, y_plus1, X_CHAR1-1, Y_CHAR1-4, TFT_BLACK);
+            if(rec_level_old > 10)  //erase the other +
+            {
+            tft.fillRect(x_plus2, y_plus2, X_CHAR1-1, Y_CHAR1-4, TFT_BLACK);
+            }
+          }
+        }
+        else   // S9+ or S9++
+        {
+          if(rec_level_old < 9)  //try to save some processing, if was S9, don't need to write again
+          {
+            tft_writexy_plus(2, TFT_GREEN, TFT_BLACK, 0, x_RT+(1*X_CHAR2), 0, y_RT, (uint8_t *)"9");
+          }
+          if((rec_level > 9) && (rec_level_old < 10))  //try to save some processing if already +
+          {
+            tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 0, x_plus1, 0, y_plus1, (uint8_t *)"+");
+          }
+          if((rec_level == 10) && (rec_level_old == 11))  //erase the second +
+          {
+          tft.fillRect(x_plus2, y_plus2, X_CHAR1-1, Y_CHAR1-4, TFT_BLACK);
+          }
+          if((rec_level == 11) && (rec_level_old < 11))  //try to save some processing if already ++
+          {
+            tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 0, x_plus2, 0, y_plus2, (uint8_t *)"+");
+          }
+        }
+        rec_level_old = rec_level;
+      }
+#endif
+
+      display_a_sample = max_a_sample;  //save the last value printed on display
+      max_a_sample = 0;  //restart the search for big signal
+      smeter_display_time = 0;
+    }
+     
+    if(fft_gain_old != fft_gain)
+    {
+      sprintf(s, "%d ",fft_gain);
+      s[3]=0;
+      tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 0, x_xGain+(1*X_CHAR1), 0, y_yGain, (uint8_t *)s);   
+      fft_gain_old = fft_gain;
+    }
+
+}
+
+/*
+  if(smeter_display_time < MAX_SMETER_DISPLAY_TIME)   //for some time, look for the bigger signal
+  {
+    if(avg_a_sample > max_a_sample)  //bigger than displayed (if the value is bigger, print on display right now)
+    {
+      max_a_sample = avg_a_sample;  //save the bigger audio signal received
+      if(max_a_sample > display_a_sample)  //bigger than displayed (if the value is bigger, print on display right now)
+      {
+        smeter_display_time = MAX_SMETER_DISPLAY_TIME;  //indicate the new (bigger) value is ready to show at display
+      }
+    }
+    else
+    {
+      smeter_display_time++;  //count time
+    }
+  }
+*/
+
+
+#if I2C_Arduino_Pro_Mini == 1    //only used when together with Arduino Pro Mini for relays control (and allow SWR reading)
+
+#define SWR_POW_MAX  10  //number of steps for power on display
+const int16_t  swr_pow[SWR_POW_MAX] = {  20,  40,  60,  80, 100, 120, 140, 160, 180, 200 };   //ADC 160 = 8W measured
+
+/*
+    hmi_swr - reads the swr and put on display
+*/
+void hmi_swr(void)   //read the swr from Arduino Pro Mini I2C
+{
+	static uint8_t i2c_data[3];
+  static uint8_t i2c_data0_old = 0;
+  int16_t ret;
+	int16_t pow;
+
+	ret = i2c_read_blocking(i2c1, I2C_SWR, i2c_data, 3, false);  // get 3 bytes: SWR, FOR and REF
+	if (ret==3)  //number os bytes received  (<0 if no answer from I2C slave)
+  {
+
+    if(tx_enable_changed == true)  //if changed tx-rx = display clear
+    {
+      i2c_data0_old = 0;  //print all
+    }
+
+
+/*
+    //prints the SWR level to display, 
+    sprintf(s, "%d %02x %02x %02x  ", ret, i2c_data[0], i2c_data[1], i2c_data[2]);
+    tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 6, 5, 4, 5, (uint8_t *)s); 
+*/
+    // converts from AD reading to power using swr_pow[] table
+    for(pow=0; pow<SWR_POW_MAX; pow++)
+      if(i2c_data[1] < swr_pow[pow])
+        break;
+    
+#ifdef TST_MAX_SMETER_SWR
+    pow = 12;
+    i2c_data[0] = 0xf9;// S level max = 15.9 = F9
+#endif
+
+    if(pow < 10)
+    {
+      sprintf(s, "%d ", pow);
+    }
+    else
+    {
+      sprintf(s, "%d", pow);
+    }
+    //tft_writexy_(2, TFT_RED, TFT_BLACK, 1,2,(uint8_t *)s);
+    tft_writexy_plus(2, TFT_RED, TFT_BLACK, 0, x_RT+(1*X_CHAR2), 0, y_RT, (uint8_t *)s);
+
+    TxPower_bargraph(pow);
+
+
+    if(i2c_data0_old != i2c_data[0])
+    {
+/*
+      if((i2c_data[0]>>4) < 10)
+      {
+      sprintf(s, " %d.%d", (i2c_data[0]>>4),(i2c_data[0]&0x0f));
+      }
+      else
+      {
+      sprintf(s, "%d.%d", (i2c_data[0]>>4),(i2c_data[0]&0x0f));
+      }
+*/
+      sprintf(s, "%d.%d ", (i2c_data[0]>>4),(i2c_data[0]&0x0f));
+      tft_writexy_plus(1, TFT_RED, TFT_BLACK, 0, x_xGain+(1*X_CHAR1), 0, y_yGain, (uint8_t *)s);  //same position as "x" on RX
+      i2c_data0_old = i2c_data[0];
+    }
+  }
+
+}
+
+#endif
+
+
+
+
+
 //int16_t contk = 0;
 /*
  * Redraw the display, representing current state
@@ -840,18 +1105,12 @@ int16_t  smeter_pre_shift[HMI_NUM_OPT_PRE] = {   4,   4,  4, 0, 0 };  // it make
  */
 void hmi_evaluate(void)   //hmi loop
 {
-	char s[32];
-  int16_t rec_level;
-  static int16_t rec_level_old = 1;
-  
   static uint8_t  band_vars_old[HMI_NMENUS] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };          // Stored last option selection
   static uint32_t hmi_freq_old = 0xff;
   static uint8_t hmi_band_old = 0xff;
   static bool tx_enable_old = true;
   static uint8_t hmi_menu_old = 0xff;
   static uint8_t hmi_menu_opt_display_old = 0xff;
-//  static int16_t agc_gain_old = 1;
-  static int16_t fft_gain_old = 0;
 //  static uint32_t hmi_freq_fft;
 
 #ifdef HMI_debug
@@ -894,8 +1153,8 @@ void hmi_evaluate(void)   //hmi loop
   if(band_vars_old[HMI_S_MODE] != band_vars[hmi_band][HMI_S_MODE])    //mode (SSB AM CW)
   {
     dsp_setmode(band_vars[hmi_band][HMI_S_MODE]);  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
-    sprintf(s, "%s  ", hmi_o_mode[band_vars[hmi_band][HMI_S_MODE]]);
-    tft_writexy_(2, TFT_GREEN, TFT_BLACK, 0,1,(uint8_t *)s);
+//    sprintf(s, "%s  ", hmi_o_mode[band_vars[hmi_band][HMI_S_MODE]]);  //removing LSB to create space for swr on display
+//    tft_writexy_plus(2, TFT_GREEN, TFT_BLACK, 0, 0, 0, 22, (uint8_t *)s);
     display_fft_graf_top();  //scale freqs, mode changes the triangle
     band_vars_old[HMI_S_MODE] = band_vars[hmi_band][HMI_S_MODE];
   }
@@ -950,139 +1209,45 @@ void hmi_evaluate(void)   //hmi loop
   //T or R  (using letters instead of arrow used on original project)
   if(tx_enable_old != tx_enabled)
   {
+    //erase the area for T or R, infos and the bar graph area
+    tft.fillRect(x_RT, y_RT, (6*X_CHAR1), (3*Y_CHAR1), TFT_BLACK);   // TFT_LIGHTGREY);  TFT_BLACK); 
+
     if(tx_enabled == true)
     {
-      //sprintf(s, "T   ");
-      tft_writexy_(2, TFT_RED, TFT_BLACK, 0,2,(uint8_t *)"T   ");
+      //tft.drawRoundRect(x_RT-9, y_RT-8, (6*X_CHAR1)+17, (3*Y_CHAR1)+9, 10, TFT_RED);
+      tft_writexy_plus(2, TFT_RED, TFT_BLACK, 0, x_RT, 0, y_RT, (uint8_t *)"T");
+#if I2C_Arduino_Pro_Mini == 1    //using Arduino Pro Mini for relays control (and allow SWR reading)
+      tft_writexy_plus(1, TFT_RED, TFT_BLACK, 0, x_xGain, 0, y_yGain, (uint8_t *)"#0.0");
+#endif
     }
     else
     {
-      //sprintf(s, "R");
-      tft_writexy_(2, TFT_GREEN, TFT_BLACK, 0,2,(uint8_t *)"R");
-
-      //sprintf(s, "x");
-      tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 4, 9, 3, 5, (uint8_t *)"x");
+      //tft.drawRoundRect(x_RT-9, y_RT-8, (6*X_CHAR1)+17, (3*Y_CHAR1)+9, 10, TFT_GREEN);
+      tft_writexy_plus(2, TFT_GREEN, TFT_BLACK, 0, x_RT, 0, y_RT, (uint8_t *)"R");
+      tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 0, x_xGain, 0, y_yGain, (uint8_t *)"x");
     }
     rec_level_old = rec_level+1;
+
+    tx_enable_changed = true;  //signal to init values at display
 
     tx_enable_old = tx_enabled;
   }
 
 
 
-/*
-  if (tx_enabled == false)  //waterfall only during RX
-  {
-    if (fft_display_graf_new == 1)    //design a new graphic only when a new line is ready from FFT
-    {
-      if(hmi_freq == hmi_freq_fft)
-      {
-        //plot waterfall graphic     
-        display_fft_graf((uint16_t)(hmi_freq/500));  // warefall 110ms
-      }
-      else
-      {
-        //plot waterfall graphic     
-        display_fft_graf((uint16_t)(hmi_freq_fft/500));  // warefall 110ms
-        hmi_freq_fft = hmi_freq;
-      }
 
-      fft_display_graf_new = 0;  
-      fft_samples_ready = 2;  //ready to start new sample collect
-    }
+  if(tx_enabled == false)  /* RX */
+  {
+    //Smeter rec level
+    hmi_smeter();  //during RX, print Smeter on display
   }
-
-*/
-
-
-
-
-   
-  //Smeter rec level
-  if(tx_enabled == false)
+  else  /* TX */
   {
-/*
-    if(agc_gain_old != agc_gain)
-    {
-      rec_level = AGC_GAIN_MAX - agc_gain;
-      sprintf(s, "%d", rec_level);
-      tft_writexy_(2, TFT_GREEN, TFT_BLACK, 1,2,(uint8_t *)s);
-      agc_gain_old = agc_gain;
-    }
-*/
-    if(smeter_display_time >= MAX_SMETER_DISPLAY_TIME)  //new value ready to display, and avoid to write variable at same time on int
-    {
-      //correcting input ADC value with attenuators
-      max_a_sample = (max_a_sample * smeter_pre_mult[band_vars[hmi_band][HMI_S_PRE]]) >> smeter_pre_shift[band_vars[hmi_band][HMI_S_PRE]];
-      rec_level = Smeter(max_a_sample);
-/*
-      rec_level = rec_level_old;
-      if(++contk > 5)
-      {
-        rec_level = rec_level_old + 1;
-        if (rec_level > 11)  rec_level = 1;
-        contk = 0;
-      }
-*/
-#ifdef SMETER_TEST  //used to get the audio level for a RF input signal -> to fill the Smeter_table_level[] 
-      //prints the audio level to display, 
-      sprintf(s, "%3d", max_a_sample);
-      //s[3] = 0;  //remove the low digit
-      tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 1, 5, 3, 5, (uint8_t *)s);   
-#else
-      if(rec_level != rec_level_old)  //try to save some processing if the level is the same
-      {
-        if(rec_level <= 9)  // S1 .. S9
-        {
-          sprintf(s, "%d", rec_level);
-          tft_writexy_(2, TFT_GREEN, TFT_BLACK, 1,2,(uint8_t *)s);
-
-          if(rec_level_old > 9)  //erase the +
-          {
-            //erase the area for the font 1 = font used for "+"
-            tft.fillRect((3*X_CHAR1)+0, (3*Y_CHAR1)+5, X_CHAR1, Y_CHAR1, TFT_BLACK);
-            if(rec_level_old > 10)  //erase the other +
-            {
-            tft.fillRect((3*X_CHAR1)+8, (2*Y_CHAR1)+14, X_CHAR1, Y_CHAR1, TFT_BLACK);
-            }
-          }
-        }
-        else   // S9+ or S9++
-        {
-          if(rec_level_old < 9)  //try to save some processing, if was S9, don't need to write again
-          {
-            tft_writexy_(2, TFT_GREEN, TFT_BLACK, 1,2,(uint8_t *)"9");
-          }
-          if((rec_level > 9) && (rec_level_old < 10))  //try to save some processing if already +
-          {
-            tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 3, 0, 3, 5, (uint8_t *)"+");
-          }
-          if((rec_level == 10) && (rec_level_old == 11))  //erase the second +
-          {
-          tft.fillRect((3*X_CHAR1)+8, (2*Y_CHAR1)+14, X_CHAR1, Y_CHAR1, TFT_BLACK);
-          }
-          if((rec_level == 11) && (rec_level_old < 11))  //try to save some processing if already ++
-          {
-            tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 3, 8, 2, 14, (uint8_t *)"+");
-          }
-        }
-        rec_level_old = rec_level;
-      }
+#if I2C_Arduino_Pro_Mini == 1    //using Arduino Pro Mini for relays control (and allow SWR reading)
+    hmi_swr();  //during TX, read the SWR, and print it on display
 #endif
-
-      display_a_sample = max_a_sample;  //save the last value printed on display
-      max_a_sample = 0;  //restart the search for big signal
-      smeter_display_time = 0;
-    }
-     
-    if(fft_gain_old != fft_gain)
-    {
-      sprintf(s, "%d  ",fft_gain);
-      s[3]=0;
-      tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 5, 9, 3, 5, (uint8_t *)s);   
-      fft_gain_old = fft_gain;
-    }       
   }
+  tx_enable_changed = false;  //signal to init values at display - already used
 
 
   // if menu changed, print new value
@@ -1099,7 +1264,7 @@ void hmi_evaluate(void)   //hmi loop
   	switch (hmi_menu)
   	{
   	case HMI_S_TUNE:
-  		sprintf(s, "%s   %s   %s        ", hmi_o_vox[band_vars[hmi_band][HMI_S_VOX]], hmi_o_agc[band_vars[hmi_band][HMI_S_AGC]], hmi_o_pre[band_vars[hmi_band][HMI_S_PRE]]);
+  		sprintf(s, "%s  %s  %s %s ", hmi_o_mode[band_vars[hmi_band][HMI_S_MODE]], hmi_o_vox[band_vars[hmi_band][HMI_S_VOX]], hmi_o_agc[band_vars[hmi_band][HMI_S_AGC]], hmi_o_pre[band_vars[hmi_band][HMI_S_PRE]]);
       tft_writexy_(1, TFT_BLUE, TFT_BLACK,0,0,(uint8_t *)s);  
       //cursor
       tft_cursor_plus(3, TFT_YELLOW, 2+(hmi_menu_opt_display>4?6:hmi_menu_opt_display), 0, 2, 20);    

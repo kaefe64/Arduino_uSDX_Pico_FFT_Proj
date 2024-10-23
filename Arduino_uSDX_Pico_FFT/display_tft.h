@@ -117,7 +117,10 @@ void tft_cursor(uint16_t font, uint16_t color, uint8_t x, uint8_t y);
 void tft_cursor_plus(uint16_t font, uint16_t color, uint8_t x, uint8_t x_plus, uint8_t y, uint8_t y_plus);
 uint16_t tft_color565(uint16_t r, uint16_t g, uint16_t b);
 
-int16_t Smeter(int16_t v); 
+// Smeter barr graph definitions
+#define MAX_Smeter_table  11   // S1, S2..   S9, S9+  S9++  = 11 steps
+void Smeter_bargraph(int16_t index_new); 
+void TxPower_bargraph(int16_t index_new);
 
 void display_fft_graf(uint16_t freq);
 void display_fft_graf_top(void);

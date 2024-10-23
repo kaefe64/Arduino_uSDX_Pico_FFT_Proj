@@ -114,9 +114,12 @@ extern volatile uint16_t fft_gain;
 
 extern volatile uint16_t dac_iq, dac_audio;
 
+//extern volatile uint32_t hmi_freq_fft;
+
 #define FIFO_START_FFT  10
 #define FIFO_FFT_READY  20
 #define FIFO_IQ_SAMPLE  30
+
 
 
 void dsp_init();

@@ -126,8 +126,13 @@ Compilation error: 'Wire1' was not declared in this scope
 //#define TX_METHOD    PHASE_AMPLITUDE    // DO NOT USE - is not ready - used for Class E RF amplifier - see description at: uSDX_TX_PhaseAmpl.cpp
 
 --------------------------------------------------------------
->> I made a #define PY2KLA_setup 1 at uSDR.h  to set my configuration on other files
+>> Set if using Arduino Pro Mini instead of PCF8574 to control the filter relays at relay.h
+#define I2C_Arduino_Pro_Mini  1    //=1 when I2C BPF and Atten is commanded with Arduino Pro Mini (allow SWR reading)
+
+--------------------------------------------------------------
+>> I made a #define PY2KLA_setup 1 at uSDR.h  to set my configuration on other files  (you can search for PY2KLA_setup on all files to look for configurations)
 Comment out this #define and set your own configuration
+
 
 >> Have fun
 >> PY2KLA/PY4LL KLaus F.

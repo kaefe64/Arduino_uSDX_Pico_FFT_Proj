@@ -131,6 +131,7 @@ extern uint8_t  band_vars[HMI_NUM_OPT_BPF][BAND_VARS_SIZE];
 extern uint32_t hmi_freq;  
 extern uint8_t  hmi_band;	
 extern bool tx_enabled;
+extern bool tx_enable_changed;
 extern bool ptt_internal_active;    //PTT output = true for vox, mon and mem
 extern bool ptt_external_active;
 extern bool ptt_vox_active;	
@@ -158,6 +159,10 @@ void Setup_Band(uint8_t band);
 void hmi_init0(void);
 void hmi_init(void);
 void hmi_evaluate(void);
+
+
+//#define TST_MAX_SMETER_SWR  1
+
 
 
 #ifdef __cplusplus
