@@ -217,7 +217,7 @@ It starts to save/play when pressing < Enter >, and will stop after 10s or when 
 ## Last changes and notes:<br>
 
 ### Oct23 2024
-- New changes related to RX S-Meter and TX Power/SWR on display. They are valid only when using Arduino Pro Mini to control the filter relays. Arduino Pro Mini allows to measure the Forward and Reverse values from SWR board. The Pico has no extra ADC for this. I included the values read from SWR board on display.<br>
+- New changes related to RX S-Meter and TX Power/SWR on display. The TX Power/SWR is valid only when using Arduino Pro Mini to control the filter relays. Arduino Pro Mini allows to measure the Forward and Reverse values from SWR board. The Pico has no extra ADC for this. I included the values read from SWR board on display.<br>
 
 ![Display SWR Power](Pictures/Display_SWR_Power.png)
 <br>
