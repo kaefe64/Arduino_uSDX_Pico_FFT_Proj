@@ -174,7 +174,7 @@ Enter key = to confirm the menu item value<br>
 
 
 
-##Application Menu Description<br>
+## Application Menu Description<br>
 
 The menu uses the first line on display to show the status and the options.<br><br>
 
