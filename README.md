@@ -179,7 +179,7 @@ Enter key = to confirm the menu item value<br>
 The menu uses the first line on display to show the status and the options.<br><br>
 
 ### Menu TUNE:<br>
-Menu position used operate the radio on normal condition. It shows the actual values for the menus: VOX, AGC and Pre.<br>
+Menu position used operate the radio on normal condition. It shows the actual values for the menus: Mode, VOX, AGC and Pre.<br>
 
 ### Menu Mode:<br>
 Options: "USB","LSB","AM","CW"<br>
