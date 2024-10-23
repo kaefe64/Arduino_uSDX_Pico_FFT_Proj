@@ -8,9 +8,9 @@
 This project is a QSD/QSE Software Defined HF Transceiver (SDR), 5 Band, Low Power, based on  Arjan te Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico.<br>
 Since than, Arjan made some changes on his code, so, to clarify, I started this project based on Arjan's version https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/package/CODEv2.zip from 2021 with documentation at https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/doc/uSDR%20-%20v2.02.pdf .
 
-My intention was to include a Waterfall or Panadapter to the Arjan's uSDR-Pico project, for this, I included an ILI9341 240x320 2.4" TFT display, without touch, and also, changed the software to generate the Waterfall.
+My intention was to include a Waterfall or Panadapter to the Arjan's uSDR-Pico project. For this, I included an ILI9341 240x320 2.4" TFT display, without touch, and also, changed the software to generate the Waterfall.
 
-Initially, I used Visual Studio, but after some considerations, I ported all code to Arduino IDE. So, to compile and run this code you need the Arduino IDE installed for a Raspberry Pi Pico project (see "Arduino IDE setup and notes:" below).
+Initially, I used Visual Studio, like the original project, but after some considerations, I ported all code to Arduino IDE. So, to compile and run this code you need the Arduino IDE installed for a Raspberry Pi Pico project (see "Arduino IDE setup and notes:" below).
 
 I also, chose not to change the original software as much as possible, and focused on the Waterfall implementation, mostly in the dsp.c.
 
@@ -168,12 +168,69 @@ Right key = to move between the menu items<br>
 Encoder = to change menu item value<br>
 Enter key = to confirm the menu item value<br>
 <br>
-
 <br>
 <br>
 
+
+
+
+##Application Menu Description<br>
+
+The menu uses the first line on display to show the status and the options.<br><br>
+
+### Menu TUNE:<br>
+Menu position used operate the radio on normal condition. It shows the actual values for the menus: VOX, AGC and Pre.<br>
+
+### Menu Mode:<br>
+Options: "USB","LSB","AM","CW"<br>
+Define the modulation mode used for transmition and reception.<br>
+
+### Menu AGC:<br>
+Options:  "NoAGC","Slow","Fast"<br>
+Define the Automatic Gain Control mode of actuation. (It needs improvement)<br>
+
+### Menu Pre:<br>
+Options:  "-30dB","-20dB","-10dB","0dB","+10dB"<br>
+Define the use of the attenuators and pre-amplifier on reception. It uses the relay board to switch between the options.<br>
+
+### Menu VOX:<br>
+Options:  "NoVOX","VOX-L","VOX-M","VOX-H"<br>
+Defines de use of the VOX feature. (It needs improvement)<br>
+
+### Menu Band:<br>
+Options:  "<2.5","2-6","5-12","10-24","20-40"  MHz<br>
+Defines the filter used for RX and TX, and consequently the frequency band. It uses the relay board to switch between the options.<br>
+
+### Menu Memory:<br>
+Options:  "Save"<br>
+It saves the actual band setup on flash memory, so when we come back to this band after power on, it will start with the setup saved. The last band saved will be the selected band used after power on.<br>
+
+### Menu Audio:<br>
+Options:  "Rec from TX", "Rec from RX", "Play to TX", "Play to Speaker"<br>
+It enables to store 10s max. of audio from the RX or TX (= microphone), and also play it to speaker or to TX.<br>
+It starts to save/play when pressing <Enter>, and will stop after 10s or when pressing <Escape>.<br>
+
+<br>
+<br>
+<br>
 
 ## Last changes and notes:<br>
+
+### Oct23 2024
+- New changes related to RX S-Meter and TX Power/SWR on display. They are valid only when using Arduino Pro Mini to control the filter relays. Arduino Pro Mini allows to measure the Forward and Reverse values from SWR board. The Pico has no extra ADC for this. I included the values read from SWR board on display.<br>
+
+![Display SWR Power](Pictures/Display_SWR_Power.png)
+<br>
+
+- There is a <br>
+ #define I2C_Arduino_Pro_Mini  1    //=1 when I2C BPF and Atten is commanded with Arduino Pro Mini (allow SWR reading)<br>
+on relay.h to define if the Arduino Pro Mini is part of the project.<br>
+- There is a table swr_pow[] on hmi.cpp to make the correlation from the ADC forward power measured and the value showed at display.<br>
+- There is a table Smeter_table_level[] on hmi.cpp to make the correlation from the ADC I and Q audio level measured and the value showed at display.<br>
+- Corrections on Arduino Pro Mini I2C routines.<br>
+- I included here a short description of the menus: "Application Menu Description".<br>
+- Just to remember, there is a "Discussions" folder on the Github Project site (look above) to allow comments about the project, as the ucx groups.io forum could not be the right place for it.<br>
+(https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj/discussions)<br>
 
 ### Ago20 2024
 - It will move the Waterfall in block (all lines) when changing the frequency (instead of moving only the last line received).<br>
