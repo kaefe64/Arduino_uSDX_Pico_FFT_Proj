@@ -40,7 +40,7 @@ static volatile uint8_t twi_slarw;
 static volatile uint8_t twi_sendStop;			// should the transaction end with a stop
 static volatile uint8_t twi_inRepStart;			// in the middle of a repeated start
 
-static void (*twi_onSlaveTransmit)(void);
+static void (*twi_onSlaveTransmit)(uint8_t);
 static void (*twi_onSlaveReceive)(uint8_t, uint8_t*, int);
 
 static uint8_t twi_masterBuffer[TWI_BUFFER_LENGTH];
@@ -337,7 +337,7 @@ void twi_attachSlaveRxEvent( void (*function)(uint8_t, uint8_t*, int) )
  * Input    function: callback function to use
  * Output   none
  */
-void twi_attachSlaveTxEvent( void (*function)(void) )
+void twi_attachSlaveTxEvent( void (*function)(uint8_t) )
 {
   twi_onSlaveTransmit = function;
 }
@@ -521,9 +521,10 @@ ISR(TWI_vect)
       twi_txBufferIndex = 0;
       // set tx buffer length to be zero, to verify if user changes it
       twi_txBufferLength = 0;
+      twi_slarw = TWDR;
       // request for txBuffer to be filled and length to be set
       // note: user must call twi_transmit(bytes, length) to do this
-      twi_onSlaveTransmit();
+      twi_onSlaveTransmit(twi_slarw >> 1);
       // if they didn't change buffer & length, initialize it
       if(0 == twi_txBufferLength){
         twi_txBufferLength = 1;

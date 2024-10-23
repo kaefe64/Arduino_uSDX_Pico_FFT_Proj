@@ -42,7 +42,7 @@ class TwoWire : public Stream
     static uint8_t transmitting;
     static void (*user_onRequest)(void);
     static void (*user_onReceive)(int);
-    static void onRequestService(void);
+    static void onRequestService(uint8_t);
     static void onReceiveService(uint8_t, uint8_t*, int);
   public:
     TwoWire();

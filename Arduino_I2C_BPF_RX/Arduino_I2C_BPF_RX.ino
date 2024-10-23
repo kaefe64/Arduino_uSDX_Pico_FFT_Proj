@@ -41,8 +41,8 @@ https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj
 
 
 
-/* BPF write */
-#define I2C_BPF		(0x20)	//0x20 write
+/* I2C BPF = Band Pass Filters Relays  */
+#define I2C_BPF		      0x20
 #define REL_LPF2_pin		2   //160MHz
 #define REL_BPF6_pin		3   //80MHz
 #define REL_BPF12_pin		4   //40MHz
@@ -56,8 +56,8 @@ https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj
 #define REL_BPF24_val		0x08
 #define REL_BPF40_val		0x10
 
-/* RX write */
-#define I2C_RX 		(0x21)	//0x21 write
+/* I2C RX = Attenuators & LNA Relays */
+#define I2C_RX 		      0x21
 #define REL_ATT_20_pin	9
 #define REL_ATT_10_pin	8
 #define REL_PRE_10_pin	7
@@ -70,10 +70,8 @@ https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj
 #define REL_PRE_10_val	0x04
 #define REL_PRE_00_val	0x00
 
-/* SWR read */
-#define I2C_SWR 	    	0x20   // read (use the same I2C_BPF address to make easy to build the multi I2C mask)
-#define I2C_SWR_FOR 		0x21   // read
-#define I2C_SWR_REF 		0x22   // read
+/* I2C SWR read */
+#define I2C_SWR 	    	  0x22  // read 3 bytes = SWR, FOR and REF
 #define vForwardPin       A0    // select the input pin for the swr analog reading
 #define vReflectedPin     A1    // select the input pin for the swr analog reading
 #define VMIN              20    // min forward AD value for swr
@@ -81,10 +79,11 @@ https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj
 #define SWR_MIN           (1 * SWR_BASE10)    // SWR = 1.0
 #define SWR_MAX           ((15 * SWR_BASE10)+(SWR_BASE10-1))  // byte max value, SWR max = 15.9
 
-uint8_t swr_8bits, swr_for, swr_ref;  //swr info to send to I2C master
+uint8_t SWR[3];  //save swr info to send to I2C master = swr, forward and reflected
 
-#define I2C_ADDR (I2C_BPF | I2C_RX)
-#define I2C_MASK ((I2C_BPF | I2C_RX | I2C_SWR_REF) ^ (I2C_BPF & I2C_RX & I2C_SWR_REF))  /* xor */
+#define I2C_TWAR (I2C_BPF | I2C_RX | I2C_SWR)  // TWAR = main mask address = 0010 0011
+#define I2C_TWAMR ((I2C_BPF | I2C_RX | I2C_SWR) ^ (I2C_BPF & I2C_RX & I2C_SWR))  // xor = 0000 0011 ->  it receives addresses 0010 00XX  ->  from 0x20 to 0x23
+// TWAMR = on bit set, accept any value for the address bit received
 
 
 
@@ -93,15 +92,15 @@ uint8_t swr_8bits, swr_for, swr_ref;  //swr info to send to I2C master
 
 uint8_t RX_Relays=0, RX_Relays_old=0xff;
 uint8_t BPF_Relays=0, BPF_Relays_old=0xff;
-uint8_t I2C_Data;
 uint8_t rec=0, I2C_Address;
 const uint8_t REL_BPF_val[REL_BPF_val_num] = {REL_LPF2_val, REL_BPF6_val, REL_BPF12_val, REL_BPF24_val, REL_BPF40_val};
 const uint8_t REL_ATT_val[REL_ATT_val_num] = {REL_PRE_10_val, REL_ATT_30_val, REL_ATT_20_val, REL_ATT_10_val, REL_ATT_00_val};
+uint8_t LastAddress;  //just for debug
 
 
 
 unsigned long nextMillis;
-#define LOOP_PERIOD_MILLIS  500
+#define LOOP_PERIOD_MILLIS  100
 
 
 /*****************************************************************************************/
@@ -146,7 +145,7 @@ void setup()
   pinMode(vForwardPin, INPUT);
   pinMode(vReflectedPin, INPUT);
 
-  Wire.begin(I2C_ADDR, I2C_MASK);       // base address for all slaves running here (valid only for ATmega328P Arduinos)
+  Wire.begin(I2C_TWAR, I2C_TWAMR);       // base address for all slaves running here (valid only for ATmega328P Arduinos)
   Wire.onRequest(requestEvent);  // register callback function for I2C = master read
   Wire.onReceive(receiveEvent);  // register callback function for I2C = master write
 
@@ -160,17 +159,20 @@ void setup()
 /*****************************************************************************************/
 void requestEvent (){    // master read = request data from slave
   switch (Wire.getLastAddress()) {   // address from last byte on the bus
+    case (I2C_BPF):
+      Wire.write(BPF_Relays);   // send byte relays state
+      LastAddress = I2C_BPF;
+      break;
+
+    case (I2C_RX):
+      Wire.write(RX_Relays);   // send byte relays state
+      LastAddress = I2C_RX;
+      break;
+
     case (I2C_SWR):
-      Wire.write(swr_8bits);   // send back 8bits value
-      //Wire.write((byte *)&swr, 2);   //send 2 bytes
-      break;
-
-    case (I2C_SWR_FOR):
-      Wire.write(swr_for);   // send back 8bits value
-      break;
-
-    case (I2C_SWR_REF):
-      Wire.write(swr_ref);   // send back 8bits value
+      //Wire.write(SWR[0]); 
+      Wire.write(SWR, 3);   // send back 3 bytes
+      LastAddress = I2C_SWR;
       break;
 
     default:
@@ -184,10 +186,12 @@ void receiveEvent(int howManyBytesReceived) {   // master write = send data to s
   switch (Wire.getLastAddress()) {   // address from last byte on the bus
     case (I2C_BPF):
       BPF_Relays = Wire.read();   // receive byte
+      LastAddress = I2C_BPF;
       break;
 
     case (I2C_RX):
       RX_Relays = Wire.read();   // receive byte
+      LastAddress = I2C_RX;
       break;
 
     default:
@@ -305,25 +309,44 @@ void Set_RX_Relays() {
 }
 
 
+	char s[64];
 
 
 /*****************************************************************************************/
 void SWR_read() 
 {
   uint16_t vForward, vForward0;
-  static uint16_t  vForward1;  //last AD reading
+  static uint16_t  vForward1=1;  //last AD reading
   uint16_t vReflected, vReflected0;
-  static uint16_t vReflected1;  //last AD reading
+  static uint16_t vReflected1=1;  //last AD reading
   uint16_t swr, swr_unid, swr_dec;
   
   /* read the AD for SWR */
   vForward0 = analogRead(vForwardPin);      //actual value
   vForward = (vForward0 + vForward1) >> 1;   //average with last value
-  vForward1 = vForward0;                //save last value
     
   vReflected0 = analogRead(vReflectedPin);  //actual value
   vReflected = (vReflected0 + vReflected1) >> 1;   //average with last value
-  vReflected1 = vReflected0;                //save last value
+
+  //vForward = 100;
+  //vReflected = 10;
+  if((vForward0 != vForward1) ||
+     (vReflected0 != vReflected1))
+  {
+/*
+    Serial.print("ADC   for0= ");  
+    Serial.print(vForward0);
+    Serial.print("   ref0= ");
+    Serial.println(vReflected0);
+*/
+    sprintf(s, "ADC   for0= %02x   ref0= %02x", vForward0, vReflected0);
+    Serial.println(s);
+  }
+
+  vForward1 = vForward0;                //save last value for average
+  vReflected1 = vReflected0;            //save last value for average
+
+
 
   if(vForward < VMIN)
   {
@@ -348,20 +371,28 @@ void SWR_read()
   if(swr_unid > 15) swr_unid = 15;
   swr_dec = swr%SWR_BASE10;   //decimal part
   if(swr_dec > 9) swr_dec = 9;  //double check, just in case SWR_BASE10 changed
-  swr_8bits = (swr_unid << 4) + swr_dec;
-  swr_for = vForward >> 2;  //10 bits AD to 8 bits
-  swr_ref = vReflected >> 2;
+  SWR[0] = (swr_unid << 4) + swr_dec;
+  SWR[1] = vForward >> 2;  //10 bits AD to 8 bits
+  SWR[2] = vReflected >> 2;
 
   if(vForward > 0)
     {
+/*
     Serial.print("SWR  For= ");  
-    Serial.print(vForward);
+    Serial.print(SWR[1]);
     Serial.print("   Ref= ");  
-    Serial.print(vReflected);
+    Serial.print(SWR[2]);
     Serial.print("   swr= ");  
-    Serial.print(swr_8bits>>4);  //swr_unid
-    Serial.print('.');
-    Serial.println(swr_8bits&0x0f);   //swr_dec
+    Serial.print(SWR[0]>>4);  //swr_unid
+    Serial.print(".");
+    Serial.println(SWR[0]&0x0f);   //swr_dec
+*/
+    sprintf(s, "SWR     swr= %d.%d   For= %02x   Ref= %02x", SWR[0]>>4, SWR[0]&0x0f, SWR[1], SWR[2]);
+    Serial.println(s);
+    }
+  else
+    {
+      SWR[0] = 0; // the min SWR when tx is 0x10 = 1.0, if not TX, SWR = 0.0 (for debug)
     }
 }
 
@@ -424,8 +455,6 @@ return retValue;
 
 /*****************************************************************************************/
 void loop() {
- 
-
 
   if(InitCheck() == true)  /* it runs a test sequence after reset, true means ready for normal processing */
   {  
@@ -434,9 +463,17 @@ void loop() {
     /**************************/  
     digitalWrite(ledPin, 1);
 
-
     SWR_read();  /* read the ADC for SWR calculation */
 
+
+/*
+    if(LastAddress != 0)
+    {
+      Serial.print('_');
+      Serial.print(LastAddress); 
+      LastAddress = 0;
+    }
+*/
 
     digitalWrite(ledPin, 0);
 

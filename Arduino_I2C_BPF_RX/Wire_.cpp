@@ -273,6 +273,7 @@ void TwoWire::flush(void)
 
 uint8_t TwoWire::getLastAddress()
 {
+  //return TWDR >> 1; // retrieve address from last byte on the bus
   return rxAddress; 
 };
 
@@ -303,8 +304,9 @@ void TwoWire::onReceiveService(uint8_t addr, uint8_t* inBytes, int numBytes)
 }
 
 // behind the scenes function that is called when data is requested
-void TwoWire::onRequestService(void)
+void TwoWire::onRequestService(uint8_t addr)
 {
+  rxAddress = addr;
   // don't bother if user hasn't registered a callback
   if(!user_onRequest){
     return;
