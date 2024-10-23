@@ -208,7 +208,7 @@ It saves the actual band setup on flash memory, so when we come back to this ban
 ### Menu Audio:<br>
 Options:  "Rec from TX", "Rec from RX", "Play to TX", "Play to Speaker"<br>
 It enables to store 10s max. of audio from the RX or TX (= microphone), and also play it to speaker or to TX.<br>
-It starts to save/play when pressing <Enter>, and will stop after 10s or when pressing <Escape>.<br>
+It starts to save/play when pressing < Enter >, and will stop after 10s or when pressing < Escape >.<br>
 
 <br>
 <br>
