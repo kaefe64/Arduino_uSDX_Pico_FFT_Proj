@@ -217,7 +217,7 @@ It starts to save/play when pressing < Enter >, and will stop after 10s or when 
 ## Last changes and notes:<br>
 
 ### Oct28 2024
-- Including a CW Morse Decoder. It will try to interpret the CW sound and translate it to letters on display. To enable the decoder you just need to select CW on MODE menu and tune to the highest sound level CW reception. It is still in testing.<br>
+- Including a CW Morse Decoder. It will try to interpret the CW sound and translate it to letters on display. To enable the decoder you just need to select CW on MODE menu and tune to the highest sound level CW reception. It is still in testing (be patient).<br>
 
 ![Display SWR Power](Pictures/CwDecoder_display_area.png)
 <br>

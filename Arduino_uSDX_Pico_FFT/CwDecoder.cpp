@@ -188,7 +188,6 @@ void CwDecoder_Exit(void)
 void new_dot(void)
 {
   //include the dot on the letter received
-  cw_letter >>= 1;
   //including 0 = dot
   cw_letter_pos++;
   //use the counter_high to adjust the tdot
@@ -202,8 +201,7 @@ void new_dot(void)
 void new_dash(void)
 {
   //include the dash on the letter received
-  cw_letter >>= 1;
-  cw_letter |= 0x80; //including 1 = dash
+  cw_letter |= (0x8000>>cw_letter_pos); //including 1 = dash
   cw_letter_pos++;
   //use the counter_high to adjust the tdot->tdash
   //to_display('-');
@@ -278,6 +276,9 @@ void new_space_letters(void)
         to_display('#');  // don't know
       break;
   }
+
+  cw_letter = 0;
+  cw_letter_pos = 0;
 }
 
 
