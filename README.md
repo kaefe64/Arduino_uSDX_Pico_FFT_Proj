@@ -216,6 +216,12 @@ It starts to save/play when pressing < Enter >, and will stop after 10s or when 
 
 ## Last changes and notes:<br>
 
+### Oct28 2024
+- Including a CW Morse Decoder. It will try to interpret the CW sound and translate it to letters on display. To enable the decoder you just need to select CW on MODE menu and tune to the highest sound level CW reception. It is still in testing.<br>
+
+![Display SWR Power](Pictures/CwDecoder_display_area.png)
+<br>
+
 ### Oct23 2024
 - New changes related to RX S-Meter and TX Power/SWR on display. The TX Power/SWR is valid only when using Arduino Pro Mini to control the filter relays. Arduino Pro Mini allows to measure the Forward and Reverse values from SWR board. The Pico has no extra ADC for this. I included the values read from SWR board on display.<br>
 

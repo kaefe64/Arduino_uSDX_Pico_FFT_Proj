@@ -44,6 +44,7 @@
 #include "display_tft.h"
 #include "pico/multicore.h"
 #include "Dflash.h"
+#include "CwDecoder.h"
 
 #if TX_METHOD == PHASE_AMPLITUDE    // uSDX TX method used for Class E RF amplifier
 #include "uSDX_I2C.h"
@@ -1727,6 +1728,7 @@ void core0_irq_handler()
 //  int16_t out_sample_;
 //  int16_t out_sobe_;
 
+
 /************************************************************************************** 
  * CORE0: inside DMA IRQ 
  * rx
@@ -1904,6 +1906,32 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
       smeter_display_time++;  //count time
     }
   }
+
+
+
+  // CW Decoder - save the audio level to analize on hmi.cpp
+  if(dsp_mode == MODE_CW)
+  {
+    cw_rx_avg += avg_a_sample;  //average 40 samples = ((1/16kHz) * 40) = 2.5ms
+    if(++cw_rx_cnt >= MAX_CW_RX_CNT)  // 40 samples to average
+    {
+      cw_rx[cw_rx_index][cw_rx_array] = (cw_rx_avg >> 6); // save the 2.5ms average on array for further analysis  (40 samples / 64 - I don't like to make a division)
+      cw_rx_avg = 0;
+      cw_rx_cnt = 0;
+
+      if(++cw_rx_index >= MAX_CW_RX_INDEX)  // 40 averages of 2.5ms saved on array = 100ms
+      {
+        if(cw_rx_array==0)  // 0 or 1   change the array  (one array is to fill, another to analize/show on display)
+          { cw_rx_array = 1; }
+        else
+          { cw_rx_array = 0; }
+
+        cw_rx_index = 0;
+      }
+    }
+  }
+
+
 
 
   // apply AGC after filters

@@ -43,12 +43,12 @@
 #include "si5351.h"
 #include "dsp.h"
 #include "hmi.h"
-#include "dsp.h"
 #include "pico/multicore.h"
 #include "SPI.h"
 #include "TFT_eSPI.h"
 #include "display_tft.h"
 #include "Dflash.h"
+#include "CwDecoder.h"
 
 
 
@@ -770,6 +770,8 @@ void hmi_init0(void)
   Serialx.println("hmi_menu  " + String(hmi_menu));
   Serialx.println("hmi_menu_opt_display " + String(hmi_menu_opt_display));
 #endif	
+
+  CwDecoder_InicTable();   //fill table on running time
 }
 
 
@@ -826,7 +828,6 @@ for(;;)
 	// Set callback, one for all GPIO, not sure about correctness!
 	gpio_set_irq_enabled_with_callback(GP_ENC_A, GPIO_IRQ_EDGE_ALL, true, hmi_callback);
 
-
 }
 
 
@@ -879,9 +880,9 @@ const int16_t  smeter_pre_shift[HMI_NUM_OPT_PRE] = {   4,   4,  4,  0,  0 };  //
 int16_t rec_level;
 int16_t rec_level_old = 1;
 
-/*
+/**************************************************************************************
     hmi_smeter - writes the S metr value on display
-*/
+**************************************************************************************/
 void hmi_smeter(void)
 {
 //  static int16_t agc_gain_old = 1;
@@ -991,7 +992,7 @@ void hmi_smeter(void)
      
     if(fft_gain_old != fft_gain)
     {
-      sprintf(s, "%d ",fft_gain);
+      sprintf(s, "%d  ",fft_gain);
       s[3]=0;
       tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 0, x_xGain+(1*X_CHAR1), 0, y_yGain, (uint8_t *)s);   
       fft_gain_old = fft_gain;
@@ -1018,15 +1019,56 @@ void hmi_smeter(void)
 */
 
 
+
+
+
+
 #if I2C_Arduino_Pro_Mini == 1    //only used when together with Arduino Pro Mini for relays control (and allow SWR reading)
 
-#define SWR_POW_MAX  10  //number of steps for power on display
-const int16_t  swr_pow[SWR_POW_MAX] = {  20,  40,  60,  80, 100, 120, 140, 160, 180, 200 };   //ADC 160 = 8W measured
 
-/*
-    hmi_swr - reads the swr and put on display
-*/
-void hmi_swr(void)   //read the swr from Arduino Pro Mini I2C
+#define TIME_SHOW   6   // x 100ms = "some time"
+
+/**************************************************************************************
+    hmi_power_show - used to show the recent bigger power value on the display for "some time"
+**************************************************************************************/
+bool hmi_power_show(int16_t pow) 
+{
+  static int16_t pow_big;
+  static int16_t time = 0;
+  bool ret;
+
+  if(++time > TIME_SHOW)   //count every 100ms
+  {
+    time = 0;
+    pow_big = 0;
+    ret = true;  // indicates to show the actual value on display  as the "old" big value already stayed at display for "some time"
+  }
+  else
+  {
+    if(pow > pow_big)
+    {
+      pow_big = pow;   //holds the new bigger value
+      time = 0;    // start the timer to keep the value some time
+      ret = true;  // indicates to show the actual value on display right now  as it is bigger
+    }
+    else
+    {
+      ret = false;  // indicates to keep the value already showed
+    }
+  }
+  return ret;
+}
+
+
+#define SWR_POW_MAX  10  //max power in watts on display (same number of ADC values at swr_pow table)
+#define SWR_BARGRAPH_MAX  10  //number of steps for power on bragraph
+const int16_t  power_adc[SWR_POW_MAX] = {  20,  40,  60,  80, 100, 120, 140, 160, 180, 200 };   //ADC 160 = 8W measured (values not calibraterd)
+
+
+/**************************************************************************************
+    hmi_power_swr - reads the swr and put on display
+**************************************************************************************/
+void hmi_power_swr(void)   //read the swr from Arduino Pro Mini I2C
 {
 	static uint8_t i2c_data[3];
   static uint8_t i2c_data0_old = 0;
@@ -1048,45 +1090,53 @@ void hmi_swr(void)   //read the swr from Arduino Pro Mini I2C
     sprintf(s, "%d %02x %02x %02x  ", ret, i2c_data[0], i2c_data[1], i2c_data[2]);
     tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 6, 5, 4, 5, (uint8_t *)s); 
 */
-    // converts from AD reading to power using swr_pow[] table
-    for(pow=0; pow<SWR_POW_MAX; pow++)
-      if(i2c_data[1] < swr_pow[pow])
+    // converts from AD reading to power using power_adc[] table
+    for(pow=0; pow<SWR_POW_MAX; pow++)  //only 10 steps on the bargraph
+      if(i2c_data[1] < power_adc[pow])
         break;
-    
+    //pow results 0-10W     
+
+
 #ifdef TST_MAX_SMETER_SWR
     pow = 12;
     i2c_data[0] = 0xf9;// S level max = 15.9 = F9
 #endif
 
-    if(pow < 10)
-    {
-      sprintf(s, "%d ", pow);
-    }
-    else
-    {
-      sprintf(s, "%d", pow);
-    }
-    //tft_writexy_(2, TFT_RED, TFT_BLACK, 1,2,(uint8_t *)s);
-    tft_writexy_plus(2, TFT_RED, TFT_BLACK, 0, x_RT+(1*X_CHAR2), 0, y_RT, (uint8_t *)s);
 
-    TxPower_bargraph(pow);
-
-
-    if(i2c_data0_old != i2c_data[0])
+    if(hmi_power_show(pow) == true)  //if it is time to show the new power (swr value follows the power moment)
     {
-/*
-      if((i2c_data[0]>>4) < 10)
+
+      if(pow < 10)
       {
-      sprintf(s, " %d.%d", (i2c_data[0]>>4),(i2c_data[0]&0x0f));
+        sprintf(s, "%d ", pow);
       }
       else
       {
-      sprintf(s, "%d.%d", (i2c_data[0]>>4),(i2c_data[0]&0x0f));
+        sprintf(s, "%d", pow);
       }
-*/
-      sprintf(s, "%d.%d ", (i2c_data[0]>>4),(i2c_data[0]&0x0f));
-      tft_writexy_plus(1, TFT_RED, TFT_BLACK, 0, x_xGain+(1*X_CHAR1), 0, y_yGain, (uint8_t *)s);  //same position as "x" on RX
-      i2c_data0_old = i2c_data[0];
+      //tft_writexy_(2, TFT_RED, TFT_BLACK, 1,2,(uint8_t *)s);
+      tft_writexy_plus(2, TFT_RED, TFT_BLACK, 0, x_RT+(1*X_CHAR2), 0, y_RT, (uint8_t *)s);
+
+      //TxPower_bargraph((int16_t)(((double)pow * ((double)SWR_POW_MAX / (double)SWR_BARGRAPH_MAX)+(double)0.5));  //division in case we have more power than bargraph steps
+      TxPower_bargraph(pow);
+
+
+      if(i2c_data0_old != i2c_data[0])
+      {
+  /*
+        if((i2c_data[0]>>4) < 10)
+        {
+        sprintf(s, " %d.%d", (i2c_data[0]>>4),(i2c_data[0]&0x0f));
+        }
+        else
+        {
+        sprintf(s, "%d.%d", (i2c_data[0]>>4),(i2c_data[0]&0x0f));
+        }
+  */
+        sprintf(s, "%d.%d ", (i2c_data[0]>>4),(i2c_data[0]&0x0f));
+        tft_writexy_plus(1, TFT_RED, TFT_BLACK, 0, x_xGain+(1*X_CHAR1), 0, y_yGain, (uint8_t *)s);  //same position as "x" on RX
+        i2c_data0_old = i2c_data[0];
+      }
     }
   }
 
@@ -1156,6 +1206,16 @@ void hmi_evaluate(void)   //hmi loop
 //    sprintf(s, "%s  ", hmi_o_mode[band_vars[hmi_band][HMI_S_MODE]]);  //removing LSB to create space for swr on display
 //    tft_writexy_plus(2, TFT_GREEN, TFT_BLACK, 0, 0, 0, 22, (uint8_t *)s);
     display_fft_graf_top();  //scale freqs, mode changes the triangle
+
+    if(band_vars[hmi_band][HMI_S_MODE] == MODE_CW)
+    {
+      CwDecoder_Inic();
+    }
+    if(band_vars_old[HMI_S_MODE] == MODE_CW)
+    {
+      CwDecoder_Exit();
+    }
+
     band_vars_old[HMI_S_MODE] = band_vars[hmi_band][HMI_S_MODE];
   }
   if(band_vars_old[HMI_S_VOX] != band_vars[hmi_band][HMI_S_VOX])
@@ -1240,11 +1300,16 @@ void hmi_evaluate(void)   //hmi loop
   {
     //Smeter rec level
     hmi_smeter();  //during RX, print Smeter on display
+
+    if(band_vars[hmi_band][HMI_S_MODE] == MODE_CW)
+    {
+      CwDecoder_array_in();
+    }
   }
   else  /* TX */
   {
 #if I2C_Arduino_Pro_Mini == 1    //using Arduino Pro Mini for relays control (and allow SWR reading)
-    hmi_swr();  //during TX, read the SWR, and print it on display
+    hmi_power_swr();  //during TX, read the SWR, and print it on display
 #endif
   }
   tx_enable_changed = false;  //signal to init values at display - already used
