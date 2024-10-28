@@ -287,8 +287,12 @@ void new_space_letters(void)
 **************************************************************************************/
 void new_space_words(void)
 {
-   //if last letter on the word is not a space
-   //   insert a space on the word
+  //if last letter on the word is not a space
+  if(scw[SCW_MAX-1] != ' ')
+  {
+    //   insert a space on the word
+    to_display(' '); 
+  }
 }
 
 
