@@ -141,12 +141,12 @@ int arr[3][5] = { {10, 0, 0, 0, 0},
                   {8, 0, 0, 0, 0},
                   {9, 0, 0, 0, 0 }};
 */
-//                                                0=Tune/cursor 1=Mode 2=AGC 3=Pre 4=VOX 5=Band 6=Mem 7,8,9,10=freq
-uint8_t  band_vars[HMI_NUM_OPT_BPF][BAND_VARS_SIZE] =  { {4,0,2,3,0,0,0, b0_0, b0_1, b0_2, b0_3},
-                                                  {4,1,2,3,0,1,0, b1_0, b1_1, b1_2, b1_3},
-                                                  {4,1,2,3,0,2,0, b2_0, b2_1, b2_2, b2_3},
-                                                  {4,1,2,3,0,3,0, b3_0, b3_1, b3_2, b3_3},
-                                                  {4,1,2,3,0,4,0, b4_0, b4_1, b4_2, b4_3} };
+//                                                0=Tune/cursor 1=Mode 2=AGC 3=Pre 4=VOX 5=Band 6=Mem  ( 8 = HMI_NMENUS ,9,10,11 = freq )
+uint8_t  band_vars[HMI_NUM_OPT_BPF][BAND_VARS_SIZE] =  { {4,0,2,3,0,0,0, 0, b0_0, b0_1, b0_2, b0_3},
+                                                  {4,1,2,3,0,1,0, b1_0, 0, b1_1, b1_2, b1_3},
+                                                  {4,1,2,3,0,2,0, b2_0, 0, b2_1, b2_2, b2_3},
+                                                  {4,1,2,3,0,3,0, b3_0, 0, b3_1, b3_2, b3_3},
+                                                  {4,1,2,3,0,4,0, b4_0, 0, b4_1, b4_2, b4_3} };
 
 
 
@@ -155,11 +155,9 @@ uint8_t  band_vars[HMI_NUM_OPT_BPF][BAND_VARS_SIZE] =  { {4,0,2,3,0,0,0, b0_0, b
 
 
 uint32_t hmi_freq;														// Frequency from Tune state
-uint32_t hmi_step[HMI_NUM_OPT_TUNE] = {10000000, 1000000, 100000, 10000, 1000, 100, 50};	// Frequency digit increments (tune option = cursor position)
-//#define HMI_MAXFREQ		30000000
-//#define HMI_MINFREQ		     100
-const uint32_t hmi_maxfreq[HMI_NUM_OPT_BPF] = {2500000, 6000000, 12000000, 24000000, 40000000};	// max freq for each band from pass band filters
-const uint32_t hmi_minfreq[HMI_NUM_OPT_BPF] = {1000000, 2000000,  5000000, 10000000, 20000000};	  // min freq for each band from pass band filters
+uint32_t hmi_step[HMI_NUM_OPT_TUNE] = {10000000L, 1000000L, 100000L, 10000L, 1000L, 100L, 50L};	// Frequency digit increments (tune option = cursor position)
+const uint32_t hmi_maxfreq[HMI_NUM_OPT_BPF] = {2500000L, 6000000L, 12000000L, 24000000L, 40000000L};	// max freq for each band from pass band filters
+const uint32_t hmi_minfreq[HMI_NUM_OPT_BPF] = {1000000L, 2000000L,  5000000L, 10000000L, 20000000L};	  // min freq for each band from pass band filters
 
 #ifdef PY2KLA_setup
 #define HMI_MULFREQ          4			// Factor between HMI and actual frequency

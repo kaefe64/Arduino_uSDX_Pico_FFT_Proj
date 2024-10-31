@@ -26,6 +26,7 @@
 #include "relay.h"
 #include "TFT_eSPI.h"
 #include "display_tft.h"
+#include "Dflash.h"
 
 
 
@@ -67,6 +68,7 @@ void uSDR_setup(void)  //main
 	si_init();										// VFO control unit
   //Serialx.println("uSDR_setup   relay_init");
 	relay_init();
+  Dflash_setup();
   //Serialx.println("uSDR_setup   display_tft_setup");
   display_tft_setup();   //moved to setup0 to write into display from the beggining
   //Serialx.println("uSDR_setup   hmi_init");

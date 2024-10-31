@@ -31,7 +31,7 @@
   So it writes 128 blocks before the sector is full. After this the sector will need to be all erased, and the process restart.
   It is expected to have <20K number of flash sector erases before we can have errors (could take more), so  20K x 256 = 5120K writes
   With 1 write per day, it will last 5120K / 365 = 14 years  (only!!!, the option would be increase the FLASH area using more sectors - for now, save writings...)
-  If after 14 years you are getting mem errors, you can try change the code "define" above to use another sector:
+  If after 14 years you are getting mem errors, you can try change the code "define" FLASH_TARGET_OFFSET to use another sector:
   #define FLASH_TARGET_OFFSET   (PICO_FLASH_SIZE_BYTES - (2 * FLASH_SECTOR_SIZE))  // to start address in the second last sector on FLASH mem
 
 
@@ -574,6 +574,7 @@ bool Dflash_write_block(uint8_t *data_bl)
 void Dflash_setup(void)
 {
 
+//Dflash_erase_sector();
 
 
 }

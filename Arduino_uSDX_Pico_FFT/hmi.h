@@ -99,27 +99,27 @@ extern uint8_t  band_vars[HMI_NUM_OPT_BPF][BAND_VARS_SIZE];
 #define  band3_hmi_freq_default    14200000L
 #define  band4_hmi_freq_default    28400000L
 
-#define b0_0 (uint8_t)(band0_hmi_freq_default >> 24)
+#define b0_0 (uint8_t)((band0_hmi_freq_default >> 24)&0xff)
 #define b0_1 (uint8_t)((band0_hmi_freq_default >> 16)&0xff)
 #define b0_2 (uint8_t)((band0_hmi_freq_default >> 8)&0xff)
 #define b0_3 (uint8_t)(band0_hmi_freq_default&0xff)
 
-#define b1_0 (uint8_t)(band1_hmi_freq_default >> 24)
+#define b1_0 (uint8_t)((band1_hmi_freq_default >> 24)&0xff)
 #define b1_1 (uint8_t)((band1_hmi_freq_default >> 16)&0xff)
 #define b1_2 (uint8_t)((band1_hmi_freq_default >> 8)&0xff)
 #define b1_3 (uint8_t)(band1_hmi_freq_default&0xff)
 
-#define b2_0 (uint8_t)(band2_hmi_freq_default >> 24)
+#define b2_0 (uint8_t)((band2_hmi_freq_default >> 24)&0xff)
 #define b2_1 (uint8_t)((band2_hmi_freq_default >> 16)&0xff)
 #define b2_2 (uint8_t)((band2_hmi_freq_default >> 8)&0xff)
 #define b2_3 (uint8_t)(band2_hmi_freq_default&0xff)
 
-#define b3_0 (uint8_t)(band3_hmi_freq_default >> 24)
+#define b3_0 (uint8_t)((band3_hmi_freq_default >> 24)&0xff)
 #define b3_1 (uint8_t)((band3_hmi_freq_default >> 16)&0xff)
 #define b3_2 (uint8_t)((band3_hmi_freq_default >> 8)&0xff)
 #define b3_3 (uint8_t)(band3_hmi_freq_default&0xff)
 
-#define b4_0 (uint8_t)(band4_hmi_freq_default >> 24)
+#define b4_0 (uint8_t)((band4_hmi_freq_default >> 24)&0xff)
 #define b4_1 (uint8_t)((band4_hmi_freq_default >> 16)&0xff)
 #define b4_2 (uint8_t)((band4_hmi_freq_default >> 8)&0xff)
 #define b4_3 (uint8_t)(band4_hmi_freq_default&0xff)
