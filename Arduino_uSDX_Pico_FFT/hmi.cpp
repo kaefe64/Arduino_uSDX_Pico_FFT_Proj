@@ -1383,4 +1383,6 @@ void hmi_evaluate(void)   //hmi loop
 
 
   Audio_Rec_Play();  //check for audio rec play function
+
+  CwDecoder_Loop();  //task on 100ms loop
 }

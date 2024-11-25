@@ -65,7 +65,7 @@ uint16_t cw_rx_cnt;
 //#define TDOT_MIN      16          // x 2.5ms =  40ms
 #define TDOT_MIN       4         // x 2.5ms =  10ms   120wpm
 #define TDOT_MAX      96         // x 2.5ms = 240ms     5wpm
-#define TDOT_SHIFT     2         // tdot accumulate 4x
+#define TDOT_SHIFT     1         // tdot accumulate 4x
 // wpm = 1200 / tponto ms   (time base for reading the cw audio is 2.5ms)
 // 60  =  20ms   / 2.5ms =  8 counts
 // 30  =  40ms   / 2.5ms = 16
@@ -75,14 +75,18 @@ uint16_t cw_rx_cnt;
 //  5  = 240ms   / 2.5ms = 96
 uint16_t tdot;
 uint16_t tdot_acc;
-uint16_t limiar_min_dot;
-uint16_t limiar_min_dash;
-uint16_t limiar_min_space;
-uint16_t limiar_space;
-uint16_t cw_rx_limiar = 5;
-uint16_t count_low = 0;
-uint16_t count_high = 0;
-uint16_t cw_level = 0;
+uint16_t limiar_min_dot;    // 1/2 dot
+uint16_t limiar_min_dash;  //2x_dot
+uint16_t limiar_min_space;    //5x dot
+uint16_t limiar_space;    //7x dot
+uint16_t cw_rx_limiar;
+uint16_t count_low;
+uint16_t count_high;
+uint16_t cw_level;
+
+#define CW_RX_LIMIAR_INIC   4
+//#define CW_RX_LIMIAR_MIN   3
+//#define CW_RX_LIMIAR_MAX  10
 
 
 uint16_t cw_letter_pos;
@@ -94,7 +98,55 @@ char scw[SCW_MAX+1] =  "123456789012345";    //chars received to print to the sc
 char s1[32];   //aux          
 
 
+#define CWN   1000
+int8_t cwn[CWN][2];
+int16_t cwnin = 0;
+int16_t cwnout = 0;
 
+//#define cwin(v,u)  { if(++cwnin>=CWN) cwnin = 0; cwn[cwnin] = v; res[cwnin] = u; }
+
+/**************************************************************************************
+    
+**************************************************************************************/
+uint16_t prox(uint16_t p)
+{
+  if(++p >= CWN)
+    p = 0;
+  return p;
+}
+
+
+/**************************************************************************************
+    
+**************************************************************************************/
+void cw_in(int8_t v, int8_t u)
+{
+  cwnin = prox(cwnin);  //next position to fill
+  cwn[cwnin][0] = v;
+  cwn[cwnin][1] = u;
+  if(cwnin == cwnout)   //list is full
+  {
+    cwnout = prox(cwnout);  //move the end one step ahead
+  } 
+}
+
+/**************************************************************************************
+    
+**************************************************************************************/
+bool cw_out(int8_t *v, int8_t *u)
+{
+  if(cwnout != cwnin)  //not empty
+  {
+    cwnout = prox(cwnout);
+    *v = cwn[cwnout][0];
+    *u = cwn[cwnout][1];
+    return true;
+  }
+  else
+  {
+  return false;
+  }
+}
 
 
 
@@ -103,22 +155,37 @@ char s1[32];   //aux
 **************************************************************************************/
 void CwCalcTime()
 {
-//tdash = 3 * tdot;
-//spchar = 3 * tdot;
-//spword = 7 * tdot;
+  //tdash = 3 * tdot;
+  //spchar = 3 * tdot;
+  //spword = 7 * tdot;
 
-// dot = 1
-// dash = 3
-// space dot-dash = 1
-// space letter = 3
-// space word = 7
+  // dot = 1
+  // dash = 3
+  // space dot-dash = 1
+  // space letter = 3
+  // space word = 7
+
+  tdot = tdot_acc>>TDOT_SHIFT;  //tdot_acc needs 16x up to chanag 1 in tdot
+
+  limiar_min_dot = tdot>>1;       // 1/2 dot = min time for dot and space  less than this = noise or high wpm
+  limiar_min_dash = 2 * tdot;  //2x_dot
+  limiar_min_space = 5 * tdot;    //5x dot
+  limiar_space = 7 * tdot;    //7x dot
+
+  sprintf(s1, "%d_", tdot);
+  tft_writexy_plus(1, TFT_LIGHTGREY, TFT_BLACK, 1, 0, 3, 20, (uint8_t *)s1);   
+}
 
 
-limiar_min_dot = tdot>>1;
-limiar_min_dash = 2 * tdot;
-limiar_min_space = 5 * tdot;
-limiar_space = 7 * tdot;
-
+/**************************************************************************************
+    
+**************************************************************************************/
+void  to_scw(char c)
+{
+  uint16_t i;
+  for(i=0; i<SCW_MAX-1; i++)
+    scw[i] = scw[i+1];
+  scw[i] = c; 
 }
 
 
@@ -137,24 +204,96 @@ void  to_display(char c)
 
 
 
+#define SCWGRAPH_X    0
+#define SCWGRAPH_Y    10
+#define SCWGRAPH_H    16
+
+#define SCWGRAPH_MAX   300     //TFT_WIDTH=320    must be < 320-4  (there is an erase width=4 below)
+uint8_t scwgraph[SCW_MAX+1] =  {0};    //cw audio level received to print as graphic
+uint16_t scwgraph_pos = 0;
+
+// 10ms dot  @  16kHz   = 160 samples     /16 to show on graph
+
+/**************************************************************************************
+    
+**************************************************************************************/
+void  to_graph(uint16_t v)
+{
+  //graphic with 16 pixels for level
+  
+  static uint16_t accu = 0;
+  static uint16_t cont = 0;
+  static uint16_t cont_low = 0;
+
+  accu += v;
+  if(++cont>=2)
+  {
+    v = accu>>1;
+    if(v < 4) 
+      cont_low++;
+    else
+      cont_low = 0;
+    accu = 0;
+    cont = 0;
+
+    if(cont_low > 20) //if level low for some time, stop graph
+    {
+      cont_low = 22;
+    }
+    else
+    {
+      if(v>0)
+      {
+        v = (v-1);  //>>1;
+        if(v>(SCWGRAPH_H-1)) v = (SCWGRAPH_H-1);
+      }
+      scwgraph[scwgraph_pos] = (uint8_t)v;
+      if((scwgraph_pos+1) == SCWGRAPH_MAX)
+        scwgraph_pos = 0;
+      else
+        scwgraph_pos++;
+    }
+  }
+}
+
+
+
+/**************************************************************************************
+    
+**************************************************************************************/
+void  graph_to_display(void)
+{
+  static uint16_t scwgraph_pos_old;
+  uint16_t scwgraph_pos_loc;
+  uint16_t i;
+
+  scwgraph_pos_loc = scwgraph_pos;  //local value    avoid mix with interrupt on CORE1
+  while(scwgraph_pos_loc != scwgraph_pos_old)
+  {
+    //tft.fillRect((SCWGRAPH_X+scwgraph_pos_old), SCWGRAPH_Y, 4, SCWGRAPH_H, TFT_BLACK);  //erase old area
+    tft.drawFastVLine ((SCWGRAPH_X+scwgraph_pos_old), SCWGRAPH_Y+1, SCWGRAPH_H, TFT_BLACK);
+    tft.drawPixel((SCWGRAPH_X+scwgraph_pos_old), ((SCWGRAPH_Y+SCWGRAPH_H) - scwgraph[scwgraph_pos_old]), TFT_WHITE); 
+    if(++scwgraph_pos_old >= SCWGRAPH_MAX)
+      scwgraph_pos_old = 0;
+  }
+  tft.fillRect((SCWGRAPH_X+scwgraph_pos_old), SCWGRAPH_Y+1, 4, SCWGRAPH_H, TFT_BLACK);  //erase old area
+}
+
+
 
 /**************************************************************************************
     
 **************************************************************************************/
 void CwDecoder_Inic(void)
 {
-  tdot_acc = 32<<TDOT_SHIFT;
-  tdot = tdot_acc>>TDOT_SHIFT;     // 32 = 15wpm  cw dot time (time base for other parameters)
+  tdot_acc = 10<<TDOT_SHIFT;   //  tdot = tdot_acc>>TDOT_SHIFT;     // 32 = 15wpm  cw dot time (time base for other parameters)
   CwCalcTime();
 
-  sprintf(s1, "%d_", tdot);
-  tft_writexy_plus(1, TFT_LIGHTGREY, TFT_BLACK, 1, 0, 3, 20, (uint8_t *)s1);   
-
   //tft_writexy_plus(1, TFT_LIGHTGREY, TFT_BLACK, 8, 0, 3, 20, (uint8_t *)scw);   
-  to_display('K');
+  //to_display('K');
 
 
-  cw_rx_limiar = 5;
+  cw_rx_limiar = CW_RX_LIMIAR_INIC;
   count_low = 0;
   count_high = 0;
   cw_level = 0;
@@ -170,6 +309,18 @@ void CwDecoder_Inic(void)
 **************************************************************************************/
 void CwDecoder_Exit(void)
 {
+
+  uint16_t i = 0;
+  int8_t a, b;
+
+  Serialx.println("*** CW Decoder ***");
+  while(cw_out(&a, &b))
+  {
+    sprintf(s1, "%d %d %d", i++, a, b);
+    Serialx.println(s1);
+  }
+
+
   //clear the cw text line
   tft.fillRect(1, ((3*Y_CHAR1)+20), (SCW_MAX+8)*X_CHAR1, Y_CHAR1-2, TFT_BLACK);
 /*
@@ -189,9 +340,12 @@ void new_dot(void)
 {
   //include the dot on the letter received
   //including 0 = dot
-  cw_letter_pos++;
+  cw_letter_pos++;   //dot is 0   and cw_letter is already 0
   //use the counter_high to adjust the tdot
   //to_display('.');
+
+  sprintf(s1, "%d_", count_high);
+  tft_writexy_plus(1, TFT_LIGHTGREY, TFT_BLACK, 4, 0, 3, 20, (uint8_t *)s1); 
 }
 
 
@@ -243,10 +397,18 @@ char cw_search_letter(uint16_t num, uint16_t *tab)
 
 
 /**************************************************************************************
-    
+    new space between letters
 **************************************************************************************/
 void new_space_letters(void)
 {
+/*
+  //if last letter on the word is not a space
+  if(scw[SCW_MAX-1] != ' ')
+  {
+    //   insert a space on the word
+    to_display(' '); 
+  }
+*/
   //finished the letter
   //  look for the letter on the table  and show on display
   switch(cw_letter_pos)
@@ -277,8 +439,8 @@ void new_space_letters(void)
       break;
   }
 
-  cw_letter = 0;
-  cw_letter_pos = 0;
+  cw_letter = 0;     //clear the dot/dashes for new letter
+  cw_letter_pos = 0;   //clear the count of dot/dashes
 }
 
 
@@ -295,6 +457,44 @@ void new_space_words(void)
   }
 }
 
+/*
+#define LEV_SHORT   0
+#define LEV_OK      1
+#define LEV_LONG    2
+
+uint16_t lev_high = LEV_OK;
+uint16_t lev_low = LEV_OK;
+*/
+
+/**************************************************************************************
+    
+**************************************************************************************/
+/*
+void wpm_adjust(void)
+{
+//  if((lev_low == LEV_SHORT) && (lev_high == LEV_SHORT))
+  if(lev_high == LEV_SHORT)
+  {
+    if(tdot > TDOT_MIN)
+    {  
+      tdot_acc--;
+      CwCalcTime();
+    }
+    lev_high = LEV_OK;
+  }
+
+//  if((lev_low == LEV_LONG) && (lev_high == LEV_LONG))
+  if(lev_high == LEV_LONG)
+  {
+    if(tdot < TDOT_MAX)
+    {
+      tdot_acc++;
+      CwCalcTime();
+    } 
+    lev_high = LEV_OK;
+  }
+}
+*/
 
 /**************************************************************************************
     
@@ -304,14 +504,12 @@ void wpm_up(void)
   if(tdot > TDOT_MIN)
   {  
     tdot_acc--;
-    tdot = tdot_acc>>TDOT_SHIFT;
     CwCalcTime();
 
     sprintf(s1, "%d_", tdot);
     tft_writexy_plus(1, TFT_LIGHTGREY, TFT_BLACK, 1, 0, 3, 20, (uint8_t *)s1);   
   }
 }
-
 
 /**************************************************************************************
     
@@ -321,13 +519,53 @@ void wpm_down(void)
   if(tdot < TDOT_MAX)
   {
     tdot_acc++;
-    tdot = tdot_acc>>TDOT_SHIFT;
     CwCalcTime();
 
     sprintf(s1, "%d_", tdot);
     tft_writexy_plus(1, TFT_LIGHTGREY, TFT_BLACK, 1, 0, 3, 20, (uint8_t *)s1);   
   }  
 }
+
+
+#define DOT    1
+#define DASH   3
+#define SPACE_DOT_DASH   1
+#define SPACE_LETTERS    3
+#define SPACE_WORDS    7
+
+/**************************************************************************************
+    
+**************************************************************************************/
+void wpm_ok(uint16_t count, uint16_t size)
+{
+
+  if((size * tdot) > count)  //ok, but will adjust
+  {
+    tdot_acc--;
+    CwCalcTime();
+  }
+  else if((size * tdot) < count)  //ok, but will adjust
+  {
+    tdot_acc++;
+    CwCalcTime();
+  }
+
+/*
+  if((tdot_acc>>TDOT_SHIFT) > tdot)  //if tdot is good   try to bring tdot_acc to the correct value
+  {
+    tdot_acc--;
+    tdot = tdot_acc>>TDOT_SHIFT;  //tdot_acc needs 16x up to chanag 1 in tdot
+    CwCalcTime();
+  }
+  else if((tdot_acc>>TDOT_SHIFT) < tdot) 
+  {
+    tdot_acc++;
+    tdot = tdot_acc>>TDOT_SHIFT;  //tdot_acc needs 16x up to chanag 1 in tdot
+    CwCalcTime();
+  }
+*/
+}
+
 
 /**************************************************************************************
     
@@ -346,25 +584,19 @@ void cw_limiar_down(void)
 
 
 
-#define CW_RX_LIMIAR_MIN   3
-#define CW_RX_LIMIAR_MAX  10
-
-#define MAX_CW_RX_S   18
-//char cw_s[MAX_CW_RX_S+1] = "                  ";
 
 
-#define cw_space    0
-#define cw_dot      1
-#define cw_dash     2
 
 
 /**************************************************************************************
     CwDecoder_array_in - uses the cw audio level to search for cw characters
+    array received with samples @ 2.5ms
 **************************************************************************************/
 void CwDecoder_array_in(void)
 {
 uint16_t i = 0;
 static uint16_t cw_rx_array_old = 0;
+uint16_t cw_letter_old = 0;
 
   if(cw_rx_array != cw_rx_array_old)  //new array ready to analysis
   {
@@ -372,88 +604,135 @@ static uint16_t cw_rx_array_old = 0;
     //look the level on the received array
     for(i=0; i<MAX_CW_RX_INDEX; i++)
       {
-        if(cw_rx[i][cw_rx_array_old] > cw_rx_limiar)   // ***  input signal level = high  ***
+        //to_graph(cw_rx[i][cw_rx_array_old]);  //put the signal on graphic
+
+        //sprintf(s1, "%d_", cw_rx[i][cw_rx_array_old]);
+        //tft_writexy_plus(1, TFT_LIGHTGREY, TFT_BLACK, 4, 0, 3, 20, (uint8_t *)s1); 
+
+        if(cw_rx[i][cw_rx_array_old] > cw_rx_limiar)
           {
+            // *******************  input signal level = high  *******************
+
             if(cw_level == 1)  //if it was already high
               {
                 count_high++;
-                if(count_high > limiar_space)    // tone for so long (rf carrier)
+                if(count_high > limiar_space)        //7x dot = tone for so long (rf carrier)
                 {
-                  count_high = limiar_space;  //just to limit the counter
+                  count_high = limiar_space;      //7x dot = just to limit the counter
                 }
               }
             else  // cw_level == 0   was low and changed to high (look for spaces)
-              {   // raising
-                if(count_low < limiar_min_dot)   //noise ?   faster wpm ?
+              {
+                // ********************************************************************* 
+                // *************************** level raising ***************************
+                // ********************************************************************* 
+
+                cw_in(-count_low, tdot);  //make a list of info to send through serial when out of CW mode
+
+                if(count_low < limiar_min_dot)   // 1/2 dot = noise ?   faster wpm ?
                 {
                   //possible noise, but counts as space between dots and dashs  
                   new_space_dot_dash();
-                  //wpm_up();   //increase wpm
+                  //wpm_up();    //lev_low = LEV_SHORT;
+                  //wpm_up(0);   //increase wpm
                 }
-                else if(count_low < limiar_min_dash)
+                else if(count_low < limiar_min_dash)   //2x_dot
                 {
                   new_space_dot_dash();
+                  //wpm_ok(count_low, SPACE_DOT_DASH);    //lev_low = LEV_OK;
                 }
-                else if(count_low < limiar_min_space)    // space between letter
+                else if(count_low < limiar_min_space)        //5x dot  = space between letter
                 {
                   new_space_letters();
+                  //wpm_ok(count_low, SPACE_LETTERS);    //lev_low = LEV_OK;
                 }
                 else  //big space
                 {
                   new_space_words();
-                  cw_limiar_down();  //decrease limiar to detect level high (no high level detected)
+                  //cw_limiar_down();  //decrease limiar to detect level high (no high level detected)
+                  //wpm_ok(count_low, SPACE_WORDS);    //lev_low = LEV_OK;
                 }
 
-                count_high = 0;
-                cw_level = 1;   //start counting the high level
+                //cw_in(-count_low, cw_letter);  //make a list of info to send through serial when out of CW mode
+
+
+                //wpm_adjust();
+
               }
+            count_low = 0;
+            cw_level = 1;   //receiving the high level
           }
-        else  // ***  input signal level = low  ***
+        else
           {
+            // *******************  input signal level = low  *******************
+
             if(cw_level == 0)  //if it was already low
               {
                 count_low++;
-
-                if(count_low > limiar_space)    // space between words (no reception)
+                if(count_low == limiar_min_space)         //5x dot = space between words (no more signal)
+                {
+                  new_space_letters();
+                  count_low = limiar_space;      //7x dot = just to limit the counter
+                }
+/*
+                if(count_low > limiar_space)        //7x dot =  space between words (no more signal)
                 {
                   new_space_words();
-                  count_low = limiar_space;  //just to limit the counter
+                  count_low = limiar_space;      //7x dot = just to limit the counter
                 }
+*/
               }
             else  // cw_level == 1   was high and changed to low (look for dots and dashs)
-              {   // falling
-                sprintf(s1, "%d_", count_high);
-                tft_writexy_plus(1, TFT_LIGHTGREY, TFT_BLACK, 4, 0, 3, 20, (uint8_t *)s1);  
+              { 
+                // *********************************************************************
+                // *************************** level falling ***************************
+                // *********************************************************************
 
-                if(count_high < limiar_min_dot)   //noise ?   faster wpm ?
+                //to_scw((count_high / tdot) + '0');
+/*
+                if(count_high < limiar_min_dot)   // 1/2 dot = noise ?   faster wpm ?
                 {
                   //ignores this level - noise?
                   count_low++;
-                  wpm_up();  //increase wpm
+                  lev_high = LEV_SHORT;
+                  //wpm_up(1);  //increase wpm
                   cw_limiar_up();  //increase limiar to detect level high (getting spikes os sound)
                 }
                 else
+*/
+                  
+                //cw_in(count_high, tdot);  //make a list of info to send through serial when out of CW mode
+                
+                if(count_high < limiar_min_dot)   // 1/2 dot = noise ?   faster wpm ?
                 {
-                  if(count_high < limiar_min_dash)    // dot time
-                  {
-                    new_dot();
-                  }
-                  else if(count_high < limiar_min_space)  // dash time
-                  {
-                    new_dash();
-                  }
-                  else    // noise?  lower wpm ?
-                  {
-                    new_dash();
-                    wpm_down();   //decrease wpm
-                  }
-
-                  count_low = 0;
-                  cw_level = 0;   //start counting the low level
+                  new_dot();
+                  wpm_up();    //lev_high = LEV_SHORT;
                 }
-              }
-          }
+                if(count_high < limiar_min_dash)    //2x_dot  =  dot time
+                {
+                  new_dot();
+                  wpm_ok(count_high, DOT);    //lev_high = LEV_OK;
+                }
+                else if(count_high < limiar_min_space)  //5x dot  = dash time
+                {
+                  new_dash();
+                  wpm_ok(count_high, DASH);    //lev_high = LEV_OK;
+                }
+                else    // noise?  lower wpm ?
+                {
+                  new_dash();
+                  wpm_down();    //lev_high = LEV_LONG;
+                  //wpm_down();   //decrease wpm
+                }
 
+                cw_in(count_high, cw_letter);  //make a list of info to send through serial when out of CW mode
+
+                //wpm_adjust();
+
+              }
+            count_high = 0;
+            cw_level = 0;   //receiving the low level
+          }
       }
     cw_rx_array_old = cw_rx_array;
   }
@@ -462,8 +741,12 @@ static uint16_t cw_rx_array_old = 0;
 
 
 
+void CwDecoder_Loop(void)
+{ 
 
+  //graph_to_display();
 
+}
 
 
 

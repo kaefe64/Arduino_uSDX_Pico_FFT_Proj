@@ -83,7 +83,8 @@ Obs.: Don't mind the red wires on the PCB, they are only test for separted 5V po
 ## Hardware changes from the original SDR-Pico and notes:
 - I chose to make a main board with the Pico, Display, QSD/QSE and 5V power supply, and another board with the relays, filters and attenuators.
 - The main change from SDR-Pico is the inclusion of ILI9341 on Pico free pins, using SPI1, and removing the LCD display.
-- Another change, as we need more frequency range on RX to show at the Waterfall, the RX amplifier must amplify at least 80kHz of signal band. The opamp must be changed to one with wider bandwidth.
+- We need more frequency range on RX to show at the Waterfall, the RX amplifier must amplify at least 80kHz of signal band. The opamp must be changed to one with wider bandwidth.
+- I will use an Arduino Pro Mini to work as two I2C slaves, replacing the PCF8574's on the BPF RX board. This will give more ADCs to read the SWR values.
 - You can see the schematic diagram at [uSDR_Pico_FFT_SCH.pdf](PCB/uSDR_Pico_FFT_SCH.pdf) and [uSDR_Pico_BPF_RX_SCH.pdf](PCB/uSDR_Pico_BPF_RX_SCH.pdf).
 - I noticed that changing the signal in one ADC input, changed the other inputs signal through the resistors for setting half Vref. To solve this, I changed the circuit to have a separate resistor divider for each ADC input.
 
@@ -215,6 +216,9 @@ It starts to save/play when pressing < Enter >, and will stop after 10s or when 
 <br>
 
 ## Last changes and notes:<br>
+
+### Nov25 2024
+- Improving the CW Morse Decoder. It is still under test (well... all features are always under test).<br>
 
 ### Oct28 2024
 - Including a CW Morse Decoder. It will try to interpret the CW sound and translate it to letters on display. To enable the decoder you just need to select CW on MODE menu and tune to the highest sound level CW reception. It is still not working properlly, under test (I also notice some issues with the CW filter).<br>

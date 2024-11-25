@@ -28,7 +28,7 @@ void CwDecoder_InicTable(void);
 void CwDecoder_Inic(void);
 void CwDecoder_Exit(void);
 void CwDecoder_array_in(void);
-
+void CwDecoder_Loop(void);
 
 #ifdef __cplusplus
 }
