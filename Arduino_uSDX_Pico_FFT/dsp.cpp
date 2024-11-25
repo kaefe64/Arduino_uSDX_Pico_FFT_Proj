@@ -1059,7 +1059,7 @@ volatile int16_t a_s_raw[MAX_TAP_NUM];             // Raw MIC samples, minus DC 
 volatile int32_t peak_avg_shifted=0;     // signal level detector after AGC = average of positive values
 volatile int16_t peak_avg_diff_accu=0;   // Log peak level integrator
 volatile uint16_t agc_gain=((AGC_GAIN_MAX/2u)+1u);   // AGC gain/attenuation - starts at the middle
-uint16_t volatile fft_gain = 8;
+uint16_t volatile fft_gain = (1<<FFT_GAIN_SHIFT);  //16
 #define AGC_REF		3u //6
 #define AGC_DECAY	8192u
 #define AGC_ATTACK_FAST	 32u  //64
@@ -1909,13 +1909,13 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
 
 
 
-  // CW Decoder - save the audio level to analize on hmi.cpp
+  // CwDecoder - save the audio level to analize on hmi.cpp
   if(dsp_mode == MODE_CW)
   {
     cw_rx_avg += avg_a_sample;  //average 40 samples = ((1/16kHz) * 40) = 2.5ms
     if(++cw_rx_cnt >= MAX_CW_RX_CNT)  // 40 samples to average
     {
-      cw_rx[cw_rx_index][cw_rx_array] = (cw_rx_avg >> 6); // save the 2.5ms average on array for further analysis  (40 samples / 64 - I don't like to make a division)
+      cw_rx[cw_rx_index][cw_rx_array] = (cw_rx_avg >> 5); // save the 2.5ms average on array for further analysis  (40 samples / 32 - I don't like to make divisions)
       cw_rx_avg = 0;
       cw_rx_cnt = 0;
 
