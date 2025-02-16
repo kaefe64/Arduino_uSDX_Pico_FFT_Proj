@@ -6,7 +6,7 @@
 ![uSDR-PICO FFT](Pict1.png)
 
 This project is a QSD/QSE Software Defined HF Transceiver (SDR), 5 Band, Low Power, based on  Arjan te Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico.<br>
-Since than, Arjan made some changes on his code, so, to clarify, I started this project based on Arjan's version https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/package/CODEv2.zip from 2021 with documentation at https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/doc/uSDR%20-%20v2.02.pdf .
+I started this project based on Arjan's version https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/package/CODEv2.zip from 2021 with documentation at https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/doc/uSDR%20-%20v2.02.pdf .
 
 My intention was to include a Waterfall or Panadapter to the Arjan's uSDR-Pico project. For this, I included an ILI9341 240x320 2.4" TFT display, without touch, and also, changed the software to generate the Waterfall.
 
@@ -34,7 +34,8 @@ Initial msg: #15923 · May 26  2022<br>
 
 ## Repository folders
 **Arduino_I2C_BPF_RX** - Code to control the Band Pass Filter (BPF) board. It runs at Arduino Pro Mini, compiled with Arduino IDE. The Arduino Pro Mini is used replacing the uSDR-Pico I2C interfaces PCF8574's to allow extra features: SWR reading and others (future). It uses the same I2C protocol, as uSDR-Pico.<br>
-**Arduino_uSDX_Pico_FFT** - Main code for Ajan-5, runs at Raspberry Pi Pico, compiled with Arduino IDE (look "Arduino IDE setup and notes" below).<br>
+**Arduino_uSDX_Pico_FFT** - Main code for Ajan-5, it runs at Raspberry Pi Pico, compiled with Arduino IDE (look "Arduino IDE setup and notes" below).<br>
+**Aux** - Files used as reference.<br>
 **PCB** - Schematic and PCB Layout on Kicad format.<br>
 **Pictures** - Pictures in general used in this Readme file.<br>
 **uSDX_TX** - Code to test RF modulation TX using Amplitude/Phase, the same method used at the PE1NNZ uSDX project (https://github.com/threeme3/usdx) running at RP2040, only for transmission.<br>
@@ -57,7 +58,7 @@ Initial msg: #15923 · May 26  2022<br>
 <br>
 ![Main Board Botton](Pictures/uSDR_Pico_FFT_PCB_botton.png)
 <br>
-Obs.: Don't mind the red wires on the PCB, they are only test for separted 5V power supply.
+Obs.: Don't mind the red wires on the PCB, they are only test for separated 5V power supply.
 <br>
 
 ## First Prototype with TX and RX
@@ -116,7 +117,7 @@ Obs.: Don't mind the red wires on the PCB, they are only test for separted 5V po
 - Lib used: TFT_eSPI by Bodmer
 - **IMPORTANT: Use the comments at beginning of  .ino  file to "adjust" the library files to the project.**
 - Boards Manager:  Arduino Mbed OS RP2040 Boards. My version is 4.0.2 (Every time I update it, I will need to "adjust" the library files again).
-- Do not include EarlePhilhower library (it is just conflitant with Mbed)
+- Do not include EarlePhilhower library (it is conflitant with Mbed)
 - Board: "RaspberryPiPico"  >  Arduino Mbed OS RP2040 Boards  >  RaspberryPiPico
 - The code files have cpp type, but the code itself is in C (cpp type is used to help in some compiler issues).
 
@@ -235,8 +236,8 @@ It starts to save/play when pressing < Enter >, and will stop after 10s or when 
 - There is a <br>
  #define I2C_Arduino_Pro_Mini  1    //=1 when I2C BPF and Atten is commanded with Arduino Pro Mini (allow SWR reading)<br>
 on relay.h to define if the Arduino Pro Mini is part of the project.<br>
-- There is a table swr_pow[] on hmi.cpp to make the correlation from the ADC forward power measured and the value showed at display.<br>
-- There is a table Smeter_table_level[] on hmi.cpp to make the correlation from the ADC I and Q audio level measured and the value showed at display.<br>
+- There is a table swr_pow[] on hmi.cpp to make the correlation from the ADC forward power measured and the value shown on the display.<br>
+- There is a table Smeter_table_level[] on hmi.cpp to make the correlation from the ADC I and Q audio level measured and the value shown on the display.<br>
 - Corrections on Arduino Pro Mini I2C routines.<br>
 - I included here a short description of the menus: "Application Menu Description".<br>
 - Just to remember, there is a "Discussions" folder on the Github Project site (look above) to allow comments about the project, as the ucx groups.io forum could not be the right place for it.<br>
