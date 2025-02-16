@@ -674,8 +674,9 @@ void display_tft_setup0(void) {
 
   sprintf(s, "HF Transceiver");  //name changed from uSDR Pico FFT
 //  tft_writexy_plus(2, TFT_YELLOW, TFT_BLACK, 0,10,4,10,(uint8_t *)s);
-  tft_writexy_plus(1, TFT_YELLOW, TFT_BLACK, 4,0,6,10,(uint8_t *)s);
+  tft_writexy_plus(1, TFT_YELLOW, TFT_BLACK, 4,0,6,6,(uint8_t *)s);
 
+  tft_writexy_plus(1, TFT_YELLOW, TFT_BLACK, 9,0,7,12,(uint8_t *)SW_VERSION);
 
 //#ifdef PY2KLA_setup
 //  sprintf(s, "by");

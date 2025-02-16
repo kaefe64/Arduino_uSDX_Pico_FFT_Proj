@@ -18,7 +18,7 @@
 
 >>On Ubuntu, to allow program Pico direct from Arduino IDE, run once:
 ~/.arduino15/packages/arduino/hardware/mbed_rp2040/4.0.2$ sudo ./post_install.sh
->>Obs.: Compiled file  ...ini.elf.uf2  generated at  /tmp/arduino_build_...
+>>Obs.: Compiled file  Arduino_uSDX_Pico_FFT.ino.uf2  generated at  /tmp/arduino-sketch-...
 
 
  
