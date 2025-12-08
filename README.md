@@ -227,7 +227,7 @@ It starts to save/play when pressing < Enter >, and will stop after 10s or when 
 
 ### Dec25 2024
 - Correcting component values on schematic: R28=51K, R4=5K1 1% and U9=74AC74
-- Including Eeprom write/read I2C commands on Arduino_I2C_BPF_RX (Arduino Pro Mini) to save the band data to Eeprom instead of Pico Data Flash.<br>
+- Including Eeprom write/read I2C commands on Arduino_I2C_BPF_RX (Arduino Pro Mini) to be used to save the band data to Eeprom instead of Pico Data Flash.<br>
 
 ### Nov25 2024
 - Improving the CW Morse Decoder. It is still under test (well... all features are always under test).<br>
