@@ -602,21 +602,21 @@ The sampling is at 160kHz but for audio we only need 16kHz samples, so the filte
 
 
 //normal use  -  with display, switches and dial
-#if MODE_STREAM_SERIAL == 0
+//#if MODE_STREAM_SERIAL == 0
 
       // invoque FIFO IRQ on Core0 to use the adc_result[] audio sample (there is no time for all in one core)
     multicore_fifo_push_blocking(FIFO_IQ_SAMPLE);
 
-#endif
+//#endif
 
 //send I Q and FFT data through serial - stream serial mode
-#if MODE_STREAM_SERIAL == 0
+//#if MODE_STREAM_SERIAL == 1
 
 
 //puts the I qnd Q
 
 
-#endif
+//#endif
 
 
 #endif
