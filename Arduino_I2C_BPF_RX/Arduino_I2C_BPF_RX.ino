@@ -98,8 +98,10 @@ uint8_t SWR[3];  //save swr info to send to I2C master = swr, forward and reflec
 #define I2C_EEP_WR  	  0x23  // write data to eeprom address 
 
 
-#define I2C_TWAR (I2C_BPF | I2C_RX | I2C_SWR | I2C_EEP_RD)  // TWAR = main mask address = 0010 0011
-#define I2C_TWAMR ((I2C_BPF | I2C_RX | I2C_SWR | I2C_EEP_RD) ^ (I2C_BPF & I2C_RX & I2C_SWR & I2C_EEP_RD))  // xor = 0000 0011 ->  it receives addresses 0010 00XX  ->  from 0x20 to 0x23
+//#define I2C_TWAR (I2C_BPF | I2C_RX | I2C_SWR | I2C_EEP_RD)  // TWAR = main mask address = 0010 0011
+#define I2C_TWAR (I2C_BPF | I2C_RX | I2C_SWR)  // TWAR = main mask address = 0010 0011
+//#define I2C_TWAMR ((I2C_BPF | I2C_RX | I2C_SWR | I2C_EEP_RD) ^ (I2C_BPF & I2C_RX & I2C_SWR & I2C_EEP_RD))  // xor = 0000 0011 ->  it receives addresses 0010 00XX  ->  from 0x20 to 0x23
+#define I2C_TWAMR ((I2C_BPF | I2C_RX | I2C_SWR) ^ (I2C_BPF & I2C_RX & I2C_SWR))  // xor = 0000 0011 ->  it receives addresses 0010 00XX  ->  from 0x20 to 0x23
 // TWAMR = on bit set, accept any value for the address bit received
 
 
@@ -538,7 +540,7 @@ uint8_t InitCheck(void)
     }
     cont_test++;
 
-    delay(150);  //ms
+    delay(250);  //ms
 
     retValue = false;
   }
