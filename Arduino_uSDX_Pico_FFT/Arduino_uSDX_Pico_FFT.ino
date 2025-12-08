@@ -70,8 +70,8 @@
 
 
 --------------------------------------------------------------
->>In case your ILI9341 looks 90 degree view:
-For ILI9341 + RP2040,  try change  TFT_eSPI/TFT_Drivers/ILI9341_Defines.h
+>>In case your ILI9341 looks 90 degree view, or partially 90 degree view (as mine):
+>>For ILI9341 + RP2040,  try change  TFT_eSPI/TFT_Drivers/ILI9341_Defines.h
 #define TFT_WIDTH  320  //240
 #define TFT_HEIGHT 240  //320
 >>(this was reported as a issue to TFT_eSPI github project: https://github.com/Bodmer/TFT_eSPI/issues/1725)
@@ -82,7 +82,7 @@ For ILI9341 + RP2040,  try change  TFT_eSPI/TFT_Drivers/ILI9341_Defines.h
 --------------------------------------------------------------
 --------------------------------------------------------------
 >>The following mods will correct this beginner usual error:
-Compilation error: 'Wire1' was not declared in this scope
+>>Compilation error: 'Wire1' was not declared in this scope
 
 >>For Wire/I2C, look the pins at  
 .arduino15/packages/arduino/hardware/mbed_rp2040/4.0.2/variants/RASPBERRY_PI_PICO/pins_arduino.h

@@ -32,14 +32,14 @@
   It is expected to have <20K number of flash sector erases before we can have errors (could take more), so  20K x 256 = 5120K writes
   With 1 write per day, it will last 5120K / 365 = 14 years  (only!!!, the option would be increase the FLASH area using more sectors - for now, save writings...)
   If after 14 years you are getting mem errors, you can try change the code "define" FLASH_TARGET_OFFSET to use another sector:
-  #define FLASH_TARGET_OFFSET   (PICO_FLASH_SIZE_BYTES - (2 * FLASH_SECTOR_SIZE))  // to start address in the second last sector on FLASH mem
+  #define FLASH_TARGET_OFFSET   (PICO_FLASH_SIZE_BYTES - (2 * FLASH_SECTOR_SIZE_))  // to start address in the second last sector on FLASH mem
 
 
   There are two functions in the Pi Pico SDK used to write into the flash:
 
   flash_range_erase(uint32_t flash_offs, size_t count);
     erase (resets to 0xFF) count bytes of flash beginning at address flash_offs.
-    count must be a multiple of the FLASH_SECTOR_SIZE (4096).
+    count must be a multiple of the FLASH_SECTOR_SIZE_ (4096).
 
   flash_range_program(uint32_t flash_offs, const uint8_t *data, size_t count);
     program (sets bits to zero) one or more 256-byte pages (stored in *data) to the count bytes beginning at address flash_offs. 
@@ -87,7 +87,7 @@ extern "C" {
 #include "pico/multicore.h"
 
 
-//#define DFLASH_debug    10
+#define DFLASH_debug    10
 
 #ifdef DFLASH_debug
 //defines used to print the DFlash variable to help debug
@@ -131,7 +131,9 @@ uint16_t Dflash_read_block(uint16_t block_num, uint8_t *data_bl, uint16_t data_s
   uint8_t  data_block[DATA_BLOCK_SIZE];
   uint8_t chksum;
   uint8_t count_FFs = 0;  
+#ifdef DFLASH_debug
   uint32_t freq;    
+#endif
 
   if(data_siz > DATA_BLOCK_SIZE-1)  // -1 to leave 1 byte for chksum
     {
@@ -216,7 +218,7 @@ uint16_t Dflash_read_block(uint16_t block_num, uint8_t *data_bl, uint16_t data_s
 void Init_HMI_data(uint8_t *actual_bnd)
 {
   uint8_t   data_block[DATA_BLOCK_SIZE];
-  uint16_t  i, j, data_index;
+  uint16_t  i, j; //, data_index;
   uint8_t   last_band;
   uint16_t ret_read;
   uint16_t count_block = 0;
@@ -273,13 +275,16 @@ void Init_HMI_data(uint8_t *actual_bnd)
     }
   PRT_LN("INIT ok   last_block = " + String(last_block) + "   actual_bnd = " + String(*actual_bnd));
 
+#ifdef DFLASH_debug
       //calculate the page for last_block+1
   uint16_t npage = (last_block+1) / MAX_NBLOCK_IN_PAGE;
 
       //calculte the block+1 position inside of the page
   uint16_t block_in_page = last_block - (npage * MAX_NBLOCK_IN_PAGE);
-  
+
   PRT_LN("          npage = " + String(npage) + "   last block inpage = " + String(block_in_page));
+#endif
+
 }
 
 
@@ -313,7 +318,7 @@ void Dflash_erase_sector(void)
         PRT_LN("multicore_lock"); 
 
         uint32_t ints = save_and_disable_interrupts();
-        flash_range_erase(DFLASH_ADDR_ERASE, FLASH_SECTOR_SIZE);  //size Must be a multiple of 4096 bytes (one sector).
+        flash_range_erase(DFLASH_ADDR_ERASE, FLASH_SECTOR_SIZE_);  //size Must be a multiple of 4096 bytes (one sector).
         restore_interrupts (ints);
         bool unlocked;
 
@@ -442,13 +447,15 @@ bool Dflash_write_block(uint8_t *data_bl)
   uint16_t next_block_pos_in_page;
   uint32_t last_block_addr_read;
   uint32_t page_addr_read;
-  uint8_t *ap_bl;
+  //uint8_t *ap_bl;
   uint8_t pg[FLASH_PAGE_SIZE];  
   uint16_t npage;   //next block's page
   uint16_t i,j,k;
   uint16_t block_in_page;
   uint16_t  data_index;
+#ifdef DFLASH_debug   
   uint32_t freq;  
+#endif
   uint8_t chksum;
 
 //check if it is the same as the last already saved
@@ -464,7 +471,7 @@ bool Dflash_write_block(uint8_t *data_bl)
   {
     PRT_LN("Last block different -> writing the new one");
 
-    if(last_block+1 >= FLASH_SECTOR_SIZE)  //DFLASH sector full
+    if(last_block+1 >= FLASH_SECTOR_SIZE_)  //DFLASH sector full
     {
       Dflash_erase_sector();
 

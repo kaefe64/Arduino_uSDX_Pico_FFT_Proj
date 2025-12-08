@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 
-//#define PY2KLA_setup     1       //setup for PY2KLA hardware   (comment this line for default setup)
+#define PY2KLA_setup     1       //setup for PY2KLA hardware   (comment this line for default setup)
 #define SW_VERSION    "Dec24"    //software version
 
 //choose the serial to be used (names come from MBed library, look at "pins_arduino.h" and comments at .ino file)

@@ -202,7 +202,8 @@ uint16_t tft_color565(uint16_t r, uint16_t g, uint16_t b)
 #define bargraph_X   10     //initial column 
 #define bargraph_dX  6    //block wide
 #define bargraph_dX_space  1  //space between blocks
-int16_t Smeter_table_color[MAX_Smeter_table] = {  TFT_GREEN, TFT_GREEN, TFT_GREEN, TFT_GREEN, TFT_YELLOW, TFT_YELLOW, TFT_YELLOW, TFT_YELLOW, TFT_RED, TFT_RED, TFT_RED };
+int Smeter_table_color[MAX_Smeter_table] = {  TFT_GREEN, TFT_GREEN, TFT_GREEN, TFT_GREEN, TFT_YELLOW, TFT_YELLOW, 
+                                                  TFT_YELLOW, TFT_YELLOW, TFT_RED, TFT_RED, TFT_RED };
 
 /*
     Smeter_bargraph
@@ -260,7 +261,7 @@ index_old = 0;
 
 
 //int16_t TxPower_table_color[MAX_Smeter_table] = {  TFT_RED, TFT_RED, TFT_RED, TFT_RED, TFT_MAROON, TFT_MAROON, TFT_MAROON, TFT_MAROON, TFT_ORANGE, TFT_ORANGE, TFT_ORANGE };
-int16_t TxPower_table_color[MAX_Smeter_table] = {  TFT_MAROON, TFT_MAROON, TFT_MAROON, TFT_MAROON, TFT_RED, TFT_RED, TFT_RED, TFT_RED, TFT_MAGENTA, TFT_MAGENTA, TFT_MAGENTA };
+int TxPower_table_color[MAX_Smeter_table] = {  TFT_MAROON, TFT_MAROON, TFT_MAROON, TFT_MAROON, TFT_RED, TFT_RED, TFT_RED, TFT_RED, TFT_MAGENTA, TFT_MAGENTA, TFT_MAGENTA };
 
 
 /*
@@ -446,7 +447,7 @@ uint8_t vet_graf_fft[GRAPH_NUM_LINES][FFT_NSAMP];    // [NL][NCOL]
 *********************************************************/
 void display_fft_graf(uint16_t freq)    //receive the actual freq to move the waterfall as changing the dial
 {                                       //consider 1kHz for each pixel on horizontal
-  int16_t x, y;
+  uint16_t x, y;
   uint16_t extra_color;
   static uint16_t freq_old = 7080;
   int16_t freq_change;
@@ -473,11 +474,11 @@ void display_fft_graf(uint16_t freq)    //receive the actual freq to move the wa
       //  move the waterfall line to left or right  according to the freq change
       if(freq_change > 0)    // new freq greater than old
       {
-        if(freq_change < GRAPH_NUM_COLS)   //change in the visible area
+        for(x=0; x<GRAPH_NUM_COLS; x++)
         {
-          for(x=0; x<GRAPH_NUM_COLS; x++)
+          if(freq_change < (int16_t)GRAPH_NUM_COLS)   //change in the visible area
           {
-            if((x + freq_change) < GRAPH_NUM_COLS)
+            if((x + freq_change) < (int16_t)GRAPH_NUM_COLS)
             {
               vet_graf_fft[y][x] = vet_graf_fft[y][x + freq_change];   //move to left
             }
@@ -486,31 +487,31 @@ void display_fft_graf(uint16_t freq)    //receive the actual freq to move the wa
               vet_graf_fft[y][x] = 0;  //fill with empty
             }
           }    
-        }
-        else  //big change, make a empty line (erase the old data)
-        {
-          vet_graf_fft[y][x] = 0;
+          else  //big change, make a empty line (erase the old data)
+          {
+            vet_graf_fft[y][x] = 0;
+          }
         }
       }
       else   // new freq smaller than old = freq_change is negative
       {
-        if((-freq_change) < GRAPH_NUM_COLS)   //change in the visible area
+        for(x=GRAPH_NUM_COLS; x>0; x--)
         {
-          for(x=GRAPH_NUM_COLS-1; x>=0; x--)
+          if((uint16_t)(-freq_change) < GRAPH_NUM_COLS)   //change in the visible area
           {
-            if((x + freq_change) > 0)
+            if((x-1 + freq_change) > 0)
             {
-              vet_graf_fft[y][x] = vet_graf_fft[y][x + freq_change];   //move to right
+              vet_graf_fft[y][x-1] = vet_graf_fft[y][x-1 + freq_change];   //move to right
             }
             else
             {
-              vet_graf_fft[y][x] = 0;  //fill with empty
+              vet_graf_fft[y][x-1] = 0;  //fill with empty
             }
           }    
-        }
-        else  //big change, make a empty line (erase the old data)
-        {
-          vet_graf_fft[y][x] = 0;
+          else  //big change, make a empty line (erase the old data)
+          {
+            vet_graf_fft[y][x] = 0;
+          }
         }
       }
     }      
