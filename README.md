@@ -8,15 +8,21 @@
 This project is a QSD/QSE Software Defined HF Transceiver (SDR), 5 Band, Low Power, based on  Arjan te Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico.<br>
 I started this project based on Arjan's version https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/package/CODEv2.zip from 2021 with documentation at https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/doc/uSDR%20-%20v2.02.pdf .
 
-My intention was to include a Waterfall or Panadapter to the Arjan's uSDR-Pico project. For this, I included an ILI9341 240x320 2.4" TFT display, without touch, and also, changed the software to generate the Waterfall.
+My intention was to include a Waterfall/Panadapter to the Arjan's uSDR-Pico project. For this, I included an ILI9341 240x320 2.4" TFT display, without touch, and also, changed the software to generate the Waterfall.
 
 Initially, I used Visual Studio, like the original project, but after some considerations, I ported all code to Arduino IDE. So, to compile and run this code you need the Arduino IDE installed for a Raspberry Pi Pico project (see "Arduino IDE setup and notes:" below).
 
 I also, chose not to change the original software as much as possible, and focused on the Waterfall implementation, mostly in the dsp.c.
+<br>
 
-The Arjan-5 and uSDR-Pico **DO NOT USE** the uSDX Amplitude/Phase for transmission like the PE1NNZ uSDX project.
+## uSDX project (PE1NNZ)
 
-I used the word "uSDX" instead of "uSDR" to name some files. This was a mistake. My intention was to follow Arjan's project with the same names.<br>
+This project, Arjan-5 and uSDR-Pico **DO NOT USE** the uSDX Amplitude/Phase for transmission like the PE1NNZ uSDX project.
+
+Even so, I adapted the TX modulation code (only TX) using Amplitude/Phase from PE1NNZ uSDX project to run at RP2040. It is a separate code, just for test. See it at uSDX_TX folder.
+
+I used the word "uSDX" instead of "uSDR" to name some files. This was a mistake. My intention was to follow Arjan's project with the same names.
+<br>
 
 ## Basic connections for initial tests
 ![Main Block Diagram](FFT_LCD_pico.png)
@@ -115,8 +121,9 @@ Obs.: Don't mind the red wires on the PCB, they are only test for separated 5V p
 ### Arduino IDE setup and notes:
 - I am using Arduino IDE version 2.0.1 in Linux/Ubuntu
 - Lib used: TFT_eSPI by Bodmer
-- **IMPORTANT: Use the comments at beginning of  .ino  file to "adjust" the library files to the project.**
-- Boards Manager:  Arduino Mbed OS RP2040 Boards. My version is 4.0.2 (Every time I update it, I will need to "adjust" the library files again).
+- Boards Manager:  Arduino Mbed OS RP2040 Boards. My version is 4.0.2 
+- **IMPORTANT: Use the comments at beginning of  Arduino_uSDX_Pico_FFT.ino  file to "adjust" the library files to the project.**
+- Every time I update the library, I need to "adjust" the library files again.
 - Do not include EarlePhilhower library (it is conflitant with Mbed)
 - Board: "RaspberryPiPico"  >  Arduino Mbed OS RP2040 Boards  >  RaspberryPiPico
 - The code files have cpp type, but the code itself is in C (cpp type is used to help in some compiler issues).
@@ -217,6 +224,10 @@ It starts to save/play when pressing < Enter >, and will stop after 10s or when 
 <br>
 
 ## Last changes and notes:<br>
+
+### Dec25 2024
+- Correcting component values on schematic: R28=51K, R4=5K1 1% and U9=74AC74
+- Including Eeprom write/read I2C commands on Arduino_I2C_BPF_RX (Arduino Pro Mini) to save the band data to Eeprom instead of Pico Data Flash.<br>
 
 ### Nov25 2024
 - Improving the CW Morse Decoder. It is still under test (well... all features are always under test).<br>
