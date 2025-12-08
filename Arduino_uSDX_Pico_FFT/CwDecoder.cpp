@@ -265,7 +265,7 @@ void  graph_to_display(void)
 {
   static uint16_t scwgraph_pos_old;
   uint16_t scwgraph_pos_loc;
-  uint16_t i;
+  //uint16_t i;
 
   scwgraph_pos_loc = scwgraph_pos;  //local value    avoid mix with interrupt on CORE1
   while(scwgraph_pos_loc != scwgraph_pos_old)
@@ -596,7 +596,7 @@ void CwDecoder_array_in(void)
 {
 uint16_t i = 0;
 static uint16_t cw_rx_array_old = 0;
-uint16_t cw_letter_old = 0;
+//uint16_t cw_letter_old = 0;
 
   if(cw_rx_array != cw_rx_array_old)  //new array ready to analysis
   {

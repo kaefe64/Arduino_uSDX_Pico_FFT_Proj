@@ -336,8 +336,9 @@ Serialx.println("Time main=" + String(time_main) +
 //***********************************************************************
 void Store_Last_Band(uint8_t band)
 {
-  uint16_t j;
 /*    
+  uint16_t j;
+
   for(j = 0; j < HMI_NMENUS; j++)
     {
       band_vars[band][j] = hmi_sub[j];
@@ -358,8 +359,9 @@ void Store_Last_Band(uint8_t band)
 //***********************************************************************
 void Setup_Band(uint8_t band)
 {
-  uint16_t j;
 /*    
+  uint16_t j;
+
   for(j = 0; j < HMI_NMENUS; j++)
     {
     if(band_vars[band][j] < hmi_num_opt[j])   //checking boudaries
@@ -886,7 +888,7 @@ void hmi_smeter(void)
 //  static int16_t agc_gain_old = 1;
   static int16_t fft_gain_old = 0;
   int16_t Smeter_index_new;
-  static int16_t Smeter_index = 0;  //smeter table index = number of blocks to draw on smeter bar graph
+  //static int16_t Smeter_index = 0;  //smeter table index = number of blocks to draw on smeter bar graph
 
 
 /*
