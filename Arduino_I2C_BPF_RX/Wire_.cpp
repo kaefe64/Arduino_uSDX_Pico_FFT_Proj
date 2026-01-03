@@ -269,6 +269,12 @@ int TwoWire::peek(void)
 void TwoWire::flush(void)
 {
   // XXX: to be implemented.
+
+  //https://github.com/esp8266/Arduino/blob/master/libraries/Wire/Wire.cpp
+    rxBufferIndex  = 0;
+    rxBufferLength = 0;
+    txBufferIndex  = 0;
+    txBufferLength = 0;  
 }
 
 uint8_t TwoWire::getLastAddress()
