@@ -41,13 +41,14 @@
 #include "uSDR.h"
 #include "relay.h"
 #include "si5351.h"
-#include "dsp.h"
 #include "hmi.h"
+#include "dsp.h"
 #include "pico/multicore.h"
 #include "SPI.h"
 #include "TFT_eSPI.h"
 #include "display_tft.h"
-#include "Dflash.h"
+//#include "Dflash.h"
+#include "Eeprom.h"
 #include "CwDecoder.h"
 
 
@@ -112,25 +113,30 @@
  
 
 //char hmi_o_menu[HMI_NMENUS][8] = {"Tune","Mode","AGC","Pre","VOX"};	// Indexed by hmi_menu  not used - menus done direct in Evaluate()
-char hmi_o_mode[HMI_NUM_OPT_MODE][8] = {"USB","LSB","AM ","CW "};			// Indexed by band_vars[hmi_band][HMI_S_MODE]  MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
-char hmi_o_agc [HMI_NUM_OPT_AGC][8] = {"NoAGC","Slow ","Fast "};					// Indexed by band_vars[hmi_band][HMI_S_AGC]
-char hmi_o_pre [HMI_NUM_OPT_PRE][8] = {"-30dB","-20dB","-10dB","0dB  ","+10dB"};	// Indexed by band_vars[hmi_band][HMI_S_PRE]
-char hmi_o_vox [HMI_NUM_OPT_VOX][8] = {"NoVOX","VOX-L","VOX-M","VOX-H"};		// Indexed by band_vars[hmi_band][HMI_S_VOX]
+const char hmi_o_mode[HMI_NUM_OPT_MODE][8] = {"USB","LSB","AM ","CW "};			// Indexed by memory_band[hmi_mem].vars[HMI_S_MODE]  MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
+const char hmi_o_agc [HMI_NUM_OPT_AGC][8] = {"NoAGC","Slow ","Fast "};					// Indexed by memory_band[hmi_mem].vars[HMI_S_AGC]
+const char hmi_o_pre [HMI_NUM_OPT_PRE][8] = {"-30dB","-20dB","-10dB","0dB  ","+10dB"};	// Indexed by memory_band[hmi_mem].vars[HMI_S_PRE]
+const char hmi_o_vox [HMI_NUM_OPT_VOX][8] = {"NoVOX","VOX-L","VOX-M","VOX-H"};		// Indexed by memory_band[hmi_mem].vars[HMI_S_VOX]
 #define NoVOX_pos_menu  0   //index for NoVOX option
-char hmi_o_bpf [HMI_NUM_OPT_BPF][8] = {"<2.5","2-6","5-12","10-24","20-40"};
-char hmi_o_dflash [HMI_NUM_OPT_DFLASH][8] = {"Save", "Saving"};  //only save is visible  (saving is used to start the dflash write)
-char hmi_o_audio [HMI_NUM_OPT_AUDIO][20] = {"Rec from TX", "Rec from RX", "Play to TX", "Play to Speaker"};
+const char hmi_o_bpf [HMI_NUM_OPT_BPF][8] = {"<2.5","2-6","5-12","10-24","20-40"};
+//const char hmi_o_dflash [HMI_NUM_OPT_DFLASH][8] = {"Save", "Saving"};  //only save is visible  (saving is used to start the dflash write)
+const char hmi_o_memory [HMI_NUM_OPT_MEMORY_SAVING][8] = {"00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "SAVING"}; 
+const char hmi_o_audio [HMI_NUM_OPT_AUDIO][20] = {"Rec from TX", "Rec from RX", "Play to TX", "Play to Speaker"};
 
 //const uint8_t  hmi_num_opt[HMI_NMENUS] = { HMI_NUM_OPT_TUNE, HMI_NUM_OPT_MODE, HMI_NUM_OPT_AGC, HMI_NUM_OPT_PRE, HMI_NUM_OPT_VOX, HMI_NUM_OPT_BPF, HMI_NUM_OPT_DFLASH, HMI_NUM_OPT_AUDIO };	 // number of options for each menu
 
 
 // Map option to setting
-uint8_t hmi_pre[5] = {REL_ATT_30, REL_ATT_20, REL_ATT_10, REL_ATT_00, REL_PRE_10};
-uint8_t hmi_bpf[5] = {REL_LPF2, REL_BPF6, REL_BPF12, REL_BPF24, REL_BPF40};
+const uint8_t hmi_pre[5] = {REL_ATT_30, REL_ATT_20, REL_ATT_10, REL_ATT_00, REL_PRE_10};
+const uint8_t hmi_bpf[5] = {REL_LPF2, REL_BPF6, REL_BPF12, REL_BPF24, REL_BPF40};
 
 uint8_t  hmi_menu;     // menu section 0=Tune/cursor 1=Mode 2=AGC 3=Pre 4=VOX 5=Band 6=Mem  (old hmi_state)
-uint8_t  hmi_menu_opt_display;	 // current menu option showing on display (it will be copied to band vars on <enter>)  (old hmi_option)
-uint8_t  hmi_band;     // actual band
+uint8_t  hmi_menu_opt_display;	 // current menu option showing on display (old hmi_option)
+        // on <enter>, it will be copied to band vars
+        // on starting (or come back to) the menu, hmi_menu_opt_display = band vars, show the actual band vars
+uint8_t  hmi_mem;     // actual memory
+uint8_t  hmi_mem_to_save;  //memory to save the actual setup
+bool hmi_tune_used = false;
 
 //                              { cursor, mode, agc, pre, vox, band, mem ok }
 //uint8_t  hmi_sub[HMI_NMENUS] = {      4,    1,   2,   3,   0,    2,      0 };							// Stored option selection per state
@@ -141,21 +147,23 @@ int arr[3][5] = { {10, 0, 0, 0, 0},
                   {8, 0, 0, 0, 0},
                   {9, 0, 0, 0, 0 }};
 */
-//                                                0=Tune/cursor 1=Mode 2=AGC 3=Pre 4=VOX 5=Band 6=Mem  ( 8 = HMI_NMENUS ,9,10,11 = freq )
-uint8_t  band_vars[HMI_NUM_OPT_BPF][BAND_VARS_SIZE] =  { {4,0,2,3,0,0,0, 0, b0_0, b0_1, b0_2, b0_3},
-                                                  {4,1,2,3,0,1,0, b1_0, 0, b1_1, b1_2, b1_3},
-                                                  {4,1,2,3,0,2,0, b2_0, 0, b2_1, b2_2, b2_3},
-                                                  {4,1,2,3,0,3,0, b3_0, 0, b3_1, b3_2, b3_3},
-                                                  {4,1,2,3,0,4,0, b4_0, 0, b4_1, b4_2, b4_3} };
+//                         0=Tune/cursor 1=Mode 2=AGC 3=Pre 4=VOX 5=Band 6=Mem  ( 8 = HMI_NMENUS ,9,10,11 = freq )
+/*
+uint8_t  band_vars[HMI_NUM_OPT_BPF][BAND_VARS_SIZE] =  { {4,1,2,3,0,2,0, 0, b0_0, b0_1, b0_2, b0_3},
+                                                         {4,1,2,3,0,2,0, b1_0, 0, b1_1, b1_2, b1_3},
+                                                         {4,1,2,3,0,2,0, b2_0, 0, b2_1, b2_2, b2_3},
+                                                         {4,1,2,3,0,3,0, b3_0, 0, b3_1, b3_2, b3_3},
+                                                         {4,1,2,3,0,4,0, b4_0, 0, b4_1, b4_2, b4_3} };
+*/
+
+
+st_memory_band  memory_band[HMI_NUM_OPT_MEMORY] =  {0};
 
 
 
 
-
-
-
-uint32_t hmi_freq;														// Frequency from Tune state
-uint32_t hmi_step[HMI_NUM_OPT_TUNE] = {10000000L, 1000000L, 100000L, 10000L, 1000L, 100L, 50L};	// Frequency digit increments (tune option = cursor position)
+//uint32_t hmi_freq;														// Frequency from Tune state
+const uint32_t hmi_step[HMI_NUM_OPT_TUNE] = {10000000L, 1000000L, 100000L, 10000L, 1000L, 100L, 50L};	// Frequency digit increments (tune option = cursor position)
 const uint32_t hmi_maxfreq[HMI_NUM_OPT_BPF] = {2500000L, 6000000L, 12000000L, 24000000L, 40000000L};	// max freq for each band from pass band filters
 const uint32_t hmi_minfreq[HMI_NUM_OPT_BPF] = {1000000L, 2000000L,  5000000L, 10000000L, 20000000L};	  // min freq for each band from pass band filters
 
@@ -344,11 +352,13 @@ void Store_Last_Band(uint8_t band)
       band_vars[band][j] = hmi_sub[j];
     }
 */
-
+/*
   band_vars[band][HMI_NMENUS] = (uint8_t)(hmi_freq >> 24);
   band_vars[band][HMI_NMENUS+1] = (uint8_t)((hmi_freq >> 16)&0xff);
   band_vars[band][HMI_NMENUS+2] = (uint8_t)((hmi_freq >> 8)&0xff);
   band_vars[band][HMI_NMENUS+3] =  (uint8_t)(hmi_freq&0xff);
+*/
+  //memory_band[hmi_mem].mem_freq.u32 = hmi_freq;
 }
 
 
@@ -376,6 +386,7 @@ void Setup_Band(uint8_t band)
 */
 	//hmi_freq = 7050000UL;							// Initial frequency
   //get freq from DFLASH band data
+/*  
   hmi_freq = band_vars[band][HMI_NMENUS];
   hmi_freq <<= 8;        
   hmi_freq += band_vars[band][HMI_NMENUS+1];
@@ -383,6 +394,8 @@ void Setup_Band(uint8_t band)
   hmi_freq += band_vars[band][HMI_NMENUS+2];
   hmi_freq <<= 8;        
   hmi_freq += band_vars[band][HMI_NMENUS+3];
+*/
+  //hmi_freq = memory_band[hmi_mem].mem_freq.u32;
 
   if(hmi_freq > hmi_maxfreq[band])  //checking boudaries
     {
@@ -409,65 +422,16 @@ void Setup_Band(uint8_t band)
 	//ptt_state = 0;
 	ptt_external_active = false;
 	
-	dsp_setmode(band_vars[band][HMI_S_MODE]);  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
-	dsp_setvox(band_vars[band][HMI_S_VOX]);
-	dsp_setagc(band_vars[band][HMI_S_AGC]);	
-	relay_setattn(hmi_pre[band_vars[band][HMI_S_PRE]]);
-	relay_setband(hmi_bpf[band_vars[band][HMI_S_BPF]]);
+	dsp_setmode(memory_band[hmi_mem].vars[HMI_S_MODE]);  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
+	dsp_setvox(memory_band[hmi_mem].vars[HMI_S_VOX]);
+	dsp_setagc(memory_band[hmi_mem].vars[HMI_S_AGC]);	
+	relay_setattn(hmi_pre[memory_band[hmi_mem].vars[HMI_S_PRE]]);
+	relay_setband(hmi_bpf[memory_band[hmi_mem].vars[HMI_S_BPF]]);
 	
 
-
-//	hmi_menu = HMI_S_BPF;  //changing band on band menu
-//  hmi_band = band;
-//	hmi_menu_opt_display = band_vars[hmi_band][hmi_menu];  //get the menu option = actual band
-  
 }
 
 
-
-//***********************************************************************
-//
-// Save the actual band variables to DFLASH 
-//    on first empty mem block = last_block+1 mem position
-//
-//
-//***********************************************************************
-void Save_Actual_Band_Dflash(void)
-{
-  uint8_t   data_block[DATA_BLOCK_SIZE];
-  uint16_t  i;
-
-  //copy data from band vars to dflash block (not all menus are saved at dflash)
-  for (i=0; i<HMI_NMENUS_DFLASH; i++)
-    {
-    data_block[i] = band_vars[hmi_band][i];
-    }
-
-  // copy freq to dflash block and save freq to band vars (after menu data)
-  data_block[HMI_NMENUS_DFLASH] = band_vars[hmi_band][HMI_NMENUS] = (uint8_t)(hmi_freq >> 24);  //uint32_t
-  data_block[HMI_NMENUS_DFLASH+1] = band_vars[hmi_band][HMI_NMENUS+1] = (uint8_t)((hmi_freq >> 16) & 0xff); 
-  data_block[HMI_NMENUS_DFLASH+2] = band_vars[hmi_band][HMI_NMENUS+2] = (uint8_t)((hmi_freq >> 8) & 0xff); 
-  data_block[HMI_NMENUS_DFLASH+3] = band_vars[hmi_band][HMI_NMENUS+3] = (uint8_t)(hmi_freq & 0xff); 
-
-
-  // write last menu configuration to data flash memory
-//  if(Dflash_write_block(&band_vars[hmi_band][0]) == true)
-  if(Dflash_write_block(data_block) == true)
-  {
-#ifdef HMI_debug
-      Serialx.println("\nWrite block to DFLASH = OK");
-      for(int ndata = 0; ndata < HMI_NMENUS; ndata++)
-        {   
-        Serialx.print(" " + String(band_vars[hmi_band][ndata]));
-        }
-      Serialx.println("\n");
-  }
-  else
-  {
-      Serialx.println("\nWrite block to DFLASH = NOT OK");
-#endif
-  }
-}
 
 
 
@@ -496,51 +460,67 @@ void hmi_handler(uint8_t event)
 	{
 		if (event==HMI_E_ESCAPE)										// Enter submenus
 		{
-			//band_vars[hmi_band][hmi_menu] = hmi_menu_opt_display;							// Store cursor position on TUNE
+			//memory_band[hmi_mem].vars[hmi_menu] = hmi_menu_opt_display;							// Store cursor position on TUNE
 			hmi_menu = hmi_menu_last;										// go to last menu selected before TUNE
-			hmi_menu_opt_display = band_vars[hmi_band][hmi_menu];							// Restore selection of new menu
+			hmi_menu_opt_display = memory_band[hmi_mem].vars[hmi_menu];							// Restore selection of new menu
 		}
 		else if (event==HMI_E_INCREMENT)
 		{
-      //if(!gpio_get(GP_AUX_1_Escape))  //in case Escape is pressed
-      if(!gpio_get(GP_AUX_0_Enter))  //in case Escape is pressed
+      if(!gpio_get(GP_AUX_0_Enter))  //in case Enter is pressed
       {
-        if(fft_gain<(1<<FFT_GAIN_SHIFT))
+        if(fft_gain[hmi_mem]<(1<<FFT_GAIN_SHIFT))
           {
-            fft_gain++;
+            fft_gain[hmi_mem]++;
           }
+        hmi_tune_used = true;
+      }
+      else if(!gpio_get(GP_AUX_2_Left))  //in case Left is pressed
+      {
+        if(hmi_mem<(HMI_NUM_OPT_MEMORY-1))
+          {
+            hmi_mem++;
+          }
+        hmi_tune_used = true;
       }
       else
       {
-			  if (hmi_freq < (hmi_maxfreq[band_vars[hmi_band][HMI_S_BPF]] - hmi_step[hmi_menu_opt_display]))		// Boundary check HMI_MAXFREQ
+			  if (hmi_freq < (hmi_maxfreq[memory_band[hmi_mem].vars[HMI_S_BPF]] - hmi_step[hmi_menu_opt_display]))		// Boundary check HMI_MAXFREQ
 			  	hmi_freq += hmi_step[hmi_menu_opt_display];						// Increment selected digit
       }
 		}
 		else if (event==HMI_E_DECREMENT)
 		{
-      //if(!gpio_get(GP_AUX_1_Escape))  //in case Escape is pressed
       if(!gpio_get(GP_AUX_0_Enter))  //in case Escape is pressed
       {
-        if(fft_gain>1)
+        if(fft_gain[hmi_mem]>1)
           {
-            fft_gain--;
+            fft_gain[hmi_mem]--;
           }
+        hmi_tune_used = true;
+      }
+      else if(!gpio_get(GP_AUX_2_Left))  //in case Left is pressed
+      {
+        if(hmi_mem>0)
+          {
+            hmi_mem--;
+          }
+        hmi_tune_used = true;
       }
       else
       {
-        if (hmi_freq > (hmi_step[hmi_menu_opt_display] + hmi_minfreq[band_vars[hmi_band][HMI_S_BPF]]))		// Boundary check HMI_MINFREQ
+        if (hmi_freq > (hmi_step[hmi_menu_opt_display] + hmi_minfreq[memory_band[hmi_mem].vars[HMI_S_BPF]]))		// Boundary check HMI_MINFREQ
 				  hmi_freq -= hmi_step[hmi_menu_opt_display];						// Decrement selected digit
       }
 		}
 		if (event==HMI_E_RIGHT)
       {
 			hmi_menu_opt_display = (hmi_menu_opt_display<(HMI_NUM_OPT_TUNE-1))?hmi_menu_opt_display+1:(HMI_NUM_OPT_TUNE-1);					// Digit to the right
-      band_vars[hmi_band][HMI_S_TUNE] = hmi_menu_opt_display;
+      memory_band[hmi_mem].vars[HMI_S_TUNE] = hmi_menu_opt_display;
       }      
 		if (event==HMI_E_LEFT)
       {      
 			hmi_menu_opt_display = (hmi_menu_opt_display>0)?hmi_menu_opt_display-1:0;					// Digit to the left
-      band_vars[hmi_band][HMI_S_TUNE] = hmi_menu_opt_display;
+      memory_band[hmi_mem].vars[HMI_S_TUNE] = hmi_menu_opt_display;
       }      
 	}
   else  //in submenus
@@ -580,13 +560,11 @@ void hmi_handler(uint8_t event)
   		else if (event==HMI_E_DECREMENT)
   			hmi_menu_opt_display = (hmi_menu_opt_display>0)?hmi_menu_opt_display-1:0;
   		break;
-  	case HMI_S_DFLASH: //show only 0 position = save
-      /*
+  	case HMI_S_SAVE: //show only 0 position = save
   		if (event==HMI_E_INCREMENT)
-  			hmi_menu_opt_display = (hmi_menu_opt_display<HMI_NUM_OPT_DFLASH-1)?hmi_menu_opt_display+1:HMI_NUM_OPT_DFLASH-1;
+  			hmi_menu_opt_display = (hmi_menu_opt_display<HMI_NUM_OPT_MEMORY-1)?hmi_menu_opt_display+1:HMI_NUM_OPT_MEMORY-1;
   		else if (event==HMI_E_DECREMENT)
   			hmi_menu_opt_display = (hmi_menu_opt_display>0)?hmi_menu_opt_display-1:0;
-      */
   		break;
   	case HMI_S_AUDIO:
   		if (event==HMI_E_INCREMENT)
@@ -619,15 +597,16 @@ void hmi_handler(uint8_t event)
       }
       else if(hmi_menu == HMI_S_BPF)
       {
-        hmi_band = hmi_menu_opt_display;  //band changed
+        memory_band[hmi_mem].vars[HMI_S_BPF] = hmi_menu_opt_display;  //band changed
       }
-      else if(hmi_menu == HMI_S_DFLASH)
+      else if(hmi_menu == HMI_S_SAVE)
       {
-        band_vars[hmi_band][hmi_menu] = 1;  //saving to indicate save event
+        hmi_mem_to_save = hmi_menu_opt_display;
+        memory_band[hmi_mem].vars[hmi_menu] = HMI_NUM_OPT_MEMORY_SAVING;  //saving to indicate save event
       }
       else
       {
-  		  band_vars[hmi_band][hmi_menu] = hmi_menu_opt_display;				// Store selected option	
+  		  memory_band[hmi_mem].vars[hmi_menu] = hmi_menu_opt_display;				// Store selected option	
 /*
         if((hmi_menu == HMI_S_VOX) && (hmi_menu_opt_display == NoVOX_pos_menu))  //if switching to NoVOX
         {
@@ -653,18 +632,18 @@ void hmi_handler(uint8_t event)
       {
         hmi_menu_last = hmi_menu;
         hmi_menu = HMI_S_TUNE;										// Leave submenus
-        hmi_menu_opt_display = band_vars[hmi_band][hmi_menu];							// Restore selection of new state
+        hmi_menu_opt_display = memory_band[hmi_mem].vars[hmi_menu];							// Restore selection of new state
       }
   	}
   	else if (event==HMI_E_RIGHT)
   	{
   		hmi_menu = (hmi_menu<HMI_NMENUS-1)?(hmi_menu+1):1;		// Change submenu
-  		hmi_menu_opt_display = band_vars[hmi_band][hmi_menu];							// Restore selection of new state
+  		hmi_menu_opt_display = memory_band[hmi_mem].vars[hmi_menu];							// Restore selection of new state
   	}
   	else if (event==HMI_E_LEFT)
   	{
   		hmi_menu = (hmi_menu>1)?(hmi_menu-1):HMI_NMENUS-1;		// Change submenu
-  		hmi_menu_opt_display = band_vars[hmi_band][hmi_menu];							// Restore selection of new state
+  		hmi_menu_opt_display = memory_band[hmi_mem].vars[hmi_menu];							// Restore selection of new state
   	}
 
   }
@@ -681,6 +660,12 @@ void hmi_callback(uint gpio, uint32_t events)
 
 	switch (gpio)
 	{
+/*
+    GPIO_IRQ_LEVEL_LOW = 0x1u,
+    GPIO_IRQ_LEVEL_HIGH = 0x2u,
+    GPIO_IRQ_EDGE_FALL = 0x4u,
+    GPIO_IRQ_EDGE_RISE = 0x8u,
+*/    
 	case GP_ENC_A:									// Encoder
 		if (events&GPIO_IRQ_EDGE_FALL)
     {
@@ -702,25 +687,26 @@ void hmi_callback(uint gpio, uint32_t events)
 #endif
 		break;
 	case GP_AUX_0_Enter:									// Enter
-		if (events&GPIO_IRQ_EDGE_FALL)
+		if ((events&GPIO_IRQ_EDGE_RISE) && (hmi_tune_used == false))
     {
 			evt = HMI_E_ENTER;
     }
 		break;
 	case GP_AUX_1_Escape:									// Escape
-		if (events&GPIO_IRQ_EDGE_FALL)
+		if ((events&GPIO_IRQ_EDGE_RISE) && (hmi_tune_used == false))
     {
 			evt = HMI_E_ESCAPE;
     }
 		break;
 	case GP_AUX_2_Left:									// Previous
-		if (events&GPIO_IRQ_EDGE_FALL)
+		if ((events&GPIO_IRQ_EDGE_RISE) && (hmi_tune_used == false))
+		//if (events&GPIO_IRQ_EDGE_RISE) 
     {
 			evt = HMI_E_LEFT;
     }
 		break;
 	case GP_AUX_3_Right:									// Next
-		if (events&GPIO_IRQ_EDGE_FALL)
+		if ((events&GPIO_IRQ_EDGE_RISE) && (hmi_tune_used == false))
     {
 			evt = HMI_E_RIGHT;
     }
@@ -747,7 +733,7 @@ void hmi_callback(uint gpio, uint32_t events)
 	default:
 		return;
 	}
-	
+	hmi_tune_used = false;
 	hmi_handler(evt);								// Invoke state machine
 }
 
@@ -760,18 +746,28 @@ void hmi_callback(uint gpio, uint32_t events)
 void hmi_init0(void)
 {
 	// Initialize LCD and set VFO
-  Init_HMI_data(&hmi_band);  //read data from DFLASH
-  //Setup_Band(hmi_band);
+  //Init_HMI_data(&memory_band[hmi_mem].vars[HMI_S_BPF]);  //read data from DFLASH
+  Eeprom_setup();  //read memories band data from arduino pro mini eeprom I2C
+  hmi_mem = 0; //start with the first memory after reset
+  //memory_band[hmi_mem].vars[HMI_S_BPF] = memory_band[hmi_mem].vars[HMI_S_BPF]; 
+  //Setup_Band(memory_band[hmi_mem].vars[HMI_S_BPF]);
   //  menu position = Tune  and  cursor position = hmi_menu_opt_display
 	hmi_menu = HMI_S_TUNE;
-	hmi_menu_opt_display = band_vars[hmi_band][HMI_S_TUNE];  // option on Tune is the cursor position
+	hmi_menu_opt_display = memory_band[hmi_mem].vars[HMI_S_TUNE];  // option on Tune is the cursor position
 #ifdef HMI_debug
-  Serialx.println("TUNE " + String(hmi_band));
+  Serialx.println("TUNE " + String(memory_band[hmi_mem].vars[HMI_S_BPF]));
   Serialx.println("hmi_menu  " + String(hmi_menu));
   Serialx.println("hmi_menu_opt_display " + String(hmi_menu_opt_display));
 #endif	
 
   CwDecoder_InicTable();   //fill table on running time
+}
+
+
+// dummy function to receive the init interrupts I could not avoid
+void dummy_callback(uint gpio, uint32_t events) 
+{
+    //gpio_acknowledge_irq(gpio, events);
 }
 
 
@@ -788,7 +784,15 @@ void hmi_init(void)
 	 * PTT has separate debouncing logic
 	 */
 
-	// Init input GPIOs
+/*
+  // force charge the external capacitor/track 
+  // used to avoid interrupt on RISE when capacitor is charging
+  gpio_set_dir_out_masked(GP_MASK_IN); //GPIO out
+  gpio_set_mask(GP_MASK_IN); // GPIO high
+  sleep_us(50); // time for acomodation (maybe not needed)
+*/
+
+	// Init input GPIOs as input
 	gpio_init_mask(GP_MASK_IN);   //	Initialise multiple GPIOs (enabled I/O and set func to GPIO_FUNC_SIO)
                                 //  Clear the output enable (i.e. set to input). Clear any output value.
 
@@ -814,9 +818,21 @@ for(;;)
       delay(2000);
 }
 */
+/*
+// 4. LIMPEZA TOTAL - O passo que falta para parar o disparo inicial
+// Isso limpa os bits que foram setados durante o tempo que o pino estava "solto"
+  for(uint8_t i=0; i<32; i++) 
+  {
+      if(GP_MASK_IN & (1 << i)) 
+      {
+          gpio_acknowledge_irq(i, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL);
+      }
+  }
+*/
+// clear previous interrupt
+//  gpio_acknowledge_irq(GP_AUX_1_Escape, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL);
 
-
-// Enable interrupt on level low
+// Enable interrupt on GPIO rise and fall
 	gpio_set_irq_enabled(GP_ENC_A, GPIO_IRQ_EDGE_ALL, true);
 	gpio_set_irq_enabled(GP_AUX_0_Enter, GPIO_IRQ_EDGE_ALL, true);
 	gpio_set_irq_enabled(GP_AUX_1_Escape, GPIO_IRQ_EDGE_ALL, true);
@@ -824,6 +840,13 @@ for(;;)
 	gpio_set_irq_enabled(GP_AUX_3_Right, GPIO_IRQ_EDGE_ALL, true);
 //	gpio_set_irq_enabled(GP_PTT, GPIO_IRQ_EDGE_ALL, false);
   gpio_set_irq_enabled(GP_PTT, GPIO_IRQ_EDGE_ALL, true);
+
+
+// I got some interrupt during init that I could not clear, 
+// so I will use a dummy function to receive them
+  gpio_set_irq_enabled_with_callback(GP_ENC_A, GPIO_IRQ_EDGE_ALL, true, dummy_callback);
+  delay(10);  //there could be some time after the interrupt to call the callback, 
+              //so wait a little to change the callback
 
 	// Set callback, one for all GPIO, not sure about correctness!
 	gpio_set_irq_enabled_with_callback(GP_ENC_A, GPIO_IRQ_EDGE_ALL, true, hmi_callback);
@@ -879,6 +902,7 @@ const int32_t  smeter_pre_mult[HMI_NUM_OPT_PRE] =  { 353, 136, 46,  1,  2 };  //
 const int16_t  smeter_pre_shift[HMI_NUM_OPT_PRE] = {   4,   4,  4,  0,  0 };  // it makes "shift" instead of "division", tries to save processing
 int16_t rec_level;
 int16_t rec_level_old = 1;
+int16_t fft_gain_old = 0;
 
 /**************************************************************************************
     hmi_smeter - writes the S metr value on display
@@ -886,7 +910,6 @@ int16_t rec_level_old = 1;
 void hmi_smeter(void)
 {
 //  static int16_t agc_gain_old = 1;
-  static int16_t fft_gain_old = 0;
   int16_t Smeter_index_new;
   //static int16_t Smeter_index = 0;  //smeter table index = number of blocks to draw on smeter bar graph
 
@@ -903,7 +926,7 @@ void hmi_smeter(void)
     if(smeter_display_time >= MAX_SMETER_DISPLAY_TIME)  //new value ready to display, and avoid to write variable at same time on int
     {
       //correcting input ADC value with attenuators
-      max_a_sample = (max_a_sample * smeter_pre_mult[band_vars[hmi_band][HMI_S_PRE]]) >> smeter_pre_shift[band_vars[hmi_band][HMI_S_PRE]];
+      max_a_sample = (max_a_sample * smeter_pre_mult[memory_band[hmi_mem].vars[HMI_S_PRE]]) >> smeter_pre_shift[memory_band[hmi_mem].vars[HMI_S_PRE]];
 
       //look for smeter table index
       for(Smeter_index_new=(MAX_Smeter_table-1);  Smeter_index_new>0; Smeter_index_new--)
@@ -990,12 +1013,12 @@ void hmi_smeter(void)
       smeter_display_time = 0;
     }
      
-    if(fft_gain_old != fft_gain)
+    if(fft_gain_old != fft_gain[hmi_mem])
     {
-      sprintf(s, "%d  ",fft_gain);
+      sprintf(s, "%d  ",fft_gain[hmi_mem]);
       s[3]=0;
       tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 0, x_xGain+(1*X_CHAR1), 0, y_yGain, (uint8_t *)s);   
-      fft_gain_old = fft_gain;
+      fft_gain_old = fft_gain[hmi_mem];
     }
 
 }
@@ -1147,48 +1170,42 @@ void hmi_power_swr(void)   //read the swr from Arduino Pro Mini I2C
 
 
 
+uint8_t  band_vars_old[HMI_NMENUS] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };          // Stored last option selection
+uint32_t hmi_freq_old = 0xff;  //freq in use
+uint8_t hmi_mem_old = 0xff;   //memory vars in use
+uint8_t tx_enable_old = 3;  //no TX, no RX
+uint8_t hmi_menu_old = 0xff;  //menu on display
+uint8_t hmi_menu_opt_display_old = 0xff;  //menu option on display
 
-//int16_t contk = 0;
+void hmi_refresh(void)   //hmi loop
+{
+  //for(uint8_t i=0; i<HMI_NMENUS; i++)
+  //  band_vars_old[i] = 0xff; 
+  //hmi_freq_old = 0xff;
+  hmi_mem_old = 0xff;
+  tx_enable_old = 3;
+  //hmi_menu_old = 0xff;
+  hmi_menu_opt_display_old = 0xff;
+  fft_gain_old = 0;
+}
+
+
 /*
  * Redraw the display, representing current state
  * This function is called regularly from the main loop.
  */
 void hmi_evaluate(void)   //hmi loop
 {
-  static uint8_t  band_vars_old[HMI_NMENUS] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };          // Stored last option selection
-  static uint32_t hmi_freq_old = 0xff;
-  static uint8_t hmi_band_old = 0xff;
-  static bool tx_enable_old = true;
-  static uint8_t hmi_menu_old = 0xff;
-  static uint8_t hmi_menu_opt_display_old = 0xff;
-//  static uint32_t hmi_freq_fft;
-
-#ifdef HMI_debug
-  uint16_t ndata;
-      for(ndata = 1; ndata < HMI_NMENUS-2; ndata++)
-        {   
-        if(band_vars[hmi_band][ndata] != band_vars_old[ndata])
-           break;
-        }
-      if(ndata < HMI_NMENUS-2)
-        {
-        Serialx.print("evaluate Band " + String(hmi_band) + "  band vars changed   ");
-        for(ndata = 0; ndata < HMI_NMENUS; ndata++)
-          {   
-          Serialx.print(" " + String(band_vars_old[ndata]));
-          }
-        Serialx.print("  ->  ");
-        for(ndata = 0; ndata < HMI_NMENUS; ndata++)
-          {   
-          Serialx.print(" " + String(band_vars[hmi_band][ndata]));
-          }
-        Serialx.println("\n");
-        }      
-#endif
-
   // if band_var changed (after <enter>), set parameters accordingly
-
-  if(hmi_freq_old != hmi_freq)
+  if(hmi_mem_old != hmi_mem)
+  {
+    hmi_refresh();  //refresh the view of all hmi vars
+    hmi_mem_old = hmi_mem;
+    sprintf(s, "M%02d", hmi_mem);  // hmi_menu_opt_display = memory_band[hmi_mem].vars[HMI_S_BPF]
+    tft_writexy_plus(1, TFT_BLUE, TFT_BLACK, 1,0,4,10,(uint8_t *)s); 
+  }
+  if((hmi_freq_old != hmi_freq) ||
+     (band_vars_old[HMI_S_TUNE] != memory_band[hmi_mem].vars[HMI_S_TUNE]))    //cursor
   {
     SI_SETFREQ(0, HMI_MULFREQ*hmi_freq);
     //freq  (from encoder)
@@ -1196,18 +1213,19 @@ void hmi_evaluate(void)   //hmi loop
     tft_writexy_plus(3, TFT_YELLOW, TFT_BLACK, 2,0,2,20,(uint8_t *)s);
     //cursor (writing the freq erase the cursor)
 //    tft_cursor_plus(3, TFT_YELLOW, 2+(hmi_menu_opt_display>4?6:hmi_menu_opt_display), 0, 2, 20);
-    tft_cursor_plus(3, TFT_YELLOW, 2+(band_vars[hmi_band][HMI_S_TUNE]>4?6:band_vars[hmi_band][HMI_S_TUNE]), 0, 2, 20);
+    tft_cursor_plus(3, TFT_YELLOW, 2+(memory_band[hmi_mem].vars[HMI_S_TUNE]>4?6:memory_band[hmi_mem].vars[HMI_S_TUNE]), 0, 2, 20);
     display_fft_graf_top();  //scale freqs
     hmi_freq_old = hmi_freq;
+    band_vars_old[HMI_S_TUNE] = memory_band[hmi_mem].vars[HMI_S_TUNE];    //cursor
   }
-  if(band_vars_old[HMI_S_MODE] != band_vars[hmi_band][HMI_S_MODE])    //mode (SSB AM CW)
+  if(band_vars_old[HMI_S_MODE] != memory_band[hmi_mem].vars[HMI_S_MODE])    //mode (SSB AM CW)
   {
-    dsp_setmode(band_vars[hmi_band][HMI_S_MODE]);  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
-//    sprintf(s, "%s  ", hmi_o_mode[band_vars[hmi_band][HMI_S_MODE]]);  //removing LSB to create space for swr on display
+    dsp_setmode(memory_band[hmi_mem].vars[HMI_S_MODE]);  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
+//    sprintf(s, "%s  ", hmi_o_mode[memory_band[hmi_mem].vars[HMI_S_MODE]]);  //removing LSB to create space for swr on display
 //    tft_writexy_plus(2, TFT_GREEN, TFT_BLACK, 0, 0, 0, 22, (uint8_t *)s);
     display_fft_graf_top();  //scale freqs, mode changes the triangle
 
-    if(band_vars[hmi_band][HMI_S_MODE] == MODE_CW)
+    if(memory_band[hmi_mem].vars[HMI_S_MODE] == MODE_CW)
     {
       CwDecoder_Inic();
     }
@@ -1216,48 +1234,44 @@ void hmi_evaluate(void)   //hmi loop
       CwDecoder_Exit();
     }
 
-    band_vars_old[HMI_S_MODE] = band_vars[hmi_band][HMI_S_MODE];
+    band_vars_old[HMI_S_MODE] = memory_band[hmi_mem].vars[HMI_S_MODE];
   }
-  if(band_vars_old[HMI_S_VOX] != band_vars[hmi_band][HMI_S_VOX])
+  if(band_vars_old[HMI_S_VOX] != memory_band[hmi_mem].vars[HMI_S_VOX])
   {
-    dsp_setvox(band_vars[hmi_band][HMI_S_VOX]);
-    band_vars_old[HMI_S_VOX] = band_vars[hmi_band][HMI_S_VOX];
+    dsp_setvox(memory_band[hmi_mem].vars[HMI_S_VOX]);
+    band_vars_old[HMI_S_VOX] = memory_band[hmi_mem].vars[HMI_S_VOX];
   }
-  if(band_vars_old[HMI_S_AGC] != band_vars[hmi_band][HMI_S_AGC])
+  if(band_vars_old[HMI_S_AGC] != memory_band[hmi_mem].vars[HMI_S_AGC])
   {
-    dsp_setagc(band_vars[hmi_band][HMI_S_AGC]); 
-    band_vars_old[HMI_S_AGC] = band_vars[hmi_band][HMI_S_AGC];
+    dsp_setagc(memory_band[hmi_mem].vars[HMI_S_AGC]); 
+    band_vars_old[HMI_S_AGC] = memory_band[hmi_mem].vars[HMI_S_AGC];
   }
-  if(hmi_band_old != hmi_band)
+  if(band_vars_old[HMI_S_BPF] != memory_band[hmi_mem].vars[HMI_S_BPF])
   {
-    if(hmi_band_old < HMI_S_BPF)  //if not the first time;
-      {
-      Store_Last_Band(hmi_band_old);  // store data from old band (save freq to have it when back to this band)
-      }
-    //relay_setband(hmi_band);  // = hmi_band  
-    sleep_ms(1);                  // I2C doesn't work without...
-    Setup_Band(hmi_band);  // = hmi_band  get the new band data 
-    hmi_band_old = hmi_band;  // = hmi_band  
+    Setup_Band(memory_band[hmi_mem].vars[HMI_S_BPF]);  // = memory_band[hmi_mem].vars[HMI_S_BPF]  get the new band data 
+    band_vars_old[HMI_S_BPF] = memory_band[hmi_mem].vars[HMI_S_BPF];  // = memory_band[hmi_mem].vars[HMI_S_BPF]  
 
-    sprintf(s, "B%d", band_vars[hmi_band][HMI_S_BPF]);  // hmi_menu_opt_display = band_vars[hmi_band][HMI_S_BPF]
-    //tft_writexy_plus(3, TFT_YELLOW, TFT_BLACK, 0,0,2,20,(uint8_t *)s);
-    tft_writexy_plus(2, TFT_BLUE, TFT_BLACK, 0,0,3,18,(uint8_t *)s);
-
-  }
-  if(band_vars_old[HMI_S_PRE] != band_vars[hmi_band][HMI_S_PRE])
+    //printf(s, "B%d", memory_band[hmi_mem].vars[HMI_S_BPF]);  // hmi_menu_opt_display = memory_band[hmi_mem].vars[HMI_S_BPF]
+    //tft_writexy_plus(2, TFT_BLUE, TFT_BLACK, 0,0,3,18,(uint8_t *)s);
+    sprintf(s, "B%d", memory_band[hmi_mem].vars[HMI_S_BPF]);  // hmi_menu_opt_display = memory_band[hmi_mem].vars[HMI_S_BPF]
+    tft_writexy_plus(1, TFT_YELLOW, TFT_BLACK, 1,0,5,10,(uint8_t *)s);
+  }  
+  if(band_vars_old[HMI_S_PRE] != memory_band[hmi_mem].vars[HMI_S_PRE])
   {  
-    relay_setattn(hmi_pre[band_vars[hmi_band][HMI_S_PRE]]);
-    band_vars_old[HMI_S_PRE] = band_vars[hmi_band][HMI_S_PRE];
+    relay_setattn(hmi_pre[memory_band[hmi_mem].vars[HMI_S_PRE]]);
+    band_vars_old[HMI_S_PRE] = memory_band[hmi_mem].vars[HMI_S_PRE];
   }
-  if(band_vars[hmi_band][HMI_S_DFLASH] == 1)  //mem save + enter = saving
+  if(memory_band[hmi_mem].vars[HMI_S_SAVE] == HMI_NUM_OPT_MEMORY_SAVING)  //mem save + enter = saving
   {
     //sprintf(s, "%s       ", hmi_o_dflash[hmi_menu_opt_display]);
     //tft_writexy_(1, TFT_RED, TFT_BLACK,8,0,(uint8_t *)s);  
 #ifdef HMI_debug
-    Serialx.println("Mem save   band " + String(hmi_band));
+    Serialx.println("Mem save   band " + String(memory_band[hmi_mem].vars[HMI_S_BPF]));
 #endif
-    band_vars[hmi_band][HMI_S_DFLASH] = 0;  //back to 0
-    Save_Actual_Band_Dflash();
+
+    memory_band[hmi_mem].vars[HMI_S_SAVE] = hmi_mem_to_save;  //menu actual = saved
+    Save_Band_Eeprom(hmi_mem, hmi_mem_to_save);  //hmi_save( actual,  new one)
+    hmi_mem = hmi_mem_to_save;  //actual = saved
 
     //sprintf(s, "%s       ", hmi_o_dflash[hmi_menu_opt_display]);
     //tft_writexy_(1, TFT_MAGENTA, TFT_BLACK,8,0,(uint8_t *)s);  
@@ -1267,7 +1281,7 @@ void hmi_evaluate(void)   //hmi loop
 
 
   //T or R  (using letters instead of arrow used on original project)
-  if(tx_enable_old != tx_enabled)
+  if(tx_enable_old != (tx_enabled?1:0))
   {
     //erase the area for T or R, infos and the bar graph area
     tft.fillRect(x_RT, y_RT, (6*X_CHAR1), (3*Y_CHAR1), TFT_BLACK);   // TFT_LIGHTGREY);  TFT_BLACK); 
@@ -1290,7 +1304,7 @@ void hmi_evaluate(void)   //hmi loop
 
     tx_enable_changed = true;  //signal to init values at display
 
-    tx_enable_old = tx_enabled;
+    tx_enable_old = (tx_enabled?1:0);
   }
 
 
@@ -1301,7 +1315,7 @@ void hmi_evaluate(void)   //hmi loop
     //Smeter rec level
     hmi_smeter();  //during RX, print Smeter on display
 
-    if(band_vars[hmi_band][HMI_S_MODE] == MODE_CW)
+    if(memory_band[hmi_mem].vars[HMI_S_MODE] == MODE_CW)
     {
       CwDecoder_array_in();
     }
@@ -1320,19 +1334,22 @@ void hmi_evaluate(void)   //hmi loop
   if((hmi_menu_old != hmi_menu) || (hmi_menu_opt_display_old != hmi_menu_opt_display))
   {
 #ifdef HMI_debug
-  Serialx.println("evaluate Band " + String(hmi_band));
+  Serialx.println("evaluate Band " + String(memory_band[hmi_mem].vars[HMI_S_BPF]));
   Serialx.println("hmi_menu  " + String(hmi_menu_old) + " -> " + String(hmi_menu));
   Serialx.println("hmi_menu_opt_display " + String(hmi_menu_opt_display_old) + " -> "  + String(hmi_menu_opt_display));
 #endif
+
+    //erase the menu area
+    tft.fillRect(0, 0, display_WIDTH, Y_CHAR1, TFT_BLACK);
 
   	//menu 
   	switch (hmi_menu)
   	{
   	case HMI_S_TUNE:
-  		sprintf(s, "%s  %s  %s %s ", hmi_o_mode[band_vars[hmi_band][HMI_S_MODE]], hmi_o_vox[band_vars[hmi_band][HMI_S_VOX]], hmi_o_agc[band_vars[hmi_band][HMI_S_AGC]], hmi_o_pre[band_vars[hmi_band][HMI_S_PRE]]);
+  		sprintf(s, "%s  %s  %s %s ", hmi_o_mode[memory_band[hmi_mem].vars[HMI_S_MODE]], hmi_o_vox[memory_band[hmi_mem].vars[HMI_S_VOX]], hmi_o_agc[memory_band[hmi_mem].vars[HMI_S_AGC]], hmi_o_pre[memory_band[hmi_mem].vars[HMI_S_PRE]]);
       tft_writexy_(1, TFT_BLUE, TFT_BLACK,0,0,(uint8_t *)s);  
       //cursor
-      tft_cursor_plus(3, TFT_YELLOW, 2+(hmi_menu_opt_display>4?6:hmi_menu_opt_display), 0, 2, 20);    
+      tft_cursor_plus(3, TFT_YELLOW, 2+(memory_band[hmi_mem].vars[HMI_S_TUNE]>4?6:memory_band[hmi_mem].vars[HMI_S_TUNE]), 0, 2, 20);    
   		break;
   	case HMI_S_MODE:
   		sprintf(s, "Set Mode: %s        ", hmi_o_mode[hmi_menu_opt_display]);
@@ -1354,8 +1371,16 @@ void hmi_evaluate(void)   //hmi loop
   		sprintf(s, "Band: B%d %sMHz    ", hmi_menu_opt_display, hmi_o_bpf[hmi_menu_opt_display]);
       tft_writexy_(1, TFT_MAGENTA, TFT_BLACK,0,0,(uint8_t *)s);  
   		break;
-  	case HMI_S_DFLASH:
-  		sprintf(s, "Memory: %s       ", hmi_o_dflash[hmi_menu_opt_display]);
+  	case HMI_S_SAVE:
+      //if(memory_band[hmi_mem].vars[HMI_S_SAVE] == HMI_NUM_OPT_MEMORY_SAVING) 
+      {
+    	//	sprintf(s, "Memory saving    ", hmi_o_memory[hmi_menu_opt_display]);
+      }
+      //else
+      {
+        //sprintf(s, "Memory: %s       ", hmi_o_dflash[hmi_menu_opt_display]);
+        sprintf(s, "Memory save: %s  ", hmi_o_memory[hmi_menu_opt_display]);
+      }
       tft_writexy_(1, TFT_MAGENTA, TFT_BLACK,0,0,(uint8_t *)s);  
   		break;
   	case HMI_S_AUDIO:

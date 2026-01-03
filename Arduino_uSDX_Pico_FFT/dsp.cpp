@@ -135,7 +135,7 @@ volatile int16_t a_s_raw[MAX_TAP_NUM];             // Raw MIC samples, minus DC 
 volatile int32_t peak_avg_shifted=0;     // signal level detector after AGC = average of positive values
 volatile int16_t peak_avg_diff_accu=0;   // Log peak level integrator
 volatile uint16_t agc_gain=((AGC_GAIN_MAX/2u)+1u);   // AGC gain/attenuation - starts at the middle
-uint16_t volatile fft_gain = (1<<FFT_GAIN_SHIFT);  //16
+uint16_t volatile fft_gain[HMI_NUM_OPT_MEMORY] = {(1<<FFT_GAIN_SHIFT)};  //16
 #define AGC_REF		3u //6
 #define AGC_DECAY	8192u
 #define AGC_ATTACK_FAST	 32u  //64
@@ -855,14 +855,14 @@ bool rx(void)
 /*
 #ifdef EXCHANGE_I_Q
   // Take last ADC 0 result, connected to Q input  (16 bits size)
-  i_sample = ((int32_t)(agc_gain * fft_gain) * (int32_t)adc_result[0])>>(AGC_GAIN_SHIFT + FFT_GAIN_SHIFT);
+  i_sample = ((int32_t)(agc_gain * fft_gain[hmi_mem]) * (int32_t)adc_result[0])>>(AGC_GAIN_SHIFT + FFT_GAIN_SHIFT);
   // Take last ADC 1 result, connected to I input  (16 bits size)
-  q_sample = ((int32_t)(agc_gain * fft_gain) * (int32_t)adc_result[1])>>(AGC_GAIN_SHIFT + FFT_GAIN_SHIFT);
+  q_sample = ((int32_t)(agc_gain * fft_gain[hmi_mem]) * (int32_t)adc_result[1])>>(AGC_GAIN_SHIFT + FFT_GAIN_SHIFT);
 #else
   // Take last ADC 0 result, connected to Q input  (16 bits size)
-  q_sample = ((int32_t)(agc_gain * fft_gain) * (int32_t)adc_result[0])>>(AGC_GAIN_SHIFT + FFT_GAIN_SHIFT);
+  q_sample = ((int32_t)(agc_gain * fft_gain[hmi_mem]) * (int32_t)adc_result[0])>>(AGC_GAIN_SHIFT + FFT_GAIN_SHIFT);
   // Take last ADC 1 result, connected to I input  (16 bits size)
-  i_sample = ((int32_t)(agc_gain * fft_gain) * (int32_t)adc_result[1])>>(AGC_GAIN_SHIFT + FFT_GAIN_SHIFT);
+  i_sample = ((int32_t)(agc_gain * fft_gain[hmi_mem]) * (int32_t)adc_result[1])>>(AGC_GAIN_SHIFT + FFT_GAIN_SHIFT);
 #endif
 */
 #ifdef EXCHANGE_I_Q
@@ -1029,7 +1029,7 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
 
 
   // apply AGC after filters
-  agc_a_sample = ((int32_t)(agc_gain * fft_gain) * (int32_t)a_sample)>>(AGC_GAIN_SHIFT + FFT_GAIN_SHIFT);
+  agc_a_sample = ((int32_t)(agc_gain * fft_gain[hmi_mem]) * (int32_t)a_sample)>>(AGC_GAIN_SHIFT + FFT_GAIN_SHIFT);
   
 	/*** AUDIO GENERATION ***/
 	/*
@@ -1615,6 +1615,8 @@ void dsp_core1_setup_and_loop()
   
 //    gpio_set_mask(1<<14);
 
+#if 0   /* if0dflash */
+
     if(DFLASH_in_use != 0)
     {
       uint32_t interrupts_Core1 = save_and_disable_interrupts();
@@ -1627,6 +1629,7 @@ void dsp_core1_setup_and_loop()
       restore_interrupts(interrupts_Core1);      
     }    
 
+#endif   /* if 0    if0dflash */
 
 
     //wait for FFT input data to be processed
@@ -1722,11 +1725,11 @@ void dsp_core1_setup_and_loop()
       for(j_c1=0; j_c1<HILBERT_TAP_NUM; j_c1++)
       {
 #ifdef EXCHANGE_I_Q
-        fft_i_s[j_c1] = (fft_gain * fft_samp[block_num][block_pos]) >> FFT_GAIN_SHIFT;   
-        fft_q_s[j_c1] = (fft_gain * fft_samp[block_num][block_pos+1]) >> FFT_GAIN_SHIFT;;
+        fft_i_s[j_c1] = (fft_gain[hmi_mem] * fft_samp[block_num][block_pos]) >> FFT_GAIN_SHIFT;   
+        fft_q_s[j_c1] = (fft_gain[hmi_mem] * fft_samp[block_num][block_pos+1]) >> FFT_GAIN_SHIFT;;
 #else
-        fft_q_s[j_c1] = (fft_gain * fft_samp[block_num][block_pos]) >> FFT_GAIN_SHIFT;;   
-        fft_i_s[j_c1] = (fft_gain * fft_samp[block_num][block_pos+1]) >> FFT_GAIN_SHIFT;;
+        fft_q_s[j_c1] = (fft_gain[hmi_mem] * fft_samp[block_num][block_pos]) >> FFT_GAIN_SHIFT;;   
+        fft_i_s[j_c1] = (fft_gain[hmi_mem] * fft_samp[block_num][block_pos+1]) >> FFT_GAIN_SHIFT;;
 #endif
         block_pos+=3;
         if(block_pos >= BLOCK_NSAMP)
@@ -1743,11 +1746,11 @@ void dsp_core1_setup_and_loop()
           fft_i_s[i_c1] = fft_i_s[i_c1+1];
         }
 #ifdef EXCHANGE_I_Q
-        fft_i_s[(HILBERT_TAP_NUM-1)] = (fft_gain * fft_samp[block_num][block_pos]) >> FFT_GAIN_SHIFT;
-        fft_q_s[(HILBERT_TAP_NUM-1)] = (fft_gain * fft_samp[block_num][block_pos+1]) >> FFT_GAIN_SHIFT;
+        fft_i_s[(HILBERT_TAP_NUM-1)] = (fft_gain[hmi_mem] * fft_samp[block_num][block_pos]) >> FFT_GAIN_SHIFT;
+        fft_q_s[(HILBERT_TAP_NUM-1)] = (fft_gain[hmi_mem] * fft_samp[block_num][block_pos+1]) >> FFT_GAIN_SHIFT;
 #else
-        fft_q_s[(HILBERT_TAP_NUM-1)] = (fft_gain * fft_samp[block_num][block_pos]) >> FFT_GAIN_SHIFT;
-        fft_i_s[(HILBERT_TAP_NUM-1)] = (fft_gain * fft_samp[block_num][block_pos+1]) >> FFT_GAIN_SHIFT;
+        fft_q_s[(HILBERT_TAP_NUM-1)] = (fft_gain[hmi_mem] * fft_samp[block_num][block_pos]) >> FFT_GAIN_SHIFT;
+        fft_i_s[(HILBERT_TAP_NUM-1)] = (fft_gain[hmi_mem] * fft_samp[block_num][block_pos+1]) >> FFT_GAIN_SHIFT;
 #endif
      
         qh = ((int32_t)(fft_q_s[0]-fft_q_s[14])*315L + (int32_t)(fft_q_s[2]-fft_q_s[12])*440L + 

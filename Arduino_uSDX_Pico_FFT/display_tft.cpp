@@ -10,10 +10,10 @@
 #include "Arduino.h"
 #include "SPI.h"
 #include "uSDR.h"  //Serialx
+#include "hmi.h"
 #include "dsp.h"
 #include "TFT_eSPI.h"
 #include "display_tft.h"
-#include "hmi.h"
 
 
 

@@ -75,6 +75,8 @@
 */
 
 
+#if 0   /*  if0dflash */
+
 
 #include "Arduino.h"
 #include "uSDR.h"
@@ -238,17 +240,17 @@ void Init_HMI_data(uint8_t *actual_bnd)
         for(j = 0; j < HMI_NMENUS_DFLASH; j++)
           {
           band_vars[last_band][j] = data_block[j];  //put the data on the right band position to use in menus
-          //Serialx.print(" " + String(band_vars[hmi_band][ndata]));
+          //Serialx.print(" " + String(memory_band[hmi_mem].vars[ndata]));
           }
         for(; j < HMI_NMENUS; j++)
           {
           band_vars[last_band][j] = 0;  //fill not saved menu with zeros
-          //Serialx.print(" " + String(band_vars[hmi_band][ndata]));
+          //Serialx.print(" " + String(memory_band[hmi_mem].vars[ndata]));
           } 
         for(j = 0; j < 4; j++)
           {    
           band_vars[last_band][HMI_NMENUS+j] = data_block[HMI_NMENUS_DFLASH+j];  //copy freq saved
-          //Serialx.print(" " + String(band_vars[hmi_band][ndata]));
+          //Serialx.print(" " + String(memory_band[hmi_mem].vars[ndata]));
           }
         //Serialx.println("\n");
       }
@@ -257,7 +259,7 @@ void Init_HMI_data(uint8_t *actual_bnd)
         if(count_block>0)
         {
           *actual_bnd = last_band;  //last band saved will be the actual band
-          //Serialx.print(" " + String(band_vars[hmi_band][ndata]));
+          //Serialx.print(" " + String(memory_band[hmi_mem].vars[ndata]));
         }
         else
         {
@@ -479,7 +481,7 @@ bool Dflash_write_block(uint8_t *data_bl)
       k = 0;
       for(i=0; i<HMI_NUM_OPT_BPF; i++)
         {
-          if(i!=hmi_band)   //band_vars[hmi_band][HMI_S_BPF])    //skip the actual band
+          if(i!=memory_band[hmi_mem].vars[HMI_S_BPF])   //memory_band[hmi_mem].vars[HMI_S_BPF])    //skip the actual band
           {
             for(j=0; j<BAND_VARS_SIZE; j++)
             {
@@ -489,7 +491,7 @@ bool Dflash_write_block(uint8_t *data_bl)
         }
       for(j=0; j<BAND_VARS_SIZE; j++)  //put the actual band as the last on mem, to be the initial band after reset
       {
-        pg[k++] = band_vars[hmi_band][j];
+        pg[k++] = memory_band[hmi_mem].vars[j];
       }
 
       npage = 0;    // page is ready to write
@@ -602,6 +604,9 @@ void Dflash_loop(void)
 }
 
 
+
+
+#endif    /*if 0   if0dflash   */
 
 
 

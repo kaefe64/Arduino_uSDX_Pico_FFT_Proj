@@ -26,7 +26,7 @@ extern "C" {
 #define HMI_S_PRE			3
 #define HMI_S_VOX			4
 #define HMI_S_BPF			5
-#define HMI_S_DFLASH   6
+#define HMI_S_SAVE   6
 #define HMI_S_AUDIO   7
 #define HMI_NMENUS			8  //number of possible menus
 #define HMI_NMENUS_DFLASH			7   //number of menus saved on DFLASH (only the first ones from the array of menus are saved on dflash)
@@ -55,7 +55,9 @@ extern "C" {
 #define HMI_NUM_OPT_PRE	5
 #define HMI_NUM_OPT_VOX	4
 #define HMI_NUM_OPT_BPF	5
-#define HMI_NUM_OPT_DFLASH	2
+//#define HMI_NUM_OPT_DFLASH	2
+#define HMI_NUM_OPT_MEMORY	16u
+#define HMI_NUM_OPT_MEMORY_SAVING   	(HMI_NUM_OPT_MEMORY + 1u)
 #define HMI_NUM_OPT_AUDIO 4
 
 
@@ -78,6 +80,33 @@ extern "C" {
 #define BAND_VARS_SIZE_DFLASH   (HMI_NMENUS_DFLASH + 4)   //menus + frequency saved on dflash
 //#define BAND_INDEX   HMI_S_BPF    // = 5
 extern uint8_t  band_vars[HMI_NUM_OPT_BPF][BAND_VARS_SIZE];
+
+
+
+//#define MEMORY_BAND_NUM   HMI_NUM_OPT_MEMORY
+#define FREQ_SIZE         4u
+
+union un_uint32
+  {
+    uint32_t u32;
+    uint8_t u8[FREQ_SIZE];
+  };
+
+/*
+  uint8_t mem_cursor;
+  uint8_t mem_mode;
+  uint8_t mem_agc;
+  uint8_t mem_pre;
+  uint8_t mem_vox;
+  uint8_t mem_bpf;
+*/
+struct st_memory_band
+  {
+  uint8_t vars[HMI_NMENUS];
+  un_uint32 mem_freq;       //FREQ_SIZE = 4 * uint8_t
+  };
+
+extern st_memory_band  memory_band[HMI_NUM_OPT_MEMORY];
 
 
 
@@ -128,8 +157,9 @@ extern uint8_t  band_vars[HMI_NUM_OPT_BPF][BAND_VARS_SIZE];
 #define GP_PTT		15
 
 //extern uint8_t  hmi_sub[HMI_NMENUS];							// Stored option selection per state
-extern uint32_t hmi_freq;  
-extern uint8_t  hmi_band;	
+//extern uint32_t hmi_freq;  
+#define  hmi_freq   memory_band[hmi_mem].mem_freq.u32
+extern uint8_t  hmi_mem;     // actual memory
 extern bool tx_enabled;
 extern bool tx_enable_changed;
 extern bool ptt_internal_active;    //PTT output = true for vox, mon and mem
@@ -141,6 +171,7 @@ extern bool ptt_aud_active;
 
 
 #define AUDIO_BUF_MAX    160000  //160k bytes(memory used) * (1 / 16khz(sample freq)) = 10s
+//#define AUDIO_BUF_MAX    128000  //128k bytes(memory used) * (1 / 16khz(sample freq)) = 8s
 extern uint8_t audio_buf[AUDIO_BUF_MAX];
 extern uint32_t audio_rec_pos;
 extern uint32_t audio_play_pos;

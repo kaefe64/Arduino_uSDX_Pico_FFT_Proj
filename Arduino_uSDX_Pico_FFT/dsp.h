@@ -110,7 +110,7 @@ extern volatile int32_t peak_avg_shifted;     // signal level detector after AGC
 #define AGC_GAIN_MAX    (1u<<AGC_GAIN_SHIFT)       //max attenuation agc can do   signal * agc_gain / AGC_GAIN_MAX
 extern volatile uint16_t agc_gain;
 #define FFT_GAIN_SHIFT   4  //gain = 1 to 16 / 16
-extern volatile uint16_t fft_gain;
+extern volatile uint16_t fft_gain[HMI_NUM_OPT_MEMORY];
 
 extern volatile uint16_t dac_iq, dac_audio;
 

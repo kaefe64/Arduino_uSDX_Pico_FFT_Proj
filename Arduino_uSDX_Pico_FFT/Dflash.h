@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 
+#if 0   /*  if0dflash  */
 
 
 
@@ -41,6 +42,7 @@ void Dflash_loop(void);
 
 
 
+#endif   /*if 0   if0dflash   */
 
 
 

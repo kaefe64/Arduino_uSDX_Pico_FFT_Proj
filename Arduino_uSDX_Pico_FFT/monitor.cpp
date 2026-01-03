@@ -33,8 +33,8 @@
 
 //#include "lcd.h"
 #include "si5351.h"
-#include "dsp.h"
 #include "hmi.h"
+#include "dsp.h"
 #include "relay.h"
 #include "monitor.h"
 #include "uSDR.h"

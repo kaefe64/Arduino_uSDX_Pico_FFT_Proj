@@ -39,7 +39,7 @@ Initial msg: #15923 · May 26  2022<br>
 <br>
 
 ## Repository folders
-**Arduino_I2C_BPF_RX** - Code to control the Band Pass Filter (BPF) board. It runs at Arduino Pro Mini, compiled with Arduino IDE. The Arduino Pro Mini is used replacing the uSDR-Pico I2C interfaces PCF8574's to allow extra features: SWR reading and others (future). It uses the same I2C protocol, as uSDR-Pico.<br>
+**Arduino_I2C_BPF_RX** - Code to control the Band Pass Filter (BPF) board. It runs at Arduino Pro Mini, compiled with Arduino IDE. The Arduino Pro Mini is used replacing the uSDR-Pico I2C interfaces PCF8574's to allow extra features: SWR reading, Eeprom memory and others (future). It uses the same I2C protocol, as uSDR-Pico.<br>
 **Arduino_uSDX_Pico_FFT** - Main code for Ajan-5, it runs at Raspberry Pi Pico, compiled with Arduino IDE (look "Arduino IDE setup and notes" below).<br>
 **Aux** - Files used as reference.<br>
 **PCB** - Schematic and PCB Layout on Kicad format.<br>
@@ -115,6 +115,8 @@ Obs.: Don't mind the red wires on the PCB, they are only test for separated 5V p
     Increase the value of C44 from 1n to 100n.<br>
     Reduce the value of R25 to 10R.
 ![Main Block Diagram](Pictures/PTTout.png)
+
+- Use 5V or 3v3 to power the ILI9341 display depending on your version.
 <br>
 
 ## Software Notes<br>
@@ -210,9 +212,12 @@ Defines de use of the VOX feature. (It needs improvement)<br>
 Options:  "<2.5","2-6","5-12","10-24","20-40"  MHz<br>
 Defines the filter used for RX and TX, and consequently the frequency band. It uses the relay board to switch between the options.<br>
 
-### Menu Memory:<br>
-Options:  "Save"<br>
-It saves the actual band setup on flash memory, so when we come back to this band after power on, it will start with the setup saved. The last band saved will be the selected band used after power on.<br>
+### Menu Memory save:<br>
+Options:  "00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15"<br>
+It saves the actual setup on the Arduino Pro Mini Eeprom through I2C, in one of the 16 memory positions.
+To recover the data from memory, you need to keep pressed the left button when turning the dial.
+After power on, it will start with the memory 00 saved. 
+Unsaved memory will recover a default setup.
 
 ### Menu Audio:<br>
 Options:  "Rec from TX", "Rec from RX", "Play to TX", "Play to Speaker"<br>
@@ -224,6 +229,10 @@ It starts to save/play when pressing < Enter >, and will stop after 10s or when 
 <br>
 
 ## Last changes and notes:<br>
+
+### Jan 2026
+- There is a warning for the schematic. Please, look at the issues menu about the display power supply.
+- I changed the save memory feature from Pico DFLASH to Pro Mini Eeprom, and included a 16 positions memory saving setup instead of only saving band. From now on, the Arduino Pro Mini is required to be present. To update to this version, you need also to update the software on Pro Mini.<br>
 
 ### Dec25 2024
 - Correcting component values on schematic: R28=51K, R4=5K1 1% and U9=74AC74

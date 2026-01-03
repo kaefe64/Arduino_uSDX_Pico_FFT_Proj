@@ -163,16 +163,20 @@ void setup() {
   gpio_init_mask(1<<LED_BUILTIN);  
   gpio_set_dir(LED_BUILTIN, GPIO_OUT); 
 
-  
   //uSDX.h -> Serialx = Serial1   //UART0  /dev/ttyUSB0
   //if you choose Serialx = Serial on uSDR.h - it will use Pico's USB and save the use of USB to serial converter and leave 2 spare pins
   Serialx.begin(115200);  
+  delay(1500);                       // wait serial
 
   uint16_t tim = millis();
 
   //special jobs while waiting initial display print
+  //Serialx.println("setup0");
   uSDR_setup0();  //write something into display while waiting for the serial and DFLASH read
-  hmi_init0();     //it could take some time to read all DFLASH data
+  //Serialx.println("hmi_init0");
+  hmi_init0();     //read data from Eeprom must be called after Wire1.begin() 
+  //Serialx.println("5s");
+
 
   // some delay required for Serial to open
    while((millis() - tim) < 5000)   //try for 5s to connect to serial
@@ -189,9 +193,11 @@ void setup() {
   }  // If the serial is not open on 5s, it goes ahead and the serial print commands will be called but with no effect
   //fixed time for initial display - if the serial is not ok - consider no serial
 
-//  Serialx.println("\n\n***  ARJAN-5  ***");
-//  Serialx.println("\nArduino uSDX Pico FFT");
-//  Serialx.println("\nSerial took " + String((millis() - tim)) + "ms to start");
+/*
+  Serialx.println("\n***  ARJAN-5  ***");
+  Serialx.println("Arduino uSDX Pico FFT");
+  Serialx.println("Serial took " + String((millis() - tim)) + "ms to start");
+*/
 
   uSDR_setup();
 }
