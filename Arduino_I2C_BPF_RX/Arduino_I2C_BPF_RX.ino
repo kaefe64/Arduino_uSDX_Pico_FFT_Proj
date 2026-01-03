@@ -115,7 +115,7 @@ uint8_t Debug_LastAddress;  //just for debug
 
 
 /*eeprom variables */
-#define EEP_MAX_BUFFER      16    //number of writes could be on hold to write on EEP  (16 = 82% RAM used)
+#define EEP_MAX_BUFFER      10    //number of writes could be on hold to write on EEP  (16 = 82% RAM used)
 #define I2C_MAX_NUMBYTES    26    //max 32 - address - numbyte - spare
 int I2C_read_byte;
 int EEP_rd_addr;
@@ -187,27 +187,35 @@ void setup()
 void requestEvent (){    // master read = request data from slave
   switch (Wire.getLastAddress()) {   // address from last byte on the bus
     case (I2C_BPF):
+      Wire.flush();
       Wire.write(BPF_Relays);   // send byte relays state
       Debug_LastAddress = I2C_BPF;
       break;
 
     case (I2C_RX):
+      Wire.flush();
       Wire.write(RX_Relays);   // send byte relays state
       Debug_LastAddress = I2C_RX;
       break;
 
     case (I2C_SWR):
+      Wire.flush();
       //Wire.write(SWR[0]); 
       Wire.write(SWR, 3);   // send back 3 bytes
       Debug_LastAddress = I2C_SWR;
       break;
 
     case (I2C_EEP_RD):  //read eeprom
+      Wire.flush();
+      Serial.print("I2C_EEP_RD event   EEP_rd_numbytes=");
+      Serial.println(EEP_rd_numbytes);
       /* [VALUE1] [VALUE2] ...  ... [VALUEn] */
       for(int i=0; i<EEP_rd_numbytes; i++)
       {
         Wire.write(EEPROM.read(EEP_rd_addr+i));   // send back the value from eeprom address
+        Serial.print(EEPROM.read(EEP_rd_addr+i));  Serial.print("  ");
       }
+      Serial.println("  ");
       EEP_rd_numbytes = 0;  //do not use again (maybe not necessary)
       Debug_LastAddress = I2C_EEP_RD;
       break;
@@ -219,73 +227,91 @@ void requestEvent (){    // master read = request data from slave
 
 
 /*****************************************************************************************/
-void receiveEvent(int howManyBytesReceived) {   // master write = send data to slave
+void receiveEvent(int howManyBytesReceived)    // master write = send data to slave
+  {
+  Serial.print("Receive event  ");   
   switch (Wire.getLastAddress()) {   // address from last byte on the bus
     case (I2C_BPF):
+      Serial.println("Rx event I2C_BPF ");   
       I2C_read_byte = Wire.read();   // receive byte
       if(I2C_read_byte >= 0)  //some byte available from I2C
       {
         BPF_Relays = I2C_read_byte;
       }
+      Wire.flush();
       Debug_LastAddress = I2C_BPF;
       break;
 
     case (I2C_RX):
+      Serial.println("Rx event I2C_RX ");   
       I2C_read_byte = Wire.read();   // receive byte
       if(I2C_read_byte >= 0)  //some byte available from I2C
       {      
         RX_Relays = I2C_read_byte;
       }
+      Wire.flush();
       Debug_LastAddress = I2C_RX;
       break;
 
     case (I2C_EEP_ADD_NB):  //write (receive) eeprom address and numbytes for next eeprom read/write   
+      Serial.println("Rx event I2C_EEP_ADD_NB  ");   
       /* [ADDR_LOW] [ADDR_HIGH] [NUM_BYTES]       NUM_BYTES must be < I2C_MAX_NUMBYTES due to I2C buffer size */
       EEP_rd_numbytes = 0;
       I2C_read_byte = Wire.read();   // receive a data byte from I2C = eeprom address
-      if((I2C_read_byte >= 0) && (I2C_read_byte < 4))  //address >=0 and  <=1k and some byte available from I2C = address came
+      Serial.print("  EEP_rd_addr0=");  Serial.print(I2C_read_byte);  
+      if(I2C_read_byte >= 0)   //some byte available from I2C = address came
       {
         EEP_rd_addr = I2C_read_byte;  //address low byte
         I2C_read_byte = Wire.read();   // receive a data byte from I2C = eeprom address
-        if(I2C_read_byte >= 0)  //some byte available from I2C = address came
+         Serial.print("   EEP_rd_addr1="); Serial.print(I2C_read_byte); 
+        if((I2C_read_byte >= 0)&& (I2C_read_byte < 4))  //address >=0 and  <=1k and some byte available from I2C = address came
         {
           EEP_rd_addr |= (I2C_read_byte << 8);    //address high byte
           I2C_read_byte = Wire.read();   // receive a data byte from I2C = num bytes to read
+          Serial.print("   byte="); Serial.print(I2C_read_byte); 
           if((I2C_read_byte > 0) && (I2C_read_byte < I2C_MAX_NUMBYTES))  //some byte available from I2C 
           {
             EEP_rd_numbytes = I2C_read_byte;
           }
         }
       }
+      Serial.println("   Fim");
+      Wire.flush();
       Debug_LastAddress = I2C_EEP_ADD_NB;
       break;
 
     case (I2C_EEP_WR):  //write eeprom
       /* [ADDR_LOW] [ADDR_HIGH] [NUM_BYTES] [VALUE1] [VALUE2] ... [VALUEn]    NUM_BYTES must be < I2C_MAX_NUMBYTES due to I2C buffer size */
       I2C_read_byte = Wire.read();   // receive a data byte from I2C = eeprom address
-      if((I2C_read_byte >= 0) && (I2C_read_byte < 4))  //address >=0 and  <=1k and some byte available from I2C = address came
+      Serial.print("  EEP_wr_addr0=");  Serial.print(I2C_read_byte);  
+      if(I2C_read_byte >= 0)   //some byte available from I2C = address came
       {
         EEP_wr[EEP_wr_pos_in].addr = I2C_read_byte;  //address low byte
         I2C_read_byte = Wire.read();   // receive a data byte from I2C = eeprom address
-        if(I2C_read_byte >= 0)  //some byte available from I2C = address came
+         Serial.print("   EEP_wr_addr1="); Serial.print(I2C_read_byte); 
+        if((I2C_read_byte >= 0) && (I2C_read_byte < 4))  //address >=0 and  <=1k and some byte available from I2C = address came
         {
           EEP_wr[EEP_wr_pos_in].addr |= (I2C_read_byte << 8);    //address high byte
           I2C_read_byte = Wire.read();   // receive a data byte from I2C = num bytes to read
+          Serial.print("   num bytes="); Serial.print(I2C_read_byte); 
           if((I2C_read_byte > 0) && (I2C_read_byte < I2C_MAX_NUMBYTES))  //some byte available from I2C 
           {
             EEP_wr[EEP_wr_pos_in].numbytes = I2C_read_byte;  //indicates to the main loop to write to eeprom
             for(int i=0; i<EEP_wr[EEP_wr_pos_in].numbytes; i++)
             {
               I2C_read_byte = Wire.read();   // receive a data byte from I2C = data
+              Serial.print(" "); Serial.print(I2C_read_byte); 
               if(I2C_read_byte >= 0)  //some byte available  from I2C = data to write came
               {       
                 EEP_wr[EEP_wr_pos_in].bytes[i] = I2C_read_byte;   // save the values to write on eeprom later (do not spent time here)
-                EEP_wr_pos_in++; if(EEP_wr_pos_in>=EEP_MAX_BUFFER) EEP_wr_pos_in=0;  //ready for next 'in' write command
               }
             }
+            EEP_wr_pos_in++; if(EEP_wr_pos_in>=EEP_MAX_BUFFER) EEP_wr_pos_in=0;  //ready for next 'in' write command
           }
         }
       }
+      Serial.println("   Fim");
+      Wire.flush();
       Debug_LastAddress = I2C_EEP_WR;
       break;
 
@@ -302,6 +328,11 @@ void EEP_wr_check() {
   {
     for(int i=0; i< EEP_wr[EEP_wr_pos_out].numbytes; i++)
     {
+      Serial.print(i);  
+      Serial.print(" wr addr ");  
+      Serial.print(EEP_wr[EEP_wr_pos_out].addr+i);
+      Serial.print(" val ");  
+      Serial.println(EEP_wr[EEP_wr_pos_out].bytes[i]);
       EEPROM.update(EEP_wr[EEP_wr_pos_out].addr+i, EEP_wr[EEP_wr_pos_out].bytes[i]);   // write the value on eeprom address if different
     }
     EEP_wr_pos_out++; if(EEP_wr_pos_out>=EEP_MAX_BUFFER) EEP_wr_pos_out=0;  //job done
