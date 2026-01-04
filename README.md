@@ -232,6 +232,7 @@ It starts to save/play when pressing < Enter >, and will stop after 10s or when 
 
 ### Jan 2026
 - There is a warning for the schematic. Please, look at the issues menu about the display power supply.
+- Obs.: The display I was using had a built-in 5v to 3v3 regulator (U2 marked as 662K = XC6206P332MR), but it still burned out for unknown reasons.
 - I changed the save memory feature from Pico DFLASH to Pro Mini Eeprom, and included a 16 positions memory saving setup instead of only saving band. From now on, the Arduino Pro Mini is required to be present. To update to this version, you need also to update the software on Pro Mini.<br>
 
 ### Dec25 2024
