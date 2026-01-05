@@ -1,5 +1,5 @@
 /*
- * hmi.c
+ * hmi.cpp
  *
  * Created: Apr 2021
  * Author: Arjan te Marvelde
@@ -28,15 +28,7 @@
  * The PTT is connected to GP15 and will be active, except when VOX is used.
  *
  */
-/*
-#include <stdio.h>
-#include <string.h>
-#include "pico/stdlib.h"
-#include "hardware/i2c.h"
-#include "hardware/timer.h"
-#include "hardware/clocks.h"
-#include "hardware/gpio.h"
-*/
+
 #include "Arduino.h"
 #include "uSDR.h"
 #include "relay.h"
@@ -47,7 +39,6 @@
 #include "SPI.h"
 #include "TFT_eSPI.h"
 #include "display_tft.h"
-//#include "Dflash.h"
 #include "Eeprom.h"
 #include "CwDecoder.h"
 

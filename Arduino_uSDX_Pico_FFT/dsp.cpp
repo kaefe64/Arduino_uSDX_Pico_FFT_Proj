@@ -1,5 +1,5 @@
 /*
- * dsp.c
+ * dsp.cpp
  *
  * Created: Mar 2021
  * Author: Arjan te Marvelde
@@ -43,7 +43,6 @@
 #include "TFT_eSPI.h"
 #include "display_tft.h"
 #include "pico/multicore.h"
-#include "Dflash.h"
 #include "CwDecoder.h"
 
 #if TX_METHOD == PHASE_AMPLITUDE    // uSDX TX method used for Class E RF amplifier

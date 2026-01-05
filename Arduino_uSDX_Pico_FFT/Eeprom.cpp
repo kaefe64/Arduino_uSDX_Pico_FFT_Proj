@@ -66,10 +66,6 @@ Functions:
 
 
 
-void Init_HMI_data(uint8_t *actual_bnd);
-bool Dflash_write_block(uint8_t *data_bl);
-
-
 */
 
 

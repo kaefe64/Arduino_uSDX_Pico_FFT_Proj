@@ -1,5 +1,5 @@
 /*
- * relay.c
+ * relay.cpp
  *
  * Created: Nov 2021
  * Author: Arjan te Marvelde

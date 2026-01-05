@@ -1,5 +1,5 @@
 /*
- * monitor.c
+ * monitor.cpp
  *
  * Created: Mar 2021
  * Author: Arjan te Marvelde
@@ -10,28 +10,8 @@
  * Collects characters and parses commandstring.
  * Additional commands can easily be added.
  */ 
-/*
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include "pico/stdlib.h"
-*/
-#include "Arduino.h"
-/*
-#include "SPI.h"
-#include "TFT_eSPI.h"
-//#include "display.h"
-//#include "kiss_fftr.h"
-//#include "adc_fft.h"
-#include "dma.h"
-#include "pwm.h"
-#include "adc.h"
-#include "irq.h"
-#include "time.h"
-#include "multicore.h"
-*/
 
-//#include "lcd.h"
+#include "Arduino.h"
 #include "si5351.h"
 #include "hmi.h"
 #include "dsp.h"

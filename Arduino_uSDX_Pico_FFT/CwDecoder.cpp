@@ -1,25 +1,20 @@
 /*
- * hmi.c
+ * CwDecoder.cpp
  *
  * Created: Oct 2024
  * Author: Klaus Fensterseifer 
  * https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj
  * 
- * This file contains the 
- * It will also do the logic 
- *
+ * This file contains the logic for decoding the CW signal received.
+ * It shows the letters received on display. 
+ * It try to adapt tothe CW speed to decode the dots and dashs.
  *
  */
 
 #include "Arduino.h"
 #include "uSDR.h"
-//#include "relay.h"
-//#include "si5351.h"
 #include "hmi.h"
 #include "dsp.h"
-//#include "dsp.h"
-//#include "pico/multicore.h"
-//#include "SPI.h"
 #include "TFT_eSPI.h"
 #include "display_tft.h"
 #include "CwDecoder.h"
