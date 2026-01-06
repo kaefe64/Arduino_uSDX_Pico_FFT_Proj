@@ -116,7 +116,7 @@ Obs.: Don't mind the red wires on the PCB, they are only test for separated 5V p
     Reduce the value of R25 to 10R.
 ![Main Block Diagram](Pictures/PTTout.png)
 
-- Use 5V or 3v3 to power the ILI9341 display depending on your version.
+- Use 5V or 3v3 to power the ILI9341 display depending on your display version.
 <br>
 
 ## Software Notes<br>
@@ -168,9 +168,9 @@ Obs.: Don't mind the red wires on the PCB, they are only test for separated 5V p
 ### Keys description<br>
 **Normal operation:**<br>
 Encoder = to change the frequency at the cursor position<br>
-Left key = move the cursor to left<br>
+Left key = move the cursor to left. We can select the memory position using the encoder while holding the Left key.<br>
 Right key = move the cursor to right<br>
-Enter key = We can adjust the Waterfall gain with the Encoder while pressing the Enter key.<br>
+Enter key = We can adjust the Waterfall gain with the Encoder while holding the Enter key.<br>
 Escape key = to enter on menu mode<br>
 **Menu mode:**<br>
 Escape key = to go back to normal operation<br>
@@ -213,7 +213,7 @@ Options:  "<2.5","2-6","5-12","10-24","20-40"  MHz<br>
 Defines the filter used for RX and TX, and consequently the frequency band. It uses the relay board to switch between the options.<br>
 
 ### Menu Memory save:<br>
-Options:  "00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15"<br>
+Options:  "00" to "15"<br>
 It saves the actual setup on the Arduino Pro Mini Eeprom through I2C, in one of the 16 memory positions.
 To recover the data from memory, you need to keep pressed the left button when turning the dial.
 After power on, it will start with the memory 00 saved. 
@@ -230,9 +230,9 @@ It starts to save/play when pressing < Enter >, and will stop after 10s or when 
 
 ## Last changes and notes:<br>
 
-### Jan3 2026
-- My display burned out and I suspected it should be powered with 3v3 instead of 5v, but it has a built-in 5v to 3v3 regulator (U2 marked as 662K = XC6206P332MR), so it burned out for unknown reasons (I commented about it on closed issues menu).
+### Jan4 2026
 - I changed the save memory feature from Pico DFLASH to Pro Mini Eeprom, and included a 16 positions memory saving setup instead of only saving band. From now on, the Arduino Pro Mini is required to be present. To update to this version, you need also to update the software on Pro Mini.<br>
+- My display burned out and I suspected it should be powered with 3v3 instead of 5v, but it has a built-in 5v to 3v3 regulator (U2 marked as 662K = XC6206P332MR), so it burned out for unknown reasons (I commented on this in a closed issue in the Issues tab).
 
 ### Dec25 2024
 - Correcting component values on schematic: R28=51K, R4=5K1 1% and U9=74AC74
