@@ -3,7 +3,7 @@
 ## by Klaus Fensterseifer - PY2KLA
 ### (based on Arjan te Marvelde / uSDR-pico)
 
-![uSDR-PICO FFT](Pict1.png)
+![uSDR-PICO FFT](Pictures/Pict1.png)
 
 This project is a QSD/QSE Software Defined HF Transceiver (SDR), 5 Band, Low Power, based on  Arjan te Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico.<br>
 I started this project based on Arjan's version https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/package/CODEv2.zip from 2021 with documentation at https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/doc/uSDR%20-%20v2.02.pdf .
@@ -25,7 +25,7 @@ I used the word "uSDX" instead of "uSDR" to name some files. This was a mistake.
 <br>
 
 ## Basic connections for initial tests
-![Main Block Diagram](FFT_LCD_pico.png)
+![Main Block Diagram](Pictures/FFT_LCD_pico.png)
 <br>
 
 Initial tests video:  https://youtu.be/0zGAnkRjizE<br>
@@ -95,7 +95,7 @@ Obs.: Don't mind the red wires on the PCB, they are only test for separated 5V p
 - You can see the schematic diagram at [uSDR_Pico_FFT_SCH.pdf](PCB/uSDR_Pico_FFT_SCH.pdf) and [uSDR_Pico_BPF_RX_SCH.pdf](PCB/uSDR_Pico_BPF_RX_SCH.pdf).
 - I noticed that changing the signal in one ADC input, changed the other inputs signal through the resistors for setting half Vref. To solve this, I changed the circuit to have a separate resistor divider for each ADC input.
 
-![Hardware Modification](FFT_LCD_pico_MOD.png)
+![Hardware Modification](Pictures/FFT_LCD_pico_MOD.png)
 <br>
 
 - Use input/output filters for ADC Aliasing considerations (see below). 
@@ -153,7 +153,7 @@ Obs.: Don't mind the red wires on the PCB, they are only test for separated 5V p
 - Please consider that this Waterfall is not perfect, I had to let go of some rules to make it.
 - Software Block diagram at "Arduino_uSDR_Pico_FFT.png":
 
-![Block diagram](Arduino_uSDR_Pico_FFT.png)
+![Block diagram](Pictures/Arduino_uSDR_Pico_FFT.png)
 
 
 ### ADC Aliasing filter considerations:
@@ -295,7 +295,7 @@ on relay.h to define if the Arduino Pro Mini is part of the project.<br>
 ### Jul19 2023
 - Changing uSDR_Pico_BPF_RX_SCH.pdf and PCB due to Relay HFD3 characteristics.
 
-![PCB assembly top](HFD3_characteristics.png)
+![PCB assembly top](Pictures/HFD3_characteristics.png)
 
 - Changing the components value on schematic to be the same as my assembly.
 
@@ -328,7 +328,7 @@ Obs.: to use manual gain adjust, press Enter button and turn the frequncy knob.
 - PTT input corrected. Now it uses the falling or rising to turn off and on the PTT.
 - Including options for encoder at hmi.cpp:  ENCODER_TYPE  ENCODER_DIRECTION
 
-![Encoder type](Encoder_selection.png)
+![Encoder type](Pictures/Encoder_selection.png)
 
 
 ### Ago05 2022
@@ -340,7 +340,7 @@ Obs.: to use manual gain adjust, press Enter button and turn the frequncy knob.
 - PTT debounce reduced to allow CW TX (** it needs a 100nF capacitor from PTT pin to ground **)
 
 
-![Hardware Modification](FFT_LCD_pico_MOD2.png)
+![Hardware Modification](Pictures/FFT_LCD_pico_MOD2.png)
 <br>
 
 
@@ -368,9 +368,9 @@ The first impression is that this does not improve the sensibility.<br>
 I have found a limit position from RF generator to Softrock receiver to start showing something at the Waterfall.
 And both DC-DC and TPS look the same to me.
 
-![Reg 3v3](VREF_TPS79933_AXX.png)
+![Reg 3v3](Pictures/VREF_TPS79933_AXX.png)
 
-![Reg mounted](Reg_monted.jpg)
+![Reg mounted](Pictures/Reg_monted.jpg)
 
 
 ### Jun10 2022
