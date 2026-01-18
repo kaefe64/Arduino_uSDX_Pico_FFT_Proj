@@ -168,7 +168,7 @@ Obs.: Don't mind the red wires on the PCB, they are only test for separated 5V p
 ### Keys description<br>
 **Normal operation:**<br>
 Encoder = to change the frequency at the cursor position<br>
-Left key = move the cursor to left. We can select the memory position using the encoder while holding the Left key.<br>
+Left key = move the cursor to left. We can select the memory position using the Encoder while holding the Left key.<br>
 Right key = move the cursor to right<br>
 Enter key = We can adjust the Waterfall gain with the Encoder while holding the Enter key.<br>
 Escape key = to enter on menu mode<br>
@@ -230,6 +230,9 @@ It starts to save/play when pressing < Enter >, and will stop after 10s or when 
 
 ## Last changes and notes:<br>
 
+### Jan18 2026
+- I changed the default values when changing the band. <br>
+ 
 ### Jan4 2026
 - I changed the save memory feature from Pico DFLASH to Pro Mini Eeprom, and included a 16 positions memory saving setup instead of only saving band. From now on, the Arduino Pro Mini is required to be present. To update to this version, you need also to update the software on Pro Mini.<br>
 - My display burned out and I suspected it should be powered with 3v3 instead of 5v, but it has a built-in 5v to 3v3 regulator (U2 marked as 662K = XC6206P332MR), so it burned out for unknown reasons (I commented on this in a closed issue in the Issues tab).

@@ -121,6 +121,10 @@ const char hmi_o_audio [HMI_NUM_OPT_AUDIO][20] = {"Rec from TX", "Rec from RX", 
 const uint8_t hmi_pre[5] = {REL_ATT_30, REL_ATT_20, REL_ATT_10, REL_ATT_00, REL_PRE_10};
 const uint8_t hmi_bpf[5] = {REL_LPF2, REL_BPF6, REL_BPF12, REL_BPF24, REL_BPF40};
 
+const uint32_t band_hmi_freq_default[HMI_S_BPF] =
+   {band0_hmi_freq_default, band1_hmi_freq_default, band2_hmi_freq_default, band3_hmi_freq_default, band4_hmi_freq_default};
+
+
 uint8_t  hmi_menu;     // menu section 0=Tune/cursor 1=Mode 2=AGC 3=Pre 4=VOX 5=Band 6=Mem  (old hmi_state)
 uint8_t  hmi_menu_opt_display;	 // current menu option showing on display (old hmi_option)
         // on <enter>, it will be copied to band vars
@@ -387,7 +391,7 @@ void Setup_Band(uint8_t band)
   hmi_freq += band_vars[band][HMI_NMENUS+3];
 */
   //hmi_freq = memory_band[hmi_mem].mem_freq.u32;
-
+/*
   if(hmi_freq > hmi_maxfreq[band])  //checking boudaries
     {
       hmi_freq = hmi_maxfreq[band];
@@ -396,6 +400,16 @@ void Setup_Band(uint8_t band)
     {
       hmi_freq = hmi_minfreq[band];
     }
+*/
+
+  if((hmi_freq > hmi_maxfreq[band]) || //checking boudaries
+     (hmi_freq < hmi_minfreq[band]))
+    {
+    //set a default frequecy for the switched band
+    hmi_freq = band_hmi_freq_default[band];
+    memory_band[band].vars[HMI_S_TUNE] = 4; //default cursor position for new band freq
+    }
+
 
 /*
   Serialx.print("Setup_Band   freq = " + String(band_vars[band][HMI_NMENUS]));

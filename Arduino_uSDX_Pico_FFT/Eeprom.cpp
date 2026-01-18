@@ -131,7 +131,7 @@ void eep_read_memory(uint8_t nmem)   //read the nmem memory data
   i2c_data[1] = (addr>>8);
   i2c_data[2] = MEMORY_BLOCK_SIZE;
 
-  PRT(" write addr "); PRT(addr);
+  PRT(" addr "); PRT(addr);
   //write the addres and number of bytes to read
   ret = i2c_write_timeout_us(i2c1, I2C_EEP_ADD_NB, i2c_data, 3, false, I2C_TIMEOUT_us);
 	if (ret < 0)  // true to keep master control of bus
@@ -200,7 +200,7 @@ void eep_write_memory(uint8_t nmem)   //read the nmem memory data
   uint16_t addr = EEPROM_MEMORY_BASE_ADDR + (nmem * MEMORY_BLOCK_SIZE);
   uint8_t chksum = 0;
 
-  PRT(" write addr "); PRT(addr);
+  PRT(" addr "); PRT(addr);
 
   //[ADDR_LOW] [ADDR_HIGH] [NUM_BYTES] [VALUE1] [VALUE2] ... [VALUEn]
   i2c_data[0] = addr & 0xff;
@@ -244,6 +244,10 @@ void eep_write_memory(uint8_t nmem)   //read the nmem memory data
 /* save actual memory band data to the selected save memory*/
 void Save_Band_Eeprom(uint8_t actual_mem, uint8_t save_mem)
 {
+  PRT("Eeprom Save_Band_Eeprom  actual=");
+  PRT(actual_mem);
+  PRT("   save to=");
+  PRT_LN(save_mem);
   //copy data from actual band to the save mem
   memory_band[save_mem].mem_freq.u32 = memory_band[actual_mem].mem_freq.u32;
   //tune/cursor mode agc pre vox bpf
@@ -264,7 +268,7 @@ void Eeprom_setup(void)
 {
   PRT_LN("Eeprom_setup");
   //read memories band data from arduino pro mini eeprom I2C
-  PRT("Eeprom read memory ");
+  PRT_LN("Eeprom read memory ");
   for(uint8_t m=0; m<HMI_NUM_OPT_MEMORY; m++)
   {
     PRT(" "); PRT(m);  
