@@ -231,7 +231,7 @@ It starts to save/play when pressing < Enter >, and will stop after 10s or when 
 ## Last changes and notes:<br>
 
 ### Jan18 2026
-- I changed the default values when changing the band. <br>
+- I changed the default frequency when changing the band. <br>
  
 ### Jan4 2026
 - I changed the save memory feature from Pico DFLASH to Pro Mini Eeprom, and included a 16 positions memory saving setup instead of only saving band. From now on, the Arduino Pro Mini is required to be present. To update to this version, you need also to update the software on Pro Mini.<br>
