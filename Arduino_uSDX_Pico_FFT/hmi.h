@@ -16,6 +16,10 @@ extern "C" {
 
 
 
+//#define HMI_debug    10    //to release some serial print outs for debug
+
+
+
 //#define   SMETER_TEST   10     //uncomment this line to see the audio level direct on display (used to generate the S Meter levels)
 
 
@@ -120,8 +124,6 @@ extern st_memory_band  memory_band[HMI_NUM_OPT_MEMORY];
 #define MAX(x, y)        ((x)>(y)?(x):(y))  // Get max value
 #endif
 
-
-
 #define  band0_hmi_freq_default     1820000L
 #define  band1_hmi_freq_default     3700000L
 #define  band2_hmi_freq_default     7050000L
@@ -152,6 +154,8 @@ extern st_memory_band  memory_band[HMI_NUM_OPT_MEMORY];
 #define b4_1 (uint8_t)((band4_hmi_freq_default >> 16)&0xff)
 #define b4_2 (uint8_t)((band4_hmi_freq_default >> 8)&0xff)
 #define b4_3 (uint8_t)(band4_hmi_freq_default&0xff)
+
+//extern const uint32_t band_hmi_freq_default[HMI_S_BPF];
 
 
 #define GP_PTT		15

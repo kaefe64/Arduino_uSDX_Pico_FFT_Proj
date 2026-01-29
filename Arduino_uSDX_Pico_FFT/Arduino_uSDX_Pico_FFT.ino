@@ -143,6 +143,7 @@ Comment out this #define and set your own configuration
 
 #include "uSDR.h"
 #include "hmi.h"
+#include "Eeprom.h"
 
 
 
@@ -165,14 +166,17 @@ void setup() {
 
   //uSDX.h -> Serialx = Serial1   //UART0  /dev/ttyUSB0
   //if you choose Serialx = Serial on uSDR.h - it will use Pico's USB and save the use of USB to serial converter and leave 2 spare pins
-  Serialx.begin(115200);  
-  delay(1500);                       // wait serial
+  Serialx.begin(115200); 
+  #if defined(HMI_debug) || defined(Eeprom_debug)
+    delay(2500);     // wait serial init (for some serial print on uSDR_setup0() or hmi_init0() for debug)
+    Serialx.println("\n*Debug*");
+  #endif
 
   uint16_t tim = millis();
 
   //special jobs while waiting initial display print
   //Serialx.println("setup0");
-  uSDR_setup0();  //write something into display while waiting for the serial and DFLASH read
+  uSDR_setup0();  //write something into display while waiting for the serial and eepromread
   //Serialx.println("hmi_init0");
   hmi_init0();     //read data from Eeprom must be called after Wire1.begin() 
   //Serialx.println("5s");

@@ -44,7 +44,6 @@
 
 
 
-//#define HMI_debug    10    //to release some serial print outs for debug
 
 /*
  * GPIO assignments
@@ -1275,8 +1274,8 @@ void hmi_evaluate(void)   //hmi loop
 #endif
 
     memory_band[hmi_mem].vars[HMI_S_SAVE] = hmi_mem_to_save;  //menu actual = saved
-    Save_Band_Eeprom(hmi_mem, hmi_mem_to_save);  //hmi_save( actual,  new one)
-    hmi_mem = hmi_mem_to_save;  //actual = saved
+    Eeprom_Save_Band(hmi_mem, hmi_mem_to_save);  //hmi_save( actual,  new one)
+    hmi_mem = hmi_mem_to_save;  //actual = saved    move to the saved mem
 
     //sprintf(s, "%s       ", hmi_o_dflash[hmi_menu_opt_display]);
     //tft_writexy_(1, TFT_MAGENTA, TFT_BLACK,8,0,(uint8_t *)s);  
@@ -1304,6 +1303,7 @@ void hmi_evaluate(void)   //hmi loop
       //tft.drawRoundRect(x_RT-9, y_RT-8, (6*X_CHAR1)+17, (3*Y_CHAR1)+9, 10, TFT_GREEN);
       tft_writexy_plus(2, TFT_GREEN, TFT_BLACK, 0, x_RT, 0, y_RT, (uint8_t *)"R");
       tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 0, x_xGain, 0, y_yGain, (uint8_t *)"x");
+      //fft_gain_old = 0;   //to rewrite
     }
     rec_level_old = rec_level+1;
 

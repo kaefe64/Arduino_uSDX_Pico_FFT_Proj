@@ -230,6 +230,10 @@ It starts to save/play when pressing < Enter >, and will stop after 10s or when 
 
 ## Last changes and notes:<br>
 
+### Jan29 2026
+- I changed the memory feature in this way: if I am in one memory, ex. 01, changed the values, frequency,band... and save to another memory, ex. 05, the Arjan will save the data to memory 05 and move to memory 05, and also reload from eeprom the memory 01. Memory 01 will have the original values. <br>
+- I cannot get the x16 empty issue again (see Issues). I believe it is solved.
+ 
 ### Jan18 2026
 - I changed the default frequency when changing the band. <br>
  

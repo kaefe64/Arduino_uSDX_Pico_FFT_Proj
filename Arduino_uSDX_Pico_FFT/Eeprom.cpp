@@ -83,7 +83,6 @@ extern "C" {
 //#include "relay.h"
 
 
-#define Eeprom_debug    10
 
 #ifdef Eeprom_debug
 //defines used to print the DFlash variable to help debug
@@ -147,7 +146,7 @@ void eep_read_memory(uint8_t nmem)   //read the nmem memory data
   else
   {
     //delay(1);
-    delayMicroseconds(500);
+    delayMicroseconds(1000);
 
     //[VALUE1] [VALUE2] ...  ... [VALUEn] 
     //read the band data and freq
@@ -240,23 +239,65 @@ void eep_write_memory(uint8_t nmem)   //read the nmem memory data
 }
 
 
-
-/* save actual memory band data to the selected save memory*/
-void Save_Band_Eeprom(uint8_t actual_mem, uint8_t save_mem)
+//***********************************************************************
+//
+// Eeprom_Read_Band - read a memory setup band from eeprom
+//
+//***********************************************************************
+void Eeprom_Read_Band(uint8_t mem)
 {
-  PRT("Eeprom Save_Band_Eeprom  actual=");
+  //read the actual mem from eeprom to get the actual value
+  PRT(" read mem "); PRT(mem);  
+  eep_read_memory(mem);
+  if (memory_band[mem].vars[HMI_S_BPF] > HMI_NUM_OPT_BPF)   //empty eeprom = 0xff
+  {
+    PRT_LN(" empty  ");
+    //tune/cursor mode agc pre vox bpf = default values
+    memory_band[mem].vars[0] = 4;
+    memory_band[mem].vars[1] = 1;
+    memory_band[mem].vars[2] = 2;
+    memory_band[mem].vars[3] = 3;
+    memory_band[mem].vars[4] = 0;
+    memory_band[mem].vars[5] = 2;
+    memory_band[mem].mem_freq.u32 = band2_hmi_freq_default;
+  }
+  else
+  {
+    PRT_LN(" ok  ");
+  }
+}
+
+
+//***********************************************************************
+//
+// Eeprom_Save_Band - save actual memory band data to the selected save memory
+//
+//***********************************************************************
+void Eeprom_Save_Band(uint8_t actual_mem, uint8_t save_mem)
+{
+  PRT("Eeprom Save_Band  actual=");
   PRT(actual_mem);
   PRT("   save to=");
   PRT_LN(save_mem);
-  //copy data from actual band to the save mem
-  memory_band[save_mem].mem_freq.u32 = memory_band[actual_mem].mem_freq.u32;
-  //tune/cursor mode agc pre vox bpf
-  for(uint8_t i=0; i<HMI_NMENUS; i++)
+
+  if(actual_mem != save_mem)
   {
-    memory_band[save_mem].vars[i] = memory_band[actual_mem].vars[i];
-  }  
+    //copy data from actual mem to the save mem
+    memory_band[save_mem].mem_freq.u32 = memory_band[actual_mem].mem_freq.u32;
+    //tune/cursor mode agc pre vox bpf
+    for(uint8_t i=0; i<HMI_NMENUS; i++)
+    {
+      memory_band[save_mem].vars[i] = memory_band[actual_mem].vars[i];
+    }  
+
+    //recall the data for the actual mem from eeprom
+    Eeprom_Read_Band(actual_mem);  //it is in two steps: writes the address and reads the content
+    delayMicroseconds(1000);  //time for Arduino Pro Mini to process
+  }
+
   //write the new mem to eeprom
   eep_write_memory(save_mem);
+  //time for Arduino Pro Mini to process the write = 3.3ms/byte * 14 bytes = aprox 46.2ms
 }
 
 
@@ -271,26 +312,8 @@ void Eeprom_setup(void)
   PRT_LN("Eeprom read memory ");
   for(uint8_t m=0; m<HMI_NUM_OPT_MEMORY; m++)
   {
-    PRT(" "); PRT(m);  
-    eep_read_memory(m);
-    if (memory_band[m].vars[HMI_S_BPF] > HMI_NUM_OPT_BPF)   //empty eeprom = 0xff
-    {
-      PRT_LN(" empty  ");
-      //tune/cursor mode agc pre vox bpf
-      memory_band[m].vars[0] = 4;
-      memory_band[m].vars[1] = 1;
-      memory_band[m].vars[2] = 2;
-      memory_band[m].vars[3] = 3;
-      memory_band[m].vars[4] = 0;
-      memory_band[m].vars[5] = 2;
-      memory_band[m].mem_freq.u32 = band2_hmi_freq_default;
-    }
-    else
-    {
-      PRT_LN(" ok  ");
-    }
-    //delay(1);
-    delayMicroseconds(500);  //time for Arduino Pro Mini to process
+    Eeprom_Read_Band(m);  //it is in two steps: writes the address and reads the content
+    delayMicroseconds(1000);  //time for Arduino Pro Mini to process
   }
   PRT_LN("FIM");
 
