@@ -103,7 +103,7 @@
  
 
 //char hmi_o_menu[HMI_NMENUS][8] = {"Tune","Mode","AGC","Pre","VOX"};	// Indexed by hmi_menu  not used - menus done direct in Evaluate()
-const char hmi_o_mode[HMI_NUM_OPT_MODE][8] = {"USB","LSB","AM ","CW "};			// Indexed by memory_band[hmi_mem].vars[HMI_S_MODE]  MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
+const char hmi_o_mode[HMI_NUM_OPT_MODE][8] = {"USB","LSB","AM ","CW ","SWR"};			// Indexed by memory_band[hmi_mem].vars[HMI_S_MODE]  MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3  MODE_SWR=4
 const char hmi_o_agc [HMI_NUM_OPT_AGC][8] = {"NoAGC","Slow ","Fast "};					// Indexed by memory_band[hmi_mem].vars[HMI_S_AGC]
 const char hmi_o_pre [HMI_NUM_OPT_PRE][8] = {"-30dB","-20dB","-10dB","0dB  ","+10dB"};	// Indexed by memory_band[hmi_mem].vars[HMI_S_PRE]
 const char hmi_o_vox [HMI_NUM_OPT_VOX][8] = {"NoVOX","VOX-L","VOX-M","VOX-H"};		// Indexed by memory_band[hmi_mem].vars[HMI_S_VOX]
@@ -426,7 +426,7 @@ void Setup_Band(uint8_t band)
 	//ptt_state = 0;
 	ptt_external_active = false;
 	
-	dsp_setmode(memory_band[hmi_mem].vars[HMI_S_MODE]);  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
+	dsp_setmode(memory_band[hmi_mem].vars[HMI_S_MODE]);  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3  MODE_SWR=4
 	dsp_setvox(memory_band[hmi_mem].vars[HMI_S_VOX]);
 	dsp_setagc(memory_band[hmi_mem].vars[HMI_S_AGC]);	
 	relay_setattn(hmi_pre[memory_band[hmi_mem].vars[HMI_S_PRE]]);
@@ -486,6 +486,15 @@ void hmi_handler(uint8_t event)
           }
         hmi_tune_used = true;
       }
+      else if(!gpio_get(GP_AUX_3_Right))  //in case Right is pressed
+      {
+        if(power_att<(POWER_ATT_NUM-1))
+        //if(power_att<127)
+          {
+            power_att++;
+          }
+        hmi_tune_used = true;
+      }      
       else
       {
 			  if (hmi_freq < (hmi_maxfreq[memory_band[hmi_mem].vars[HMI_S_BPF]] - hmi_step[hmi_menu_opt_display]))		// Boundary check HMI_MAXFREQ
@@ -510,6 +519,14 @@ void hmi_handler(uint8_t event)
           }
         hmi_tune_used = true;
       }
+      else if(!gpio_get(GP_AUX_3_Right))  //in case Right is pressed
+      {
+        if(power_att>0)
+          {
+            power_att--;
+          }
+        hmi_tune_used = true;
+      }      
       else
       {
         if (hmi_freq > (hmi_step[hmi_menu_opt_display] + hmi_minfreq[memory_band[hmi_mem].vars[HMI_S_BPF]]))		// Boundary check HMI_MINFREQ
@@ -751,7 +768,8 @@ void hmi_init0(void)
 {
 	// Initialize LCD and set VFO
   //Init_HMI_data(&memory_band[hmi_mem].vars[HMI_S_BPF]);  //read data from DFLASH
-  Eeprom_setup();  //read memories band data from arduino pro mini eeprom I2C
+  uint8_t num = Eeprom_setup();  //read memories band data from arduino pro mini eeprom I2C
+  display_tft_setup0_num_mem_ok(num);   //show num of memories read from eeprom on display
   hmi_mem = 0; //start with the first memory after reset
   //memory_band[hmi_mem].vars[HMI_S_BPF] = memory_band[hmi_mem].vars[HMI_S_BPF]; 
   //Setup_Band(memory_band[hmi_mem].vars[HMI_S_BPF]);
@@ -907,6 +925,7 @@ const int16_t  smeter_pre_shift[HMI_NUM_OPT_PRE] = {   4,   4,  4,  0,  0 };  //
 int16_t rec_level;
 int16_t rec_level_old = 1;
 int16_t fft_gain_old = 0;
+int16_t power_att_old = 10;  //high value to force power attenuation display initialization
 
 /**************************************************************************************
     hmi_smeter - writes the S metr value on display
@@ -1023,6 +1042,15 @@ void hmi_smeter(void)
       s[3]=0;
       tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 0, x_xGain+(1*X_CHAR1), 0, y_yGain, (uint8_t *)s);   
       fft_gain_old = fft_gain[hmi_mem];
+    }
+
+    //shows the power attenuation in swr tx sweep mode
+    if((memory_band[hmi_mem].vars[HMI_S_MODE] == MODE_SWR) && (power_att_old != power_att))
+    {
+      tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 0, 0, 1, y_yGain, (uint8_t *)power_att_str[power_att]);  
+      //sprintf(s, "%d", power_att); 
+      //tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 0, 0, 1, y_yGain, (uint8_t *)s);   
+      power_att_old = power_att;
     }
 
 }
@@ -1223,9 +1251,9 @@ void hmi_evaluate(void)   //hmi loop
     hmi_freq_old = hmi_freq;
     band_vars_old[HMI_S_TUNE] = memory_band[hmi_mem].vars[HMI_S_TUNE];    //cursor
   }
-  if(band_vars_old[HMI_S_MODE] != memory_band[hmi_mem].vars[HMI_S_MODE])    //mode (SSB AM CW)
+  if(band_vars_old[HMI_S_MODE] != memory_band[hmi_mem].vars[HMI_S_MODE])    //mode (SSB AM CW SWR)
   {
-    dsp_setmode(memory_band[hmi_mem].vars[HMI_S_MODE]);  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
+    dsp_setmode(memory_band[hmi_mem].vars[HMI_S_MODE]);  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3  MODE_SWR=4
 //    sprintf(s, "%s  ", hmi_o_mode[memory_band[hmi_mem].vars[HMI_S_MODE]]);  //removing LSB to create space for swr on display
 //    tft_writexy_plus(2, TFT_GREEN, TFT_BLACK, 0, 0, 0, 22, (uint8_t *)s);
     display_fft_graf_top();  //scale freqs, mode changes the triangle
@@ -1238,6 +1266,17 @@ void hmi_evaluate(void)   //hmi loop
     {
       CwDecoder_Exit();
     }
+
+    if(memory_band[hmi_mem].vars[HMI_S_MODE] == MODE_SWR)  //changing to SWR
+    {
+      power_att_old = 10;  //forces value on display
+    }
+    if(band_vars_old[HMI_S_MODE] == MODE_SWR)  //changing from SWR
+    {
+      //need to clear the power att on display
+      //tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 0, 0, 1, y_yGain, (uint8_t *)power_att_str[power_att]);  
+    }
+
 
     band_vars_old[HMI_S_MODE] = memory_band[hmi_mem].vars[HMI_S_MODE];
   }

@@ -176,22 +176,22 @@ void setup() {
 
   //special jobs while waiting initial display print
   //Serialx.println("setup0");
-  uSDR_setup0();  //write something into display while waiting for the serial and eepromread
+  uSDR_setup0();  //write cover info to display while waiting for the serial and eeprom read
   //Serialx.println("5s");
 
 
   // some delay required for Serial to open
-   while((millis() - tim) < 5000)   //try for 5s to connect to serial
+   while((millis() - tim) < 4500)   //try for 5s to connect to serial
   {
-  //digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
-  gpio_set_mask(1<<LED_BUILTIN);
-  delay(50);                       // wait
-  //digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
-  gpio_clr_mask(1<<LED_BUILTIN);
-  delay(50);                       // wait
-  
-  //if(Serial)  //serial open
-  //  break;
+    //digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
+    gpio_set_mask(1<<LED_BUILTIN);
+    delay(50);                       // wait
+    //digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
+    gpio_clr_mask(1<<LED_BUILTIN);
+    delay(50);                       // wait
+    
+    //if(Serial)  //serial open
+    //  break;
   }  // If the serial is not open on 5s, it goes ahead and the serial print commands will be called but with no effect
   //fixed time for initial display - if the serial is not ok - consider no serial
 
@@ -200,10 +200,24 @@ void setup() {
   Serialx.println("Arduino uSDX Pico FFT");
   Serialx.println("Serial took " + String((millis() - tim)) + "ms to start");
 */
-  //Serialx.println("hmi_init0");
-  //hmi_init0();    //read data from Eeprom must be called after Wire1.begin() 
-                  //and after Pro Mini finish its setup switching relays
   
+  //Serialx.println("hmi_init0");
+  hmi_init0();    //read data from Eeprom must be called after Wire1.begin() 
+                  //and after Pro Mini finish its setup switching relays  
+                  //and print on display the num of memories read
+
+  //wait more one second 
+   while((millis() - tim) < 6000)   //time to see/read the num of memories on display
+  {
+    //digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
+    gpio_set_mask(1<<LED_BUILTIN);
+    delay(50);                       // wait
+    //digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
+    gpio_clr_mask(1<<LED_BUILTIN);
+    delay(50);                       // wait
+  } 
+
+
   uSDR_setup();
 }
 

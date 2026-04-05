@@ -55,6 +55,8 @@
 #define ADC0_IRQ_FIFO 		22		// FIFO IRQ number
 #define GP_PTT				    15		// PTT pin 20 (GPIO 15)
 
+//save the dma data between tx and rx
+dma_channel_config cfg_rx;
 int dma_chan;
 
 volatile uint16_t tim_count = 0;
@@ -135,6 +137,8 @@ volatile int32_t peak_avg_shifted=0;     // signal level detector after AGC = av
 volatile int16_t peak_avg_diff_accu=0;   // Log peak level integrator
 volatile uint16_t agc_gain=((AGC_GAIN_MAX/2u)+1u);   // AGC gain/attenuation - starts at the middle
 uint16_t volatile fft_gain[HMI_NUM_OPT_MEMORY] = {(1<<FFT_GAIN_SHIFT)};  //16
+const char power_att_str[POWER_ATT_NUM][5] = {"100%"," 50%"," 25%"," 12%","  6%","  3%","1.5%","0.7%"};
+uint16_t power_att = 6;
 #define AGC_REF		3u //6
 #define AGC_DECAY	8192u
 #define AGC_ATTACK_FAST	 32u  //64
@@ -173,12 +177,12 @@ int16_t *mode_filter_taps = cw_bpf_taps;
  * This setting steers the signal processing branch chosen
  **************************************************************************************/
 uint16_t dsp_mode;				// For values see hmi.c, assume {USB,LSB,AM,CW}
-void dsp_setmode(int mode)  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
+void dsp_setmode(int mode)  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3  MODE_SWR=4
 {
 	dsp_mode = (uint16_t)mode;
 
   //mode filter selection
-  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
+  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3  MODE_SWR=4
   if(dsp_mode < 2)  //SSB
   {
     mode_filter_tap_num = SSB_LPF_TAP_NUM;      // band pass filter for SSB
@@ -189,11 +193,16 @@ void dsp_setmode(int mode)  //MODE_USB=0 MODE_LSB=1  MODE_AM=2  MODE_CW=3
     mode_filter_tap_num = AM_LPF_TAP_NUM;      // band pass filter for AM
     mode_filter_taps = am_lpf_taps;
   }
-  else  //CW
+  else  if(dsp_mode == MODE_CW)  //CW
   {
     mode_filter_tap_num = CW_BPF_TAP_NUM;      // band pass filter for CW
     mode_filter_taps = cw_bpf_taps;
   }
+  else  //SWR set the same as CW (it is a CW tx)
+  {
+    mode_filter_tap_num = CW_BPF_TAP_NUM;      // band pass filter for CW
+    mode_filter_taps = cw_bpf_taps;
+  }  
 }
 
 int dsp_getmode(void)
@@ -308,9 +317,7 @@ volatile uint16_t st_int_count=0;
  * take a block of samples, calculate average for I Q MIC and store data for FFT
  * it takes < 28us (1/16kHz = 62.5us)
  **************************************************************************************/
-void __not_in_flash_func(dma_handler)(void)
-//void dma_handler() __attribute__ ((section (".scratch_x.")));
-//void dma_handler() 
+void __not_in_flash_func(dma_handler_rx)(void)
 {
   //*** the next DMA instructions must happen as fast as possible
   //*** do not include anything here
@@ -738,6 +745,104 @@ The sampling is at 160kHz but for audio we only need 16kHz samples, so the filte
 
 
 
+//volatile uint16_t mic_samp[2][10];
+
+/************************************************************************************** 
+ * CORE:  DMA IRQ TX
+ * 
+ **************************************************************************************/
+ /*
+void __not_in_flash_func(dma_handler_tx)(void) 
+{
+    
+  dma_hw->ints0 = 1u << dma_chan;  //clear irq flag
+
+  dma_channel_set_write_addr(dma_chan, &mic_samp{adc_samp_block_pos][0], true);  //program next buffer
+
+
+
+  // bias = samples average = DC value from the samples  (it is always positive)
+  adc_result_bias[2] += (int16_t)(adc_samp[adc_samp_last_block_pos][i_samples] - (adc_result_bias[2] >> AVG_BIAS_SHIFT));
+  // remove bias (avg) from samples
+  adc_samp[adc_samp_last_block_pos][i_samples] -= (adc_result_bias[2] >> AVG_BIAS_SHIFT);
+  // sum of last 10 samples = all block
+  if(i_samples==0)
+    adc_samp_sum[adc_samp_last_block_pos][2] = adc_samp[adc_samp_last_block_pos][i_samples]; //block samples sum to subsample at lower frequency (it is a low pass filter too)
+  else
+    adc_samp_sum[adc_samp_last_block_pos][2] += adc_samp[adc_samp_last_block_pos][i_samples]; //block samples sum to subsample at lower frequency (it is a low pass filter too)
+  i_samples++;
+
+
+
+
+
+
+    int16_t sum = 0;
+    for(uint16_t i=0; i<10; i++) {
+        sum += mic_raw_buffer[adc_samp_last_block_pos][i];
+    }
+    int16_t sample_16khz = (int16_t)(sum / 10);
+
+    adc_result[2] = sum >> 3u;  // /8 instead of /10 = little gain  (mic not used in CW)
+
+    // 4. Envia para o Core 0 via FIFO (como você já fazia)
+    multicore_fifo_push_blocking((uint32_t)sample_16khz);
+
+
+  adc_samp_last_block_pos = adc_samp_block_pos;
+  adc_samp_block_pos++;
+  adc_samp_block_pos&=1;
+}
+*/
+
+
+
+
+
+
+//volatile uint16_t i_samples = 0;
+/************************************************************************************** 
+ * CORE:  ADC IRQ
+ * 
+ **************************************************************************************/
+/*
+void __not_in_flash_func(adr_handler_tx_mic)(void) 
+{
+    uint16_t sample = adc_hw->fifo;  //read the sample and clear the IRQ flag
+
+
+
+  // bias = samples average = DC value from the samples  (it is always positive)
+  adc_result_bias[2] += (int16_t)(adc_samp[adc_samp_last_block_pos][i_samples] - (adc_result_bias[2] >> AVG_BIAS_SHIFT));
+  // remove bias (avg) from samples
+  adc_samp[adc_samp_last_block_pos][i_samples] -= (adc_result_bias[2] >> AVG_BIAS_SHIFT);
+  // sum of last 10 samples = all block
+  if(i_samples==0)
+    adc_samp_sum[adc_samp_last_block_pos][2] = adc_samp[adc_samp_last_block_pos][i_samples]; //block samples sum to subsample at lower frequency (it is a low pass filter too)
+  else
+    adc_samp_sum[adc_samp_last_block_pos][2] += adc_samp[adc_samp_last_block_pos][i_samples]; //block samples sum to subsample at lower frequency (it is a low pass filter too)
+  i_samples++;
+
+
+
+
+
+
+    while (!adc_fifo_is_empty())  //check if there is still data on ADC FIFO
+    {
+        sample = adc_hw->fifo;  //read the sample and clear the IRQ flag        
+    }
+}
+
+*/
+
+
+
+
+
+
+
+
 
   static bool ptt_internal_active_old = false;
 
@@ -958,6 +1063,14 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
     qh = q_accu >> 12;  // / 4096L;  
     a_sample = i_s[7] + qh;  // 7 = (HILBERT_TAP_NUM-1)/2     
     break;
+  case MODE_SWR:                     // SWR
+    /*
+     * Rx CW = LSB
+     */	
+    //no audio rx on SWR sweep mode
+    qh = 0;  
+    a_sample = 0;      
+    break;    
   default:
 		break;
 	}
@@ -1285,8 +1398,8 @@ bool vox(void)
 #define CW_TONE_NUM  24
 int16_t cw_tone_to_play_pos = 0;
 // ADC_RANGE 4095  >>4 = DAC_RANGE 255
-//int16_t cw_tone_to_play[CW_TONE_NUM] = {0,  529, 1023,  1447,  1773,  1977,  2047,  1977,  1773,  1447,  1023,  529, -1,  -530,  -1024, -1448, -1774, -1978, -2048, -1978, -1774, -1448, -1024, -530}; 
-int16_t cw_tone_to_play[CW_TONE_NUM] = {0, 518, 1000, 1414, 1732, 1932, 2000, 1932, 1732, 1414, 1000, 517, 0, -518, -1000, -1415, -1732, -1932, -2000, -1932, -1732,  -1414,  -1000,  -517};
+int16_t cw_tone_to_play[CW_TONE_NUM] = {0,  529, 1023,  1447,  1773,  1977,  2047,  1977,  1773,  1447,  1023,  529, -1,  -530,  -1024, -1448, -1774, -1978, -2048, -1978, -1774, -1448, -1024, -530}; 
+//int16_t cw_tone_to_play[CW_TONE_NUM] = {0, 518, 1000, 1414, 1732, 1932, 2000, 1932, 1732, 1414, 1000, 517, 0, -518, -1000, -1415, -1732, -1932, -2000, -1932, -1732,  -1414,  -1000,  -517};
 // max -2000 to 2000     to fit at 255  ->  cw_tone_to_play[] >> 4  (the filter makes << 4)
 //int16_t cw_tone_to_play[CW_TONE_NUM] = {0, 31, 60, 85, 104, 116, 120, 116, 104, 85, 60, 31, 0, -31, -60, -85, -104, -116, -120, -116, -104,  -85,  -60,  -31};
 volatile int16_t a_s[HILBERT_TAP_NUM];							// Filtered and decimated samples
@@ -1385,13 +1498,13 @@ void tx(void)
       {
         cw_tone_to_play_pos = 0;
       }
-      qh = cw_tone_to_play[cw_tone_to_play_pos];  //it uses a 4096 range, similar to the filters output (it makes >>4 below)
+      qh = cw_tone_to_play[cw_tone_to_play_pos]>>(4-IQ_TX_ATTENUATION);  //it uses a 4096 range, similar to the filters output (it makes >>IQ_TX_ATTENUATION below)
       i = cw_tone_to_play_pos + (CW_TONE_NUM/4);  // 90 degrees
       if(i >= CW_TONE_NUM)
       {
         i -= CW_TONE_NUM;
       }
-      a_s[7] = cw_tone_to_play[i]; //it uses a 4096 range, similar to the filters output (it makes >>4 below)
+      a_s[7] = cw_tone_to_play[i]>>(4-IQ_TX_ATTENUATION); //it uses a 4096 range, similar to the filters output (it makes >>IQ_TX_ATTENUATION below)
 
       //audio side tone
       pwm_set_chan_level(dac_audio, PWM_CHAN_A, (cw_tone_to_play[cw_tone_to_play_pos]>>6)+DAC_BIAS);  //>>4 = max value, more >>2 to attenuate the side tone sound level
@@ -1399,6 +1512,40 @@ void tx(void)
 
     }
     break;
+  case MODE_SWR:                     // SWR sweep TX
+
+    //normal tx - no audio function
+    /*
+    * Tx CW I=0 Q=tone
+    */
+    cw_tone_to_play_pos++;
+    if(cw_tone_to_play_pos >= CW_TONE_NUM)
+    {
+      cw_tone_to_play_pos = 0;
+    }
+    qh = cw_tone_to_play[cw_tone_to_play_pos];  //it uses a 4096 range, similar to the filters output (it makes >>4 below)
+    i = cw_tone_to_play_pos + (CW_TONE_NUM/4);  // 90 degrees
+    if(i >= CW_TONE_NUM)
+    {
+      i -= CW_TONE_NUM;
+    }
+    a_s[7] = cw_tone_to_play[i]; //it uses a 4096 range, similar to the filters output (it makes >>4 below)
+
+    //power attenuation used on SWR sweep transmission measurement
+    //the minimal amplitude out from Pico will be 2000 >> 7 = 7   
+    //            Q and I will be a senoid of +-7 PWM steps
+    // cw_tone_to_play -2048 to 2047
+    // -127 to 127 <<IQ_TX_ATTENUATION
+    qh >>= (power_att+(4-IQ_TX_ATTENUATION));    //2047 / 4 = 511    (511>>IQ_TX_ATTENUATION = 127 ->  -127 to +127)
+    a_s[7] >>= (power_att+(4-IQ_TX_ATTENUATION));
+    //qh = (((int32_t)qh * power_att)/2000)<<IQ_TX_ATTENUATION;   
+    //a_s[7] = (((int32_t)a_s[7] * power_att)/2000)<<IQ_TX_ATTENUATION; 
+
+    //audio side tone
+    pwm_set_chan_level(dac_audio, PWM_CHAN_A, (cw_tone_to_play[cw_tone_to_play_pos]>>6)+DAC_BIAS);  //>>4 = max value, more >>2 to attenuate the side tone sound level
+
+    break;
+
   default:
     break;
   }
@@ -1488,61 +1635,112 @@ void tx(void)
 
 
 
-
-
-
-int16_t fft_i_s[HILBERT_TAP_NUM], fft_q_s[HILBERT_TAP_NUM];          // Filtered I/Q samples
-kiss_fft_scalar fft_in_minus[FFT_NSAMP]; // kiss_fft_scalar is a float
-kiss_fft_scalar fft_in_plus[FFT_NSAMP]; // kiss_fft_scalar is a float
-kiss_fft_cpx fft_out[FFT_NSAMP];
-kiss_fftr_cfg fft_cfg; // = kiss_fftr_alloc(FFT_NSAMP,false,0,0);
-int16_t qh;  
-uint16_t block_num;
-uint16_t block_pos;
-uint16_t aux_c1 = 0;
-uint16_t i_c1, j_c1;
 /************************************************************************************** 
  * CORE1: 
- * Timing loop, triggered through inter-core fifo 
+ * on reception: reads I, Q and mic, ADC @160kHz + DMA buffer /10 = 16kHz
  **************************************************************************************/
-//void dsp_core1_setup_and_loop() __attribute__ ((section (".scratch_x.")));
-void dsp_core1_setup_and_loop()
-{
+void setup_adc_rx_mode() {
+    adc_run(false);
+    dma_channel_abort(dma_chan); // Para qualquer transferência em curso
 
-  //**************
-  //Core1 setup
-  //**************
+    // Configura o ADC para 2 canais (Q e I) @ 240kHz cada
+    //adc_set_round_robin(0x03);       // Sequence ADC 0-1 (GP 26, 27) free running
+    adc_set_round_robin(0x01+0x02+0x04);      // Sequence ADC 0-1-2 (GP 26, 27, 28) free running
+    adc_select_input(0);
+    //adc_set_clkdiv(((float)clock_get_hz(clk_adc) / (float)FSAMP)-1.0f);
+    adc_set_clkdiv(99.0f); // 48MHz / 480kHz = 100 = 99+1    (min = 96)
+
+    // Setup do FIFO do ADC para o DMA
+    adc_fifo_setup(true, true, 1, false, false);
+
+    // Configura o Handler de interrupção do DMA
+    irq_set_exclusive_handler(DMA_IRQ_0, dma_handler_rx);
+    irq_set_enabled(DMA_IRQ_0, true);
+    dma_channel_set_irq0_enabled(dma_chan, true);
+
+    // Dispara o DMA
+    dma_channel_configure(
+        dma_chan,
+        &cfg_rx,
+        &adc_samp[adc_samp_block_pos][0], // Seu buffer de destino
+        &adc_hw->fifo,    // src
+        BLOCK_NSAMP,        // Write the same value many times, then halt and interrupt
+        true              // start immediately
+    );
+
+    adc_run(true);
+}
+
+
+
+/************************************************************************************** 
+ * CORE1: 
+ * on trasmission: reads only the microphone, ADC @160kHz
+ **************************************************************************************/
+ /*
+void setup_tx_mode() {
+    adc_run(false);
+    dma_channel_abort(dma_chan);
+
+    adc_set_round_robin(0);      // just one channel
+    adc_select_input(2);         // microphone
+    adc_set_clkdiv(299.0f);      // 48MHz / 160kHz = 300 = 299+1
+
+    // FIFO do ADC configurado para o DMA
+    adc_fifo_setup(true, true, 1, false, false);
+
+    // Reusa o canal de DMA, mas aponta para o handler de TX
+    irq_set_exclusive_handler(DMA_IRQ_0, dma_handler_tx);
+    
+    // Configura o DMA para ler 10 amostras e parar/interromper
+    dma_channel_configure(
+        dma_chan,
+        &cfg_rx,                 // Mesma config base (16 bits, incrementa destino)
+        &mic_raw_buffer[0],      // Buffer temporário de 10 posições
+        &adc_hw->fifo,
+        10,                      // Interrompe a cada 10 amostras (16 kHz)
+        true                     // Start
+    );
+
+    adc_run(true);
+}
+*/
+
+
+/*
+void setup_adc_tx_mode() {
+    adc_run(false);
+    dma_channel_abort(dma_chan);
+    irq_set_enabled(DMA_IRQ_0, false); // Desliga interrupção do DMA
+
+    // Configura ADC para apenas Microfone (Canal 2)
+    adc_set_round_robin(0); 
+    adc_select_input(2);
+    adc_set_clkdiv(299.0f); // 48MHz / 160kHz = 300 = 299+1
+
+    // FIFO: dispara interrupção quando houver 1 amostra
+    adc_fifo_setup(true, false, 1, false, false);
+    
+    // Configura Handler de interrupção do ADC
+    irq_set_exclusive_handler(ADC0_IRQ_FIFO, adr_handler_tx_mic);
+    irq_set_enabled(ADC0_IRQ_FIFO, true);
+    
+    adc_run(true);
+}
+*/
 
 
 
 
-  //bus_ctrl_hw->priority = BUSCTRL_BUS_PRIORITY_PROC1_BITS; // Set Core 1 prio high
-  // Grant high bus priority to the DMA, so it can shove the processors out
-  // of the way. This should only be needed if you are pushing things up to
-  // >16bits/clk here, i.e. if you need to saturate the bus completely.
-  bus_ctrl_hw->priority = BUSCTRL_BUS_PRIORITY_DMA_W_BITS | BUSCTRL_BUS_PRIORITY_DMA_R_BITS;
+
+/************************************************************************************** 
+ * CORE1: 
+ * 
+ **************************************************************************************/
+ /*
+void setup_tx_rx_mode() {
 
 
-  multicore_lockout_victim_init();
-
-  
-  
-  //fft setup
-  fft_cfg = kiss_fftr_alloc(FFT_NSAMP,false,0,0);
-
-
-
-
-
-
-
-  //analogReadResolution(12);
-   
-  // Initialize ADCs 
-  adc_gpio_init(26);                // GP26 is ADC 0  Q
-  adc_gpio_init(27);                // GP27 is ADC 1  I
-  adc_gpio_init(28);                // GP28 is ADC 2  MIC
-  adc_init();                       // Initialize ADC to known state
   adc_select_input(0);              // Start with ADC0  (AINSEL = 0)
 
   adc_set_round_robin(0x01+0x02+0x04);      // Sequence ADC 0-1-2 (GP 26, 27, 28) free running
@@ -1582,8 +1780,8 @@ void dsp_core1_setup_and_loop()
   // Tell the DMA to raise IRQ line 0 when the channel finishes a block
   dma_channel_set_irq0_enabled(dma_chan, true);
 
-  // Configure the processor to run dma_handler() when DMA IRQ 0 is asserted
-  irq_set_exclusive_handler(DMA_IRQ_0, dma_handler);
+  // Configure the processor to run dma_handler_rx() when DMA IRQ 0 is asserted
+  irq_set_exclusive_handler(DMA_IRQ_0, dma_handler_rx);
 
 
   // Clear the interrupt request.
@@ -1591,15 +1789,68 @@ void dsp_core1_setup_and_loop()
   
   irq_set_enabled(DMA_IRQ_0, true);
 
-  // Manually call the handler once, to trigger the first transfer
-  //dma_handler();
+}
+*/
 
 
 
+int16_t fft_i_s[HILBERT_TAP_NUM], fft_q_s[HILBERT_TAP_NUM];          // Filtered I/Q samples
+kiss_fft_scalar fft_in_minus[FFT_NSAMP]; // kiss_fft_scalar is a float
+kiss_fft_scalar fft_in_plus[FFT_NSAMP]; // kiss_fft_scalar is a float
+kiss_fft_cpx fft_out[FFT_NSAMP];
+kiss_fftr_cfg fft_cfg; // = kiss_fftr_alloc(FFT_NSAMP,false,0,0);
+int16_t qh;  
+uint16_t block_num;
+uint16_t block_pos;
+uint16_t aux_c1 = 0;
+uint16_t i_c1, j_c1;
+/************************************************************************************** 
+ * CORE1: 
+ * Timing loop, triggered through inter-core fifo 
+ **************************************************************************************/
+//void dsp_core1_setup_and_loop() __attribute__ ((section (".scratch_x.")));
+void dsp_core1_setup_and_loop()
+{
+
+  //**************
+  //Core1 setup
+  //**************
+
+
+  //analogReadResolution(12);
+   
+  // Initialize ADCs 
+  adc_gpio_init(26);                // GP26 is ADC 0  Q
+  adc_gpio_init(27);                // GP27 is ADC 1  I
+  adc_gpio_init(28);                // GP28 is ADC 2  MIC
+  adc_init();                       // Initialize ADC to known state
+
+  // 2. Requisitar Canal de DMA (uma única vez!)
+  dma_chan = dma_claim_unused_channel(true);
+  cfg_rx = dma_channel_get_default_config(dma_chan);
+  channel_config_set_transfer_data_size(&cfg_rx, DMA_SIZE_16);
+  channel_config_set_read_increment(&cfg_rx, false);
+  channel_config_set_write_increment(&cfg_rx, true);
+  channel_config_set_dreq(&cfg_rx, DREQ_ADC);
+
+  //bus_ctrl_hw->priority = BUSCTRL_BUS_PRIORITY_PROC1_BITS; // Set Core 1 prio high
+  // Grant high bus priority to the DMA, so it can shove the processors out
+  // of the way. This should only be needed if you are pushing things up to
+  // >16bits/clk here, i.e. if you need to saturate the bus completely.
+  bus_ctrl_hw->priority = BUSCTRL_BUS_PRIORITY_DMA_W_BITS | BUSCTRL_BUS_PRIORITY_DMA_R_BITS;
+
+
+  multicore_lockout_victim_init();
 
   for (i_c1=0; i_c1<10000; i_c1++) {  j_c1++; }   //wait core0 to be ready
   
-  adc_run(true);
+  
+  //fft setup
+  fft_cfg = kiss_fftr_alloc(FFT_NSAMP,false,0,0);
+
+
+  setup_adc_rx_mode();
+
 
   
   
@@ -1926,7 +2177,7 @@ void dsp_init()
   tx_enabled = false;
 
   //analogWriteResolution(12);
-
+  //uint32_t sys_clock = clock_get_hz(clk_sys);
 
  
   //https://forums.raspberrypi.com/viewtopic.php?t=306321

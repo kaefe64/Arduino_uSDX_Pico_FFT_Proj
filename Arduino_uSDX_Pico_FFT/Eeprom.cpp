@@ -311,7 +311,7 @@ void Eeprom_Save_Band(uint8_t actual_mem, uint8_t save_mem)
 //
 //
 //***********************************************************************
-void Eeprom_setup(void)
+uint8_t Eeprom_setup(void)
 {
   uint8_t num_mem_ok = 0;
 
@@ -330,6 +330,7 @@ void Eeprom_setup(void)
   //Serialx.println(num_mem_ok); 
   PRT_LN("FIM");
 
+  return(num_mem_ok);
 }
 
 

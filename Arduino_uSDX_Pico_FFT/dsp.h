@@ -18,7 +18,7 @@ extern "C" {
 
 #define FSAMP 480000UL  // freq AD sample / 3 channels = 160kHz
 #define FSAMP_AUDIO 16000U  // audio freq sample   32kHz=critical time
-#define ADC_CLOCK_DIV ((uint16_t)(48000000UL/FSAMP))  //48Mhz / 480Khz = 100 
+//#define ADC_CLOCK_DIV ((uint16_t)(48000000UL/FSAMP))  //48Mhz / 480Khz = 100   with 100 I got 15841.58Hz of sample rate
 #define FRES      500u    //Hz resolucao de frequencias desejado para cada bin
 #define FFT_NSAMP      ((((uint16_t)((FSAMP / 3u) / FRES))+1u) & (~(uint16_t)1u))  // must be even  160k / 500 = 320
 //FFT max freq = (FSAMP/3) / 2
@@ -35,9 +35,9 @@ extern "C" {
  * To eliminate undefined behavior we clip off the upper 4 sample bits.
  */
 #define DAC_RANGE  255u
-#define DAC_BIAS  (DAC_RANGE/2u)
+#define DAC_BIAS  128u   // (int8_t from -128(0x80) to 127(0x7F))
 #define ADC_RANGE 4095u
-#define ADC_BIAS  (ADC_RANGE/2u)
+#define ADC_BIAS  128u
 
 
 #ifdef PY2KLA_setup
@@ -111,6 +111,9 @@ extern volatile int32_t peak_avg_shifted;     // signal level detector after AGC
 extern volatile uint16_t agc_gain;
 #define FFT_GAIN_SHIFT   4  //gain = 1 to 16 / 16
 extern volatile uint16_t fft_gain[HMI_NUM_OPT_MEMORY];
+#define  POWER_ATT_NUM  8
+extern const char power_att_str[POWER_ATT_NUM][5];
+extern uint16_t power_att;
 
 extern volatile uint16_t dac_iq, dac_audio;
 

@@ -5,7 +5,8 @@
 
 ![uSDR-PICO FFT](Pictures/Pict1.png)
 
-This project is a QSD/QSE Software Defined HF Transceiver (SDR), 5 Band, Low Power, based on  Arjan te Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico.<br>
+This project is a standalone QSD/QSE Software Defined HF Transceiver (SDR), 5 Band, Low Power, based on  Arjan te Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico.
+<br>
 I started this project based on Arjan's version https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/package/CODEv2.zip from 2021 with documentation at https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/doc/uSDR%20-%20v2.02.pdf .
 
 My intention was to include a Waterfall/Panadapter to the Arjan's uSDR-Pico project. For this, I included an ILI9341 240x320 2.4" TFT display, without touch, and also, changed the software to generate the Waterfall.
@@ -121,7 +122,7 @@ Obs.: Don't mind the red wires on the PCB, they are only test for separated 5V p
 
 ## Software Notes<br>
 ### Arduino IDE setup and notes:
-- I am using Arduino IDE version 2.0.1 in Linux/Ubuntu
+- I am using Arduino IDE version 2.3.7 in Linux/Debian
 - Lib used: TFT_eSPI by Bodmer
 - Boards Manager:  Arduino Mbed OS RP2040 Boards. My version is 4.0.2 
 - **IMPORTANT: Use the comments at beginning of  Arduino_uSDX_Pico_FFT.ino  file to "adjust" the library files to the project.**

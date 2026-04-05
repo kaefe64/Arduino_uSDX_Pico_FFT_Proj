@@ -11,7 +11,7 @@ extern "C" {
 
 void Eeprom_Save_Band(uint8_t actual_mem, uint8_t save_mem);
 
-void Eeprom_setup(void);
+uint8_t Eeprom_setup(void);
 void Eeprom_loop(void);
 
 

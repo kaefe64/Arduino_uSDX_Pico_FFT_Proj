@@ -57,10 +57,6 @@ void uSDR_setup(void)  //main
 {
   //gpio_init_mask(1<<14);  
   //gpio_set_dir(14, GPIO_OUT); 
-  
-  //Serialx.println("hmi_init0");
-  hmi_init0();    //read data from Eeprom must be called after Wire1.begin() 
-                  //and after Pro Mini finish its setup switching relays  
  
 	/* Initialize units */
   //Serialx.println("uSDR_setup   mon_init");

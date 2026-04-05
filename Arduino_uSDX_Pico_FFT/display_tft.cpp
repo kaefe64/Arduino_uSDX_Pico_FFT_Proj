@@ -661,21 +661,21 @@ void display_tft_setup0(void) {
   tft.fillScreen(TFT_BLACK);
 
 //  sprintf(s, "uSDR Pico");
-  sprintf(s, "Arjan-5");  //name changed from uSDR Pico FFT
-  tft_writexy_plus(3, TFT_YELLOW, TFT_BLACK, 2,10,1,0,(uint8_t *)s);
+  //sprintf(s, "Arjan-5");  //name changed from uSDR Pico FFT
+  tft_writexy_plus(3, TFT_YELLOW, TFT_BLACK, 2,10,1,0,(uint8_t *)"Arjan-5");
 
   //tft.fillRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t radius, uint32_t color)
   //tft.drawRoundRect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t radius, uint32_t color)
   tft.drawRoundRect(35, 25, 250, 70, 15, TFT_YELLOW);
 
 //  sprintf(s, "uSDR Pico FFT");  //name changed from uSDR Pico FFT
-  sprintf(s, "5 Band SSB/AM/CW");  //name changed from uSDR Pico FFT
+  //sprintf(s, "5 Band SSB/AM/CW");  //name changed from uSDR Pico FFT
 //  tft_writexy_plus(2, TFT_YELLOW, TFT_BLACK, 0,0,3,10,(uint8_t *)s);
-  tft_writexy_plus(1, TFT_YELLOW, TFT_BLACK, 3,0,5,0,(uint8_t *)s);
+  tft_writexy_plus(1, TFT_YELLOW, TFT_BLACK, 3,0,5,0,(uint8_t *)"5 Band SSB/AM/CW");
 
-  sprintf(s, "HF Transceiver");  //name changed from uSDR Pico FFT
+  //sprintf(s, "HF Transceiver");  //name changed from uSDR Pico FFT
 //  tft_writexy_plus(2, TFT_YELLOW, TFT_BLACK, 0,10,4,10,(uint8_t *)s);
-  tft_writexy_plus(1, TFT_YELLOW, TFT_BLACK, 4,0,6,6,(uint8_t *)s);
+  tft_writexy_plus(1, TFT_YELLOW, TFT_BLACK, 4,0,6,6,(uint8_t *)"HF Transceiver");
 
   tft_writexy_plus(1, TFT_YELLOW, TFT_BLACK, 6,0,7,12,(uint8_t *)SW_VERSION);
 
@@ -685,18 +685,28 @@ void display_tft_setup0(void) {
 //  sprintf(s, "PE1ATM");
 //  sprintf(s, "by");
 //  tft_writexy_plus(1, TFT_LIGHTGREY, TFT_BLACK, 0,0,7,0,(uint8_t *)s);
-  sprintf(s, "Arjan te Marvelde");
-  tft_writexy_plus(1, TFT_SKYBLUE, TFT_BLACK, 3,0,9,0,(uint8_t *)s);
+  //sprintf(s, "Arjan te Marvelde");
+  tft_writexy_plus(1, TFT_SKYBLUE, TFT_BLACK, 3,0,9,0,(uint8_t *)"Arjan te Marvelde");
 //  sprintf(s, "and");
 //  tft_writexy_plus(1, TFT_LIGHTGREY, TFT_BLACK, 0,0,8,0,(uint8_t *)s);
 // sprintf(s, "PY2KLA");
 //  sprintf(s, "and");
 //  tft_writexy_plus(1, TFT_LIGHTGREY, TFT_BLACK, 0,0,9,0,(uint8_t *)s);
-  sprintf(s, "Klaus Fensterseifer");
-  tft_writexy_plus(1, TFT_SKYBLUE, TFT_BLACK, 2,0,10,0,(uint8_t *)s);
+  //sprintf(s, "Klaus Fensterseifer");
+  tft_writexy_plus(1, TFT_SKYBLUE, TFT_BLACK, 2,0,10,0,(uint8_t *)"Klaus Fensterseifer");
 //#endif  
 }
 
+
+/*********************************************************
+  Show the num of memories on setup0 display
+*********************************************************/
+void display_tft_setup0_num_mem_ok(uint8_t num) 
+{
+  char s[12];
+  sprintf(s, "%d", num);  //num of memories read from eeprom
+  tft_writexy_plus(1, TFT_YELLOW, TFT_BLACK, 6+12,0,7,12,(uint8_t *)s);
+}
 
 
 
@@ -857,7 +867,7 @@ char s[32];
 
 
 /*********************************************************
-  Initial msgs on display  (after reset)
+  coutdown window for audio time
 *********************************************************/
 void display_tft_countdown(bool show, uint16_t val) 
 {

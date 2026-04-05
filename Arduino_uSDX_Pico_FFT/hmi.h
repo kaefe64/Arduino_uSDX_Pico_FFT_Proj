@@ -54,7 +54,7 @@ extern "C" {
 
 /* Sub menu number of options (string sets) */
 #define HMI_NUM_OPT_TUNE	7  // = num pos cursor
-#define HMI_NUM_OPT_MODE	4
+#define HMI_NUM_OPT_MODE	5  //including SWR
 #define HMI_NUM_OPT_AGC	3
 #define HMI_NUM_OPT_PRE	5
 #define HMI_NUM_OPT_VOX	4
@@ -70,6 +70,7 @@ extern "C" {
 #define MODE_LSB  1
 #define MODE_AM   2
 #define MODE_CW   3
+#define MODE_SWR  4   // SWR sweep mode
 
 
 // hmi_o_audio "Rec from TX", "Rec from RX", "Play to TX", "Play to Speaker"

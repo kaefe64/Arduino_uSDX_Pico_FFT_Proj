@@ -14,7 +14,7 @@ https://github.com/alexisgaziello/TwoWireSimulator
 
 I2C Wire library with multi address:
 https://github.com/arduino/ArduinoCore-avr/pull/90/files#diff-e4603cea13a2a6370bdf819d929e8fb9b272c812bc1df9a9190b365875c47db3
-
+adapted for this project
 
 
 Arduino Pro Mini 3V3   ATmega328P 8Mhz
@@ -28,6 +28,7 @@ PWM: 3, 5, 6, 9, 10, and 11
 PI: 10 (SS), 11 (MOSI), 12 (MISO), 13 (SCK)
 LED: 13
 8 analog inputs, 10 bits of resolution: A0 - A7
+ADC 13 cycles of 8MHz/128=62.5kHz = 208us  sample time = aprox 24us @ internal 14pF capacitor
 I2C: A4 (SDA) and A5 (SCL)
 
 
@@ -41,16 +42,20 @@ https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj
 #include "EEPROM.h"
 
 
+//#define SWR_DIODE 1    //uncomment if using diode SWR detection
+#define SWR_BJT   2   //uncomment if using BJT transistor current mirror SWR detection
+
+
 #define ledPin      13     // define LED pin number
 
 
 /* I2C BPF = Band Pass Filters Relays   read/write 1 byte */
 #define I2C_BPF		      0x20
-#define REL_LPF2_pin		2   //160MHz
-#define REL_BPF6_pin		3   //80MHz
-#define REL_BPF12_pin		4   //40MHz
-#define REL_BPF24_pin		5   //20MHz
-#define REL_BPF40_pin		6   //10Mhz
+#define REL_LPF2_pin		2   //160m  <2.5MHz
+#define REL_BPF6_pin		3   //80m    2-6MHz
+#define REL_BPF12_pin		4   //40m    5-12MHz
+#define REL_BPF24_pin		5   //20m   10-24MHz
+#define REL_BPF40_pin		6   //10m   20-40MHz
 
 #define REL_BPF_val_num   5
 #define REL_LPF2_val		0x01
@@ -75,9 +80,11 @@ https://github.com/kaefe64/Arduino_uSDX_Pico_FFT_Proj
 
 /* I2C SWR read  3 bytes */
 /* I2C SWR read   [High=SWR integer | Low=SWR decimal] [Forward] [Reflected] */
-#define I2C_SWR 	    	      0x22  // read 3 bytes = SWR, FOR and REF
+#define I2C_SWR               0x22  // read 3 bytes = SWR, FOR and REF
 #define vADC_ForwardPin       A0    // select the input pin for the swr analog reading
 #define vADC_vReflectedPin    A1    // select the input pin for the swr analog reading
+#define vADC_ForwBJTPin       A2    // select the input pin for the swr analog reading
+#define vADC_vReflecBJTPin    A3    // select the input pin for the swr analog reading
 #define VMIN                  20    // min forward AD value for swr
 #define SWR_BASE10            10    // numeric base for SWR decimal
 #define SWR_MIN               (1 * SWR_BASE10)    // SWR = 1.0
@@ -91,7 +98,7 @@ uint8_t SWR[3];  //save swr info to send to I2C master = swr, forward and reflec
 
 /* I2C EEPROM   read numbytes bytes (EEP address from EEP_ADD_RD) */
 /* I2C EEPROM   read [VALUE1] [VALUE2] ...  ... [VALUEn] */
-#define I2C_EEP_RD  	  0x23  // read data on eeprom address 
+#define I2C_EEP_RD  	  0x23  // read data from eeprom address 
 
 /* I2C EEPROM   write 2 bytes address + 1 byte numbytes + numbytes data...  */
 /* I2C EEPROM   write [ADDR_LOW] [ADDR_HIGH] [NUM_BYTES] [VALUE1] [VALUE2] ... [VALUEn]    NUM_BYTES must be < I2C_MAX_NUMBYTES due to I2C buffer size */
@@ -102,7 +109,7 @@ uint8_t SWR[3];  //save swr info to send to I2C master = swr, forward and reflec
 #define I2C_TWAR (I2C_BPF | I2C_RX | I2C_SWR)  // TWAR = main mask address = 0010 0011
 //#define I2C_TWAMR ((I2C_BPF | I2C_RX | I2C_SWR | I2C_EEP_RD) ^ (I2C_BPF & I2C_RX & I2C_SWR & I2C_EEP_RD))  // xor = 0000 0011 ->  it receives addresses 0010 00XX  ->  from 0x20 to 0x23
 #define I2C_TWAMR ((I2C_BPF | I2C_RX | I2C_SWR) ^ (I2C_BPF & I2C_RX & I2C_SWR))  // xor = 0000 0011 ->  it receives addresses 0010 00XX  ->  from 0x20 to 0x23
-// TWAMR = on bit set, accept any value for the address bit received
+// TWAMR: when bit set, accept any value for the address bit received
 
 
 
@@ -114,7 +121,7 @@ const uint8_t REL_ATT_val[REL_ATT_val_num] = {REL_PRE_10_val, REL_ATT_30_val, RE
 uint8_t Debug_LastAddress;  //just for debug
 
 
-/*eeprom variables */
+/* eeprom variables */
 #define EEP_MAX_BUFFER      10    //number of writes could be on hold to write on EEP  (16 = 82% RAM used)
 #define I2C_MAX_NUMBYTES    26    //max 32 - address - numbyte - spare
 int I2C_read_byte;
@@ -123,7 +130,7 @@ int EEP_rd_numbytes;
 struct st_EEP_wr {
     int addr;
     int numbytes;
-    int bytes[I2C_MAX_NUMBYTES];
+    int bytes[I2C_MAX_NUMBYTES];  //storage the data from the msg to write on eeprom
 };
 struct st_EEP_wr EEP_wr[EEP_MAX_BUFFER];
 
@@ -140,20 +147,8 @@ void setup()
 {
   pinMode(ledPin, OUTPUT);
   
-  Serial.begin(115200);  //choose the right clock for Arduino Pro Mini at Tools Processor
-  for(int i=0; i<50; i++)    // wait some time for Serial to open
-  {
-  digitalWrite(ledPin, 1);  //toggle led
-  delay(50);                       // wait
-  digitalWrite(ledPin, 0);  //toggle led
-  delay(50);                       // wait
-  if(Serial)  //serial opened
-    break;
-  }  // If the serial does not open, the print commands will have no effect
-  Serial.println("\nArduino I2C Slave Multi Address");
-  //Serial.print("FREQ CPU: ");
-  //Serial.println(F_CPU);   //prints the clock frequency, chose the right clock for Arduino Pro Mini at Tools Processor
-  
+  Serial.begin(115200);  //choose the right clock for Arduino Pro Mini 3V3 = 8Mhz at Tools Processor
+ 
   pinMode(REL_LPF2_pin, OUTPUT);
   pinMode(REL_BPF6_pin, OUTPUT);
   pinMode(REL_BPF12_pin, OUTPUT);
@@ -174,11 +169,27 @@ void setup()
 
   pinMode(vADC_ForwardPin, INPUT);
   pinMode(vADC_vReflectedPin, INPUT);
+  pinMode(vADC_ForwBJTPin, INPUT);
+  pinMode(vADC_vReflecBJTPin, INPUT);
 
   Wire.begin(I2C_TWAR, I2C_TWAMR);       // base address for all slaves running here (valid only for ATmega328P Arduinos)
   Wire.onRequest(requestEvent);  // register callback function for I2C = master read
   Wire.onReceive(receiveEvent);  // register callback function for I2C = master write
 
+  
+  for(int i=0; i<50; i++)    // wait some time for Serial to open
+  {
+    digitalWrite(ledPin, 1);  //toggle led
+    delay(50);                       // wait
+    digitalWrite(ledPin, 0);  //toggle led
+    delay(50);                       // wait
+    if(Serial)  //serial opened
+      break;
+  }  // If the serial does not open, the print commands will have no effect
+  Serial.println("\nARJAN-5 LPF Relay Board - Arduino I2C Multi Address Slave");
+  //Serial.print("FREQ CPU: ");
+  //Serial.println(F_CPU);   //prints the clock frequency, chose the right clock for Arduino Pro Mini at Tools Processor
+ 
   nextMillis = millis() + LOOP_PERIOD_MILLIS;
 }
 
@@ -207,15 +218,15 @@ void requestEvent (){    // master read = request data from slave
 
     case (I2C_EEP_RD):  //read eeprom
       Wire.flush();
-      Serial.print("I2C_EEP_RD event   EEP_rd_numbytes=");
-      Serial.println(EEP_rd_numbytes);
+      //Serial.print("I2C_EEP_RD event   EEP_rd_numbytes=");
+      //Serial.println(EEP_rd_numbytes);
       /* [VALUE1] [VALUE2] ...  ... [VALUEn] */
       for(int i=0; i<EEP_rd_numbytes; i++)
       {
         Wire.write(EEPROM.read(EEP_rd_addr+i));   // send back the value from eeprom address
-        Serial.print(EEPROM.read(EEP_rd_addr+i));  Serial.print("  ");
+        //Serial.print(EEPROM.read(EEP_rd_addr+i));  Serial.print("  ");
       }
-      Serial.println("  ");
+      //Serial.println("  ");
       EEP_rd_numbytes = 0;  //do not use again (maybe not necessary)
       Debug_LastAddress = I2C_EEP_RD;
       break;
@@ -229,10 +240,10 @@ void requestEvent (){    // master read = request data from slave
 /*****************************************************************************************/
 void receiveEvent(int howManyBytesReceived)    // master write = send data to slave
   {
-  Serial.print("Receive event  ");   
+  //Serial.print("Receive event  ");   
   switch (Wire.getLastAddress()) {   // address from last byte on the bus
     case (I2C_BPF):
-      Serial.println("Rx event I2C_BPF ");   
+      //Serial.println("Rx event I2C_BPF ");   
       I2C_read_byte = Wire.read();   // receive byte
       if(I2C_read_byte >= 0)  //some byte available from I2C
       {
@@ -243,7 +254,7 @@ void receiveEvent(int howManyBytesReceived)    // master write = send data to sl
       break;
 
     case (I2C_RX):
-      Serial.println("Rx event I2C_RX ");   
+      //Serial.println("Rx event I2C_RX ");   
       I2C_read_byte = Wire.read();   // receive byte
       if(I2C_read_byte >= 0)  //some byte available from I2C
       {      
@@ -254,28 +265,28 @@ void receiveEvent(int howManyBytesReceived)    // master write = send data to sl
       break;
 
     case (I2C_EEP_ADD_NB):  //write (receive) eeprom address and numbytes for next eeprom read/write   
-      Serial.println("Rx event I2C_EEP_ADD_NB  ");   
+      //Serial.println("Rx event I2C_EEP_ADD_NB  ");   
       /* [ADDR_LOW] [ADDR_HIGH] [NUM_BYTES]       NUM_BYTES must be < I2C_MAX_NUMBYTES due to I2C buffer size */
       EEP_rd_numbytes = 0;
       I2C_read_byte = Wire.read();   // receive a data byte from I2C = eeprom address
-      Serial.print("  EEP_rd_addr0=");  Serial.print(I2C_read_byte);  
+      //Serial.print("  EEP_rd_addr0=");  Serial.print(I2C_read_byte);  
       if(I2C_read_byte >= 0)   //some byte available from I2C = address came
       {
         EEP_rd_addr = I2C_read_byte;  //address low byte
         I2C_read_byte = Wire.read();   // receive a data byte from I2C = eeprom address
-         Serial.print("   EEP_rd_addr1="); Serial.print(I2C_read_byte); 
+         //Serial.print("   EEP_rd_addr1="); Serial.print(I2C_read_byte); 
         if((I2C_read_byte >= 0)&& (I2C_read_byte < 4))  //address >=0 and  <=1k and some byte available from I2C = address came
         {
           EEP_rd_addr |= (I2C_read_byte << 8);    //address high byte
           I2C_read_byte = Wire.read();   // receive a data byte from I2C = num bytes to read
-          Serial.print("   byte="); Serial.print(I2C_read_byte); 
+          //Serial.print("   byte="); Serial.print(I2C_read_byte); 
           if((I2C_read_byte > 0) && (I2C_read_byte < I2C_MAX_NUMBYTES))  //some byte available from I2C 
           {
             EEP_rd_numbytes = I2C_read_byte;
           }
         }
       }
-      Serial.println("   Fim");
+      //Serial.println("   Fim");
       Wire.flush();
       Debug_LastAddress = I2C_EEP_ADD_NB;
       break;
@@ -283,24 +294,24 @@ void receiveEvent(int howManyBytesReceived)    // master write = send data to sl
     case (I2C_EEP_WR):  //write eeprom
       /* [ADDR_LOW] [ADDR_HIGH] [NUM_BYTES] [VALUE1] [VALUE2] ... [VALUEn]    NUM_BYTES must be < I2C_MAX_NUMBYTES due to I2C buffer size */
       I2C_read_byte = Wire.read();   // receive a data byte from I2C = eeprom address
-      Serial.print("  EEP_wr_addr0=");  Serial.print(I2C_read_byte);  
+      //Serial.print("  EEP_wr_addr0=");  Serial.print(I2C_read_byte);  
       if(I2C_read_byte >= 0)   //some byte available from I2C = address came
       {
         EEP_wr[EEP_wr_pos_in].addr = I2C_read_byte;  //address low byte
         I2C_read_byte = Wire.read();   // receive a data byte from I2C = eeprom address
-         Serial.print("   EEP_wr_addr1="); Serial.print(I2C_read_byte); 
+         //Serial.print("   EEP_wr_addr1="); Serial.print(I2C_read_byte); 
         if((I2C_read_byte >= 0) && (I2C_read_byte < 4))  //address >=0 and  <=1k and some byte available from I2C = address came
         {
           EEP_wr[EEP_wr_pos_in].addr |= (I2C_read_byte << 8);    //address high byte
           I2C_read_byte = Wire.read();   // receive a data byte from I2C = num bytes to read
-          Serial.print("   num bytes="); Serial.print(I2C_read_byte); 
+          //Serial.print("   num bytes="); Serial.print(I2C_read_byte); 
           if((I2C_read_byte > 0) && (I2C_read_byte < I2C_MAX_NUMBYTES))  //some byte available from I2C 
           {
             EEP_wr[EEP_wr_pos_in].numbytes = I2C_read_byte;  //indicates to the main loop to write to eeprom
             for(int i=0; i<EEP_wr[EEP_wr_pos_in].numbytes; i++)
             {
               I2C_read_byte = Wire.read();   // receive a data byte from I2C = data
-              Serial.print(" "); Serial.print(I2C_read_byte); 
+              //Serial.print(" "); Serial.print(I2C_read_byte); 
               if(I2C_read_byte >= 0)  //some byte available  from I2C = data to write came
               {       
                 EEP_wr[EEP_wr_pos_in].bytes[i] = I2C_read_byte;   // save the values to write on eeprom later (do not spent time here)
@@ -310,7 +321,7 @@ void receiveEvent(int howManyBytesReceived)    // master write = send data to sl
           }
         }
       }
-      Serial.println("   Fim");
+      //Serial.println("   Fim");
       Wire.flush();
       Debug_LastAddress = I2C_EEP_WR;
       break;
@@ -323,16 +334,18 @@ void receiveEvent(int howManyBytesReceived)    // master write = send data to sl
 
 
 /*****************************************************************************************/
+/* check if there are some eeprom write task */
+/*****************************************************************************************/
 void EEP_wr_check() {
   while(EEP_wr_pos_in != EEP_wr_pos_out)   //data to write on eeprom
   {
     for(int i=0; i< EEP_wr[EEP_wr_pos_out].numbytes; i++)
     {
-      Serial.print(i);  
-      Serial.print(" wr addr ");  
-      Serial.print(EEP_wr[EEP_wr_pos_out].addr+i);
-      Serial.print(" val ");  
-      Serial.println(EEP_wr[EEP_wr_pos_out].bytes[i]);
+      //Serial.print(i);  
+      //Serial.print(" wr addr ");  
+      //Serial.print(EEP_wr[EEP_wr_pos_out].addr+i);
+      //Serial.print(" val ");  
+      //Serial.println(EEP_wr[EEP_wr_pos_out].bytes[i]);
       EEPROM.update(EEP_wr[EEP_wr_pos_out].addr+i, EEP_wr[EEP_wr_pos_out].bytes[i]);   // write the value on eeprom address if different
     }
     EEP_wr_pos_out++; if(EEP_wr_pos_out>=EEP_MAX_BUFFER) EEP_wr_pos_out=0;  //job done
@@ -343,7 +356,7 @@ void EEP_wr_check() {
 /*****************************************************************************************/
 void Set_BPF_Relays() {
 
-  Serial.print("Set BPF Relays ");  
+  //Serial.print("Set BPF Relays ");  
 
   if(BPF_Relays == REL_LPF2_val)    
   {
@@ -353,8 +366,8 @@ void Set_BPF_Relays() {
     digitalWrite(REL_BPF24_pin, 0);
     digitalWrite(REL_BPF40_pin, 0);
     
-    Serial.print(BPF_Relays);  
-    Serial.println("  REL_LPF2_val   band=0");  
+    //Serial.print(BPF_Relays);  
+    //Serial.println("  REL_LPF2_val   band=0");  
   }  
   else if(BPF_Relays == REL_BPF6_val) 
   {
@@ -364,8 +377,8 @@ void Set_BPF_Relays() {
     digitalWrite(REL_BPF24_pin, 0);
     digitalWrite(REL_BPF40_pin, 0);
     
-    Serial.print(BPF_Relays);  
-    Serial.println("  REL_BPF6_val   band=1");  
+    //Serial.print(BPF_Relays);  
+    //Serial.println("  REL_BPF6_val   band=1");  
   }  
   else if(BPF_Relays == REL_BPF12_val) 
   {
@@ -375,8 +388,8 @@ void Set_BPF_Relays() {
     digitalWrite(REL_BPF24_pin, 0);
     digitalWrite(REL_BPF40_pin, 0);
     
-    Serial.print(BPF_Relays);  
-    Serial.println("  REL_BPF12_val   band=3");  
+    //Serial.print(BPF_Relays);  
+    //Serial.println("  REL_BPF12_val   band=3");  
   }  
   else if(BPF_Relays == REL_BPF24_val) 
   {
@@ -386,8 +399,8 @@ void Set_BPF_Relays() {
     digitalWrite(REL_BPF24_pin, 1);
     digitalWrite(REL_BPF40_pin, 0);
     
-    Serial.print(BPF_Relays);  
-    Serial.println("  REL_BPF24_val   band=4");  
+    //Serial.print(BPF_Relays);  
+    //Serial.println("  REL_BPF24_val   band=4");  
   }  
   else //BPF40   at least 1 filter connected
   {
@@ -397,8 +410,8 @@ void Set_BPF_Relays() {
     digitalWrite(REL_BPF24_pin, 0);
     digitalWrite(REL_BPF40_pin, 1);
     
-    Serial.print(BPF_Relays);  
-    Serial.println("  REL_BPF40_val   band=2");  
+    //Serial.print(BPF_Relays);  
+    //Serial.println("  REL_BPF40_val   band=2");  
   }  
   
 //  digitalWrite(ledPin, !digitalRead(ledPin));    //toggle led
@@ -409,13 +422,13 @@ void Set_BPF_Relays() {
 /*****************************************************************************************/
 void Set_RX_Relays() {
 
-  Serial.print("Set RX Relays ");  
-  Serial.print(RX_Relays);    
+  //Serial.print("Set RX Relays ");  
+  //Serial.print(RX_Relays);    
 
   if((RX_Relays & REL_ATT_20_val) == REL_ATT_20_val) 
   {
     digitalWrite(REL_ATT_20_pin, 1);
-    Serial.print("   REL_ATT_20_val");      
+    //Serial.print("   REL_ATT_20_val");      
   }
   else
   {
@@ -425,7 +438,7 @@ void Set_RX_Relays() {
   if((RX_Relays & REL_ATT_10_val) == REL_ATT_10_val) 
   {
     digitalWrite(REL_ATT_10_pin, 1);        
-    Serial.print("   REL_ATT_10_val");      
+    //Serial.print("   REL_ATT_10_val");      
   }  
   else
   {
@@ -435,23 +448,28 @@ void Set_RX_Relays() {
   if((RX_Relays & REL_PRE_10_val) == REL_PRE_10_val) 
   {
     digitalWrite(REL_PRE_10_pin, 1);
-    Serial.print("   REL_PRE_10_pin");      
+    //Serial.print("   REL_PRE_10_pin");      
   }       
   else
   {
     digitalWrite(REL_PRE_10_pin, 0);
   } 
   
-  Serial.println(" ");      
+  //Serial.println(" ");      
 //  digitalWrite(ledPin, !digitalRead(ledPin));    //toggle led
 }
 
 
 	char s[64];
 
-
 /*****************************************************************************************/
-void SWR_read() 
+/* meter bridge gives forward and reflected voltage         (some meters give the power) */
+/* SWR = (forward + reflected) / (forward - reflected)                                   */
+/* SWR = 1 when reflected < 1% forward                                                   */
+/* SWR = 3 when reflected = 50% forward                                                  */
+/* SWR = 5 when reflected = 66% forward                                                  */
+/*****************************************************************************************/
+void SWR_Diode_read() 
 {
   uint16_t vForward, vForward0;
   static uint16_t  vForward1=1;  //last AD reading
@@ -477,14 +495,12 @@ void SWR_read()
     Serial.print("   ref0= ");
     Serial.println(vReflected0);
 */
-    sprintf(s, "ADC   for0= %02x   ref0= %02x", vForward0, vReflected0);
+    sprintf(s, "ADC Diode  for= %02x   ref= %02x", vForward0, vReflected0);
     Serial.println(s);
   }
 
   vForward1 = vForward0;                //save last value for average
   vReflected1 = vReflected0;            //save last value for average
-
-
 
   if(vForward < VMIN)
   {
@@ -525,18 +541,110 @@ void SWR_read()
     Serial.print(".");
     Serial.println(SWR[0]&0x0f);   //swr_dec
 */
-    sprintf(s, "SWR     swr= %d.%d   For= %02x   Ref= %02x", SWR[0]>>4, SWR[0]&0x0f, SWR[1], SWR[2]);
-    Serial.println(s);
+//    sprintf(s, "SWR     swr= %d.%d   For= %02x   Ref= %02x", SWR[0]>>4, SWR[0]&0x0f, SWR[1], SWR[2]);
+//    Serial.println(s);
     }
   else
     {
       SWR[0] = 0; // the min SWR when tx is 0x10 = 1.0, if not TX, SWR = 0.0 (for debug)
     }
+
+}
+
+
+void SWR_BJT_read() 
+{
+  uint16_t vForwBJT, vForwBJT0;
+  static uint16_t  vForwBJT1=1;  //last AD reading
+  uint16_t vReflecBJT, vReflecBJT0;
+  static uint16_t vReflecBJT1=1;  //last AD reading
+  uint16_t swr, swr_unid, swr_dec;
+  
+  /* read the AD for SWR */
+  vForwBJT0 = analogRead(vADC_ForwBJTPin);      //actual value  
+  vForwBJT0 = analogRead(vADC_ForwBJTPin);      //actual value  
+  vForwBJT = (vForwBJT0 + vForwBJT1) >> 1;   //average with last value
+    
+  vReflecBJT0 = analogRead(vADC_vReflecBJTPin);  //actual value
+  vReflecBJT0 = analogRead(vADC_vReflecBJTPin);  //actual value
+  vReflecBJT = (vReflecBJT0 + vReflecBJT1) >> 1;   //average with last value
+
+  if((vForwBJT0 != vForwBJT1) ||
+     (vReflecBJT0 != vReflecBJT1))
+  {
+/*
+    Serial.print("ADC   for0= ");  
+    Serial.print(vForwBJT0);
+    Serial.print("   ref0= ");
+    Serial.println(vReflecBJT0);
+*/
+    sprintf(s, "ADC BJT  for= %02x   ref= %02x    for= %02x   ref= %02x", vForwBJT0, vReflecBJT0, 0x3ff-vForwBJT0, 0x3ff-vReflecBJT0);
+    Serial.println(s);
+  }
+
+  vForwBJT1 = vForwBJT0;                //save last value for average
+  vReflecBJT1 = vReflecBJT0;            //save last value for average
+
+
+
+  if(vForwBJT < VMIN)
+  {
+    swr = SWR_MIN;
+  }    
+  else if(vForwBJT <= vReflecBJT)
+  {
+    swr = SWR_MAX;
+  }    
+  else
+  {    
+    swr = (SWR_BASE10 * (vForwBJT + vReflecBJT)) / (vForwBJT - vReflecBJT);
+    if(swr > SWR_MAX)      
+    {
+      swr = SWR_MAX;
+    }      
+  }
+  /* swr value will be from 1.0 to 15.9 */
+  /* 1 byte -> bit7-bit4 = integer    bit3-bit0 = decimal base 10 */
+
+  swr_unid = swr/SWR_BASE10;  //integer part  max = 15
+  if(swr_unid > 15) swr_unid = 15;
+  swr_dec = swr%SWR_BASE10;   //decimal part
+  if(swr_dec > 9) swr_dec = 9;  //double check, just in case SWR_BASE10 changed
+  SWR[0] = (swr_unid << 4) + swr_dec;
+  SWR[1] = vForwBJT >> 2;  //10 bits AD to 8 bits
+  SWR[2] = vReflecBJT >> 2;
+
+
+  static uint16_t vForwBJT_old = 0;
+  if((vForwBJT != vForwBJT_old) &&
+     (vForwBJT > 1))
+    {
+    vForwBJT_old = vForwBJT;
+/*
+    Serial.print("SWR  For= ");  
+    Serial.print(SWR[1]);
+    Serial.print("   Ref= ");  
+    Serial.print(SWR[2]);
+    Serial.print("   swr= ");  
+    Serial.print(SWR[0]>>4);  //swr_unid
+    Serial.print(".");
+    Serial.println(SWR[0]&0x0f);   //swr_dec
+*/
+//    sprintf(s, "SWR     swr= %d.%d   For= %02x   Ref= %02x", SWR[0]>>4, SWR[0]&0x0f, SWR[1], SWR[2]);
+//    Serial.println(s);
+    }
+  else
+    {
+      SWR[0] = 0; // the min SWR when tx is 0x10 = 1.0, if not TX, SWR = 0.0 (for debug)
+    }
+
 }
 
 
 
-
+/*******************************************************************************************************/  
+/* switch the relays to check is all ok - once at power up                                             */
+/*******************************************************************************************************/  
 uint8_t InitCheck(void)
 {
   static uint16_t cont_BPF_relay = 0;
@@ -553,7 +661,7 @@ uint8_t InitCheck(void)
     {    
       BPF_Relays = REL_BPF_val[cont_BPF_relay];
       //Serial.println("Set BPF Relays " + String(cont_BPF_relay) + "  " + String(BPF_Relays));
-      Serial.print(cont_BPF_relay);   Serial.print("  ");
+      //Serial.print(cont_BPF_relay);   Serial.print("  ");
       cont_BPF_relay++;
       if(cont_BPF_relay >= REL_BPF_val_num)
         cont_BPF_relay = 0;
@@ -563,7 +671,7 @@ uint8_t InitCheck(void)
     {    
       RX_Relays = REL_ATT_val[cont_ATT_relay];
       //Serial.println("Set RX Relays " + String(cont_ATT_relay) + "  " + String(RX_Relays));
-      Serial.print(cont_ATT_relay);   Serial.print("  ");
+      //Serial.print(cont_ATT_relay);   Serial.print("  ");
       cont_ATT_relay++;
       if(cont_ATT_relay >= REL_ATT_val_num)
         cont_ATT_relay = 0;
@@ -601,7 +709,8 @@ void loop() {
     /*********************************/  
     digitalWrite(ledPin, 1);
 
-    SWR_read();  /* read the ADC for SWR calculation */
+    SWR_Diode_read();  /* read the ADC for SWR calculation */
+    SWR_BJT_read();  /* read the ADC for SWR calculation */
 
 /*
     if(Debug_LastAddress != 0)
