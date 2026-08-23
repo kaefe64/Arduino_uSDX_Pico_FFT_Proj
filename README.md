@@ -235,7 +235,8 @@ It starts to save/play when pressing < Enter >, and will stop after 10s or when 
 ### Aug23 2026
 - Converting the code to use Earle Philhower library instead of the MBED.<br>
   It will be better for possible use of RP2350 on future.<br>
-  Please make a backup of your actual code before using and testing this code. It is hard to test everything, and change to E. philhower is a big change.<br>
+  Please make a backup of your actual code before using and testing this code. It is hard to test everything, and change to E. Philhower is a big change.<br>
+  Look again at "Software Notes" for the new Earle Philhower Library procedure.<br>
 - Correcting the ADC sample rate. It was 15,841.58Hz and should be 16kHz.
 - It shows the number of memories read from EEPROM on the title screen. Just a number on the right of the version.
 
