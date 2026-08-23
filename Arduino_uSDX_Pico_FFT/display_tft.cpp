@@ -698,6 +698,16 @@ void display_tft_setup0(void) {
 }
 
 
+/*********************************************************
+  Show the num of memories on setup0 display
+*********************************************************/
+void display_tft_setup0_num_mem_ok(uint8_t num) 
+{
+  char s[12];
+  sprintf(s, "%d", num);  //num of memories read from eeprom
+  tft_writexy_plus(1, TFT_YELLOW, TFT_BLACK, 6+12,0,7,12,(uint8_t *)s);
+}
+
 
 
 /*********************************************************

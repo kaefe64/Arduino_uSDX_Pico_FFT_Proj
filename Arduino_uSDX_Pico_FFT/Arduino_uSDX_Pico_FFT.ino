@@ -10,15 +10,22 @@
  * 
 
 
->>Use  Boards Manager: Arduino Mbed OS RP2040 Boards
->>Do not use EarlePhilhower library (it is just conflitant with Mbed)
+
+>> Include in:
+>> File > Preferences >> Additional boards manager URLs:
+https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
+
+>>Use Boards Manager: "Raspberry Pi Pico/RP2040/RP2350" by Earle F. Philhower III
+>>(older versions of this project used Arduino Mbed OS RP2040 Boards - converted to Philhower core)
+>>Board: "Raspberry Pi Pico"   |   USB Stack: default ("Pico SDK")
 
 >>Lib used: TFT_eSPI by Bodmer
 
 
->>On Ubuntu, to allow program Pico direct from Arduino IDE, run once:
-~/.arduino15/packages/arduino/hardware/mbed_rp2040/4.0.2$ sudo ./post_install.sh
+>>On Ubuntu, no post_install needed with the Philhower core (uf2 upload via drag&drop or BOOTSEL)
 >>Obs.: Compiled file  Arduino_uSDX_Pico_FFT.ino.uf2  generated at  /tmp/arduino-sketch-...
+>>IMPORTANT - after uploading (IDE or BOOTSEL), always power cycle the board (turn off the power supply AND unplug USB) before turning it on again.
+   A warm reboot right after upload may leave the boot frozen at the display graph legend (soft-reset state artifact, not a firmware bug).
 
 
  
@@ -80,7 +87,13 @@
 
 
 --------------------------------------------------------------
+>>I2C pins with the Earle Philhower core (Wire = i2c0 to Si5351,  Wire1 = i2c1 to Pro Mini / PCF8574):
+>>Pins chosen by code at uSDR.cpp (uSDR_setup0), no library/core file edition needed:
+   Wire.setSDA(16); Wire.setSCL(17); Wire.begin();    //i2c0
+   Wire1.setSDA(18); Wire1.setSCL(19); Wire1.begin(); //i2c1
+
 --------------------------------------------------------------
+>>HISTORICAL - mods needed only with the old Arduino Mbed OS RP2040 core:
 >>The following mods will correct this beginner usual error:
 >>Compilation error: 'Wire1' was not declared in this scope
 
@@ -181,7 +194,7 @@ void setup() {
 
 
   // some delay required for Serial to open
-   while((millis() - tim) < 5000)   //try for 5s to connect to serial
+   while((millis() - tim) < 4500)   //try for 4.5s to connect to serial
   {
   //digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
   gpio_set_mask(1<<LED_BUILTIN);
@@ -201,9 +214,19 @@ void setup() {
   Serialx.println("Serial took " + String((millis() - tim)) + "ms to start");
 */
   //Serialx.println("hmi_init0");
-  //hmi_init0();    //read data from Eeprom must be called after Wire1.begin() 
-                  //and after Pro Mini finish its setup switching relays
-  
+  hmi_init0();    //read data from Eeprom must be called after Wire1.begin() 
+                  //and after Pro Mini finish its setup switching relays  
+                  //and print on display the num of memories read
+
+  //wait more one second 
+   while((millis() - tim) < 6000)   //time to see/read the num of memories on display
+  {
+    gpio_set_mask(1<<LED_BUILTIN);
+    delay(50);                       // wait
+    gpio_clr_mask(1<<LED_BUILTIN);
+    delay(50);                       // wait
+  } 
+
   uSDR_setup();
 }
 

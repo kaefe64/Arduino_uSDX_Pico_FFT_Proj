@@ -30,6 +30,8 @@
  */
 
 #include "Arduino.h"
+#include "hardware/gpio.h"
+#include "hardware/i2c.h"
 #include "uSDR.h"
 #include "relay.h"
 #include "si5351.h"
@@ -751,7 +753,8 @@ void hmi_init0(void)
 {
 	// Initialize LCD and set VFO
   //Init_HMI_data(&memory_band[hmi_mem].vars[HMI_S_BPF]);  //read data from DFLASH
-  Eeprom_setup();  //read memories band data from arduino pro mini eeprom I2C
+  uint8_t num = Eeprom_setup();  //read memories band data from arduino pro mini eeprom I2C
+  display_tft_setup0_num_mem_ok(num);   //show num of memories read from eeprom on display
   hmi_mem = 0; //start with the first memory after reset
   //memory_band[hmi_mem].vars[HMI_S_BPF] = memory_band[hmi_mem].vars[HMI_S_BPF]; 
   //Setup_Band(memory_band[hmi_mem].vars[HMI_S_BPF]);

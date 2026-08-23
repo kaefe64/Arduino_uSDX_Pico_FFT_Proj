@@ -7,11 +7,11 @@ extern "C" {
 
 
 //#define PY2KLA_setup     1       //setup for PY2KLA hardware   (comment this line for default setup)
-#define SW_VERSION       "Feb16 2026"    //software version
+#define SW_VERSION       "Aug23 2026"    //software version
 
-//choose the serial to be used (names come from MBed library, look at "pins_arduino.h" and comments at .ino file)
-#define Serialx   SerialUSB    //USB virtual serial (on Pico)  /dev/ttyACM0
-//#define Serialx   Serial1   //UART0 (with external  USB/serial convter) /dev/ttyUSB0
+//choose the serial to be used (look at "pins_arduino.h" of the board core and comments at .ino file)
+#define Serialx   Serial     //USB virtual serial CDC (on Pico, Earle Philhower core)  /dev/ttyACM0
+//#define Serialx   Serial1  //UART0 (with external  USB/serial converter) /dev/ttyUSB0
 
 #define LOOP_MS    100  //100 miliseconds
 

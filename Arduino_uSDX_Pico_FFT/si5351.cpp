@@ -123,6 +123,7 @@ Control Si5351 (see AN619):
  */ 
 
 #include "Arduino.h"
+#include "hardware/i2c.h"
 #include "uSDR.h"
 #include "hmi.h"
 #include "dsp.h"

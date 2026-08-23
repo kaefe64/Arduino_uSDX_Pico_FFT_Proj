@@ -26,6 +26,7 @@
 #include "hardware/i2c.h"
 */
 #include "Arduino.h"
+#include "hardware/i2c.h"
 /*
 #include "SPI.h"
 #include "TFT_eSPI.h"

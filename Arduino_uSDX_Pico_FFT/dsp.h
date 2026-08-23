@@ -18,7 +18,7 @@ extern "C" {
 
 #define FSAMP 480000UL  // freq AD sample / 3 channels = 160kHz
 #define FSAMP_AUDIO 16000U  // audio freq sample   32kHz=critical time
-#define ADC_CLOCK_DIV ((uint16_t)(48000000UL/FSAMP))  //48Mhz / 480Khz = 100 
+#define ADC_CLOCK_DIV ((float)48000000UL/FSAMP - 1.0f)  //pico-sdk adc_set_clkdiv: sample period = (div+1) cycles -> (99+1)=100 cycles of 48MHz = 480kHz. Old (uint16_t)100 gave 101 cycles = 475.2kHz = 15841.58Hz of sample rate measured
 #define FRES      500u    //Hz resolucao de frequencias desejado para cada bin
 #define FFT_NSAMP      ((((uint16_t)((FSAMP / 3u) / FRES))+1u) & (~(uint16_t)1u))  // must be even  160k / 500 = 320
 //FFT max freq = (FSAMP/3) / 2

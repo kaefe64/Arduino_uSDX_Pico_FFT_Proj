@@ -30,9 +30,9 @@
  */
 
 #include "Arduino.h"
-#include "pwm.h"
-#include "adc.h"
-#include "irq.h"
+#include "hardware/pwm.h"
+#include "hardware/adc.h"
+#include "hardware/irq.h"
 #include "hardware/dma.h"
 #include "pico/multicore.h"
 #include "hmi.h"
@@ -52,7 +52,7 @@
 #endif
 
 
-#define ADC0_IRQ_FIFO 		22		// FIFO IRQ number
+#define ADC0_IRQ_FIFO 		22		// FIFO IRQ number (same value on MBED and Earle Philhower cores)
 #define GP_PTT				    15		// PTT pin 20 (GPIO 15)
 
 int dma_chan;
@@ -1557,7 +1557,7 @@ void dsp_core1_setup_and_loop()
   adc_set_clkdiv(ADC_CLOCK_DIV);    // 480k / 3 channels = 160 kSps
 
 
-  irq_set_enabled(ADC0_IRQ_FIFO, true);
+  //irq_set_enabled(ADC0_IRQ_FIFO, true);   // [Philhower] disabled: no ADC ISR is installed anywhere in this sketch; on pico-sdk an unhandled enabled IRQ hangs its core. DMA DREQ alone drives the sample flow.
 
 
 
@@ -1950,7 +1950,7 @@ void dsp_init()
     
   delay(500);  //required to run core1 - after tests
   multicore_launch_core1(dsp_core1_setup_and_loop);        // Start processing on core1
-  delay(5);  
+  delay(5);
 
 
   
@@ -1958,6 +1958,12 @@ void dsp_init()
   //https://hackaday.io/page/9880-raspberry-pi-pico-multicore-adventures
   // set the SIO_IRQ_PROC1 (FIFO register set interrupt) ownership to only one core. Opposite to irq_set_shared_handler() function
   // We pass it the name of function that shall be executed when interrupt occurs
+  // [Philhower] The core installs its own FIFO ISR on this IRQ at boot (rp2040.fifo.registerCore() in cores/rp2040/main.cpp);
+  // claiming it exclusively without removing that one panics ("irq already claimed") and freezes the boot.
+  // This sketch does not use the core FIFO helpers, so replacing it entirely is safe.
+  irq_handler_t old_sio_handler = irq_get_exclusive_handler(SIO_IRQ_PROC0);
+  if (old_sio_handler)
+    irq_remove_handler(SIO_IRQ_PROC0, old_sio_handler);
   irq_set_exclusive_handler(SIO_IRQ_PROC0, core0_irq_handler);
   // We clear the interrupt flag, if it got set by a chance
   multicore_fifo_clear_irq();

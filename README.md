@@ -121,13 +121,15 @@ Obs.: Don't mind the red wires on the PCB, they are only test for separated 5V p
 
 ## Software Notes<br>
 ### Arduino IDE setup and notes:
-- I am using Arduino IDE version 2.0.1 in Linux/Ubuntu
-- Lib used: TFT_eSPI by Bodmer
-- Boards Manager:  Arduino Mbed OS RP2040 Boards. My version is 4.0.2 
+- I am using Arduino IDE version 2.3.10 in Linux/Debian
 - **IMPORTANT: Use the comments at beginning of  Arduino_uSDX_Pico_FFT.ino  file to "adjust" the library files to the project.**
 - Every time I update the library, I need to "adjust" the library files again.
-- Do not include EarlePhilhower library (it is conflitant with Mbed)
-- Board: "RaspberryPiPico"  >  Arduino Mbed OS RP2040 Boards  >  RaspberryPiPico
+- Use Boards Manager: "Raspberry Pi Pico/RP2040/RP2350" by Earle F. Philhower III
+- (old: Boards Manager:  Arduino Mbed OS RP2040 Boards. My version is 4.0.2 - no longer used)
+- (old: Do not include EarlePhilhower library (it is conflitant with Mbed) - now it uses EarlePhilhower library)
+- Board: "Raspberry Pi Pico"  >  Raspbery Pi Pico/RP2040/RP2350  >  Raspberry Pi Pico
+- (old: Board: "RaspberryPiPico"  >  Arduino Mbed OS RP2040 Boards  >  RaspberryPiPico - no longer used)
+- Lib used: TFT_eSPI by Bodmer
 - The code files have cpp type, but the code itself is in C (cpp type is used to help in some compiler issues).
 
 
@@ -229,6 +231,13 @@ It starts to save/play when pressing < Enter >, and will stop after 10s or when 
 <br>
 
 ## Last changes and notes:<br>
+
+### Aug23 2026
+- Converting the code to use Earle Philhower library instead of the MBED.<br>
+  It will be better for possible use of RP2350 on future.<br>
+  Please make a backup of your actual code before using and testing this code. It is hard to test everything, and change to E. philhower is a big change.<br>
+- Correcting the ADC sample rate. It was 15,841.58Hz and should be 16kHz.
+- It shows the number of memories read from EEPROM on the title screen. Just a number on the right of the version.
 
 ### Feb16 2026
 - Correcting reading the memories after power on. It was reading during Pro Mini setup (switching relays) and it got no data from eeprom. Now it is ok.<br>

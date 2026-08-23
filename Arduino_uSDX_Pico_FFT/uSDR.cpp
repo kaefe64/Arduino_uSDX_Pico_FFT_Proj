@@ -41,9 +41,14 @@ void uSDR_setup0(void)  //main
 	 * i2c1 is used for the LCD and all other interfaces
 	 */
 #if TX_METHOD == I_Q_QSE   //original project
+  //Earle Philhower core: I2C pins chosen here by code (with MBED core it was done editing pins_arduino.h)
+  Wire.setSDA(16);         //i2c0 SDA = GP16
+  Wire.setSCL(17);         //i2c0 SCL = GP17
   Wire.begin();            //i2c0 master to Si5351
   //Wire.setClock(200000);   // Set i2c0 clock speed (default=100k)
 #endif
+  Wire1.setSDA(18);        //i2c1 SDA = GP18
+  Wire1.setSCL(19);        //i2c1 SCL = GP19
   Wire1.begin();           //i2c1   used for switching band and atten/LNA
   //Wire1.setTimeout(1000);  // sets maximum milliseconds to wait for stream data, default is 1 second
 
@@ -59,8 +64,8 @@ void uSDR_setup(void)  //main
   //gpio_set_dir(14, GPIO_OUT); 
   
   //Serialx.println("hmi_init0");
-  hmi_init0();    //read data from Eeprom must be called after Wire1.begin() 
-                  //and after Pro Mini finish its setup switching relays  
+  //hmi_init0();    //MOVED to Arduino_uSDX_Pico_FFT.ino setup(): reads the eeprom memories and shows how many on initial display
+  //                //must run after Wire1.begin() (uSDR_setup0) and after Pro Mini finish its setup switching relays
  
 	/* Initialize units */
   //Serialx.println("uSDR_setup   mon_init");

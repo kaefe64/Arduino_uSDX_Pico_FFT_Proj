@@ -7,7 +7,7 @@ extern "C" {
 
 
 
-#define ROTATION_SETUP  2   // 0, 1, 2 or 3
+#define ROTATION_SETUP  1   // 0, 1, 2 or 3
 
 
 #if ROTATION_SETUP == 0 || ROTATION_SETUP == 2
@@ -127,6 +127,7 @@ void TxPower_bargraph(int16_t index_new);
 void display_fft_graf(uint16_t freq);
 void display_fft_graf_top(void);
 void display_tft_setup0(void);
+void display_tft_setup0_num_mem_ok(uint8_t num);   //show num of eeprom memories read, on the setup0 display
 void display_tft_setup(void);
 void display_tft_countdown(bool show, uint16_t val);
 void display_tft_loop(void);
