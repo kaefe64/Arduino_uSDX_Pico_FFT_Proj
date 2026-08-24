@@ -110,11 +110,14 @@ Obs.: Don't mind the red wires on the PCB, they are only test for separated 5V p
 ![RC_audio](Pictures/Mod_include_RC_audio.png)
 
 - The PTT output signal generated on GPIO15 (pin 20) used to switch the filters and the Power Amplifier needs:  
-    A transistor to convert from 3v3 to 12V.<br>
-    Include a 1K resistor between GPIO15 (pin 20) and 3V3 (pin 36).<br>
-    Increase the value of C44 from 1n to 100n.<br>
-    Reduce the value of R25 to 10R.
+    A transistor to convert from 3v3 to 12V (2N7002 Q4 on picture).<br>
+    Include a 1K resistor (R47 on picture) between GPIO15 (pin 20) and 3V3 (pin 36). The GPIOs on Pico are input with a weak pulldown during reset and this would make it to be like PTT ON and transmit. This 1k resistor pullup will pit the GPIO at high high at reset avoiding transmiting.<br>
+    Increase the value of C44 from 1n to 100n, to keep the RC time for helping in debouncing the PTT switch.<br>
+    Reduce the value of R25 to 10R. This resistor will (try to) limit the current in case of PTT at wrong voltage.<br>
 ![Main Block Diagram](Pictures/PTTout.png)
+
+- Include a BAW56 (D3 on picture) and two 1k resistors (R48 and R49 on picture) to allow a PTT time extension through GPIO14 in case of CW transmission.<br>
+![Main Block Diagram](Pictures/PTT_CW.png)
 
 - Use 5V or 3v3 to power the ILI9341 display depending on your display version.
 <br>
