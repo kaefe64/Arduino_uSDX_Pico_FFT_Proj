@@ -321,7 +321,7 @@ void __not_in_flash_func(dma_handler)(void)
   dma_channel_set_write_addr(dma_chan, &adc_samp[adc_samp_block_pos][0], true);
   
 
-  gpio_set_mask(1<<14);   //GP14
+  //gpio_set_mask(1<<14);   //GP14 (GPIO14 used for PTT CW time extension)
 
 
 
@@ -728,7 +728,7 @@ The sampling is at 160kHz but for audio we only need 16kHz samples, so the filte
   }
 
    
-  gpio_clr_mask(1<<14);
+//  gpio_clr_mask(1<<14);  //GPIO14
   
 }
 
@@ -1919,8 +1919,8 @@ void dsp_init()
   //uint16_t slice_num;
 
 
-  gpio_init_mask(1<<14);  
-  gpio_set_dir(14, GPIO_OUT); 
+//  gpio_init_mask(1<<14);       //GPIO14
+//  gpio_set_dir(14, GPIO_OUT); 
 
   
   tx_enabled = false;

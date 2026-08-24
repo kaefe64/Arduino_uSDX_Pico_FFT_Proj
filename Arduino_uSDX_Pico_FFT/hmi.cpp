@@ -810,7 +810,14 @@ void hmi_init(void)
 	gpio_pull_up(GP_AUX_1_Escape);
 	gpio_pull_up(GP_AUX_2_Left);
 	gpio_pull_up(GP_AUX_3_Right);
-	gpio_pull_up(GP_PTT);
+	gpio_pull_up(GP_PTT);  //GPIO15
+
+  gpio_init_mask(1<<GP_PTT_CW);       //GP14 GPIO14 = GP_PTT_CW
+  gpio_set_dir(GP_PTT_CW, GPIO_OUT);  //GPIO14 = output
+  gpio_set_mask(1<<GP_PTT_CW);   //GPIO14 = 1  (GPIO14 used for PTT CW time extension)
+//  gpio_clr_mask(1<<GP_PTT_CW);  //GPIO14 = 0
+
+
 /*	
   gpio_set_dir_in_masked(GP_MASK_IN);   //don't need,  already input by  gpio_init_mask()
 
