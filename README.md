@@ -103,7 +103,7 @@ Obs.: Don't mind the red wires on the PCB, they are only test for separated 5V p
 <br>
 
 ## Hardware changes from initial version of my Schematic and PCB:
-- Include a reversion VCC connector protection = series diode  
+- Include a reversion VCC connector protection = series diode D2
 ![Diode_VCC](Pictures/Mod_include_diode_Vcc.png)
 
 - Include an extra RC to the audio output filter  
@@ -112,11 +112,11 @@ Obs.: Don't mind the red wires on the PCB, they are only test for separated 5V p
 - The PTT output signal generated on GPIO15 (pin 20) used to switch the filters and the Power Amplifier needs:  
     A transistor to convert from 3v3 to 12V (2N7002 Q4 on picture).<br>
     Include a 1K resistor (R47 on picture) between GPIO15 (pin 20) and 3V3 (pin 36). The GPIOs on Pico are input with a weak pulldown during reset and this would make it to be like PTT ON and transmit. This 1k resistor pullup will pit the GPIO at high high at reset avoiding transmiting.<br>
-    Increase the value of C44 from 1n to 100n, to keep the RC time for helping in debouncing the PTT switch.<br>
+    Increase the value of C44 from 1n to 100n, for helping in debouncing the PTT switch.<br>
     Reduce the value of R25 to 10R. This resistor will (try to) limit the current in case of PTT at wrong voltage.<br>
 ![Main Block Diagram](Pictures/PTTout.png)
 
-- Include a BAW56 (D3 on picture) and two 1k resistors (R48 and R49 on picture) to allow a PTT time extension through GPIO14 in case of CW transmission.<br>
+- Include a BAW56 (D3 on picture) and two 1k resistors (R48 and R49 on picture) to allow a PTT transmission time extension through GPIO14 in case of CW transmission.<br>
 ![Main Block Diagram](Pictures/PTT_CW.png)
 
 - Use 5V or 3v3 to power the ILI9341 display depending on your display version.
@@ -238,7 +238,7 @@ It starts to save/play when pressing < Enter >, and will stop after 10s or when 
 ### Aug23 2026
 - Converting the code to use Earle Philhower library instead of the MBED.<br>
   It will be better for possible use of RP2350 on future.<br>
-  Please make a backup of your actual code before using and testing this code. It is hard to test everything, and change to E. Philhower is a big change.<br>
+  Please make a backup of your actual code before using and testing this code. It is hard to test everything, and change to Earle Philhower is a big change.<br>
   Look again at "Software Notes" for the new Earle Philhower Library procedure.<br>
 - Correcting the ADC sample rate. It was 15,841.58Hz and should be 16kHz.
 - It shows the number of memories read from EEPROM on the title screen. Just a number on the right of the version.
