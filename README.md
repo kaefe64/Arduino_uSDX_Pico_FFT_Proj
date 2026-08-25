@@ -116,9 +116,6 @@ Obs.: Don't mind the red wires on the PCB, they are only test for separated 5V p
     Reduce the value of R25 to 10R. This resistor will (try to) limit the current in case of PTT at wrong voltage.<br>
 ![Main Block Diagram](Pictures/PTTout.png)
 
-- Include a BAW56 (D3 on picture) and two 1k resistors (R48 and R49 on picture) to allow a PTT transmission time extension through GPIO14 in case of CW transmission.<br>
-![Main Block Diagram](Pictures/PTT_CW.png)
-
 - Use 5V or 3v3 to power the ILI9341 display depending on your display version.
 <br>
 
