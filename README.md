@@ -245,22 +245,22 @@ It starts to save/play when pressing < Enter >, and will stop after 10s or when 
 ## Last changes and notes:<br>
 
 ### Oct04 2026
-- Including a CW TX transmission delay. It keeps the relays on TX between the CW dihs and dahs. It waits 200ms after the end of the CW signal.<br>
-  The 200ms time is defined with the TX_ENABLED_EXTRA_CNT constant.<br>
+- Including a CW TX transmission delay. It keeps the relays in TX mode between the CW dits and dahs. It waits 200ms after the end of the CW signal before switching back to RX.<br>
+  The 200ms delay is defined with the TX_ENABLED_EXTRA_CNT constant.<br>
 - ** Important ** <br>
-  There are some hardware necessary changes for this software version due to the CW TX delay:<br>
+  Some hardware changes are required for this software version due to the CW TX delay:<br>
   GPIO14 pin 19 will be the output to command the RX/TX on mainboard and the PTT_OUT to the BPF RX board.<br>
-  GPIO14 will need a pullup resistor due to the RP2040 internal weak pulldown after reset, that could put the Arjan on TX during reset.<br>
+  GPIO14 will need a pull-up resistor due to the RP2040 internal weak pulldown after reset, that could put the Arjan on TX during reset.<br>
   Resistor R25 on PTT_IN will be increased to 470R to protect the input from negative voltage and current.<br>
-  Resistor R47 pullup on GPIO15 needs to be increased to 10k due to the R25 470R and garantee low level on GPIO15 when PTT = 0.<br>
-  The debounce for input switch PTT with new values:<br>
+  Resistor R47 pullup on GPIO15 needs to be increased to 10k due to the R25 470R and guarantee low level on GPIO15 when PTT = 0.<br>
+  The debounce time for PTT input switch with new values:<br>
   RX to TX = aprox. R25*C44 = 470R * 100n = 47us (should be improved)<br>
   TX to RX = aprox. R47*C44 = 10k *100n = 1ms<br>
   The best would be to improve this PTT input circuit for better RC debounce adjust. Maybe on future changes...<br>
   GPIO15 will be always input = GP_PTT_IN<br>
   GPIO14 will be always output = GP_PTT_OUT<br>
   See ptt_cw.png on Pictures folder or above on Hardware changes.<br>
-- Improving and correcting the CW decoder procedure (with the AI help - Opencode). It still needs testing.
+- Improving and correcting the CW decoder procedure (with the help of OpenCode AI). It still needs testing.
 
 ### Aug23 2026
 - Converting the code to use Earle Philhower library instead of the MBED.<br>
