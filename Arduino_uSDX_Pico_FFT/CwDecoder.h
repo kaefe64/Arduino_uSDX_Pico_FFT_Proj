@@ -30,6 +30,9 @@ void CwDecoder_Exit(void);
 void CwDecoder_array_in(void);
 void CwDecoder_Loop(void);
 
+void wpm_up(void);    //manual: cw decoder faster
+void wpm_down(void);  //manual: cw decoder slower
+
 #ifdef __cplusplus
 }
 #endif

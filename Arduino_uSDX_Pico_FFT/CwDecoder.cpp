@@ -60,7 +60,7 @@ uint16_t cw_rx_cnt;
 //#define TDOT_MIN      16          // x 2.5ms =  40ms
 #define TDOT_MIN       4         // x 2.5ms =  10ms   120wpm
 #define TDOT_MAX      96         // x 2.5ms = 240ms     5wpm
-#define TDOT_SHIFT     1         // tdot accumulate 4x
+#define TDOT_SHIFT     4         // tdot_acc needs 16x to change 1 in tdot (smooth adaptation)
 // wpm = 1200 / tponto ms   (time base for reading the cw audio is 2.5ms)
 // 60  =  20ms   / 2.5ms =  8 counts
 // 30  =  40ms   / 2.5ms = 16
@@ -78,6 +78,12 @@ uint16_t cw_rx_limiar;
 uint16_t count_low;
 uint16_t count_high;
 uint16_t cw_level;
+
+//auto adaptation: collects the last element times and slowly moves tdot
+//to the shortest mark found on the window (the dot time)
+#define CW_ADAPT_MARKS   8     //elements collected before one adaptation step
+uint16_t cw_mark[CW_ADAPT_MARKS];
+uint8_t cw_mark_n = 0;
 
 #define CW_RX_LIMIAR_INIC   4
 //#define CW_RX_LIMIAR_MIN   3
@@ -167,7 +173,7 @@ void CwCalcTime()
   limiar_min_space = 5 * tdot;    //5x dot
   limiar_space = 7 * tdot;    //7x dot
 
-  sprintf(s1, "%d_", tdot);
+  sprintf(s1, "%3dw", 480/tdot);   //wpm = 1200ms / dot time   (dot = tdot * 2.5ms)
   tft_writexy_plus(1, TFT_LIGHTGREY, TFT_BLACK, 1, 0, 3, 20, (uint8_t *)s1);   
 }
 
@@ -281,7 +287,8 @@ void  graph_to_display(void)
 **************************************************************************************/
 void CwDecoder_Inic(void)
 {
-  tdot_acc = 10<<TDOT_SHIFT;   //  tdot = tdot_acc>>TDOT_SHIFT;     // 32 = 15wpm  cw dot time (time base for other parameters)
+  tdot_acc = 32<<TDOT_SHIFT;   //tdot = 32 ticks = 80ms = 15wpm  cw dot time (time base for other parameters)
+  cw_mark_n = 0;
   CwCalcTime();
 
   //tft_writexy_plus(1, TFT_LIGHTGREY, TFT_BLACK, 8, 0, 3, 20, (uint8_t *)scw);   
@@ -336,11 +343,6 @@ void new_dot(void)
   //include the dot on the letter received
   //including 0 = dot
   cw_letter_pos++;   //dot is 0   and cw_letter is already 0
-  //use the counter_high to adjust the tdot
-  //to_display('.');
-
-  sprintf(s1, "%d_", count_high);
-  tft_writexy_plus(1, TFT_LIGHTGREY, TFT_BLACK, 4, 0, 3, 20, (uint8_t *)s1); 
 }
 
 
@@ -492,73 +494,86 @@ void wpm_adjust(void)
 */
 
 /**************************************************************************************
-    
+    manual speed adjust (rotate encoder + Right button pressed, on TUNE screen)
+    one click = 2 ticks of tdot = visible change
 **************************************************************************************/
-void wpm_up(void)
+void wpm_up(void)   //faster
 {
-  if(tdot > TDOT_MIN)
-  {  
-    tdot_acc--;
-    CwCalcTime();
+  uint16_t step = 2<<TDOT_SHIFT;
 
-    sprintf(s1, "%d_", tdot);
-    tft_writexy_plus(1, TFT_LIGHTGREY, TFT_BLACK, 1, 0, 3, 20, (uint8_t *)s1);   
+  if(tdot > TDOT_MIN)
+  {
+    if((tdot_acc - step) < (TDOT_MIN<<TDOT_SHIFT))
+      tdot_acc = TDOT_MIN<<TDOT_SHIFT;
+    else
+      tdot_acc -= step;
+    CwCalcTime();
   }
 }
 
 /**************************************************************************************
     
 **************************************************************************************/
-void wpm_down(void)
+void wpm_down(void)   //slower
 {
+  uint16_t step = 2<<TDOT_SHIFT;
+
   if(tdot < TDOT_MAX)
   {
-    tdot_acc++;
+    if((tdot_acc + step) > (TDOT_MAX<<TDOT_SHIFT))
+      tdot_acc = TDOT_MAX<<TDOT_SHIFT;
+    else
+      tdot_acc += step;
     CwCalcTime();
-
-    sprintf(s1, "%d_", tdot);
-    tft_writexy_plus(1, TFT_LIGHTGREY, TFT_BLACK, 1, 0, 3, 20, (uint8_t *)s1);   
-  }  
+  }
 }
 
 
-#define DOT    1
-#define DASH   3
-#define SPACE_DOT_DASH   1
-#define SPACE_LETTERS    3
-#define SPACE_WORDS    7
-
 /**************************************************************************************
-    
+    auto adaptation, done slowly and only with consistent evidence:
+    collects the last CW_ADAPT_MARKS element times and, when the window is full,
+    moves tdot one tick towards the shortest mark on the window (the dot time).
+    - ignores windows without any plausible dot (only dashes / long tones)
+    - deadband avoids chasing the normal keying jitter
+    - one tick per window keeps the tracking stable (no more noise spiral)
 **************************************************************************************/
-void wpm_ok(uint16_t count, uint16_t size)
+void cw_auto_adapt(uint16_t mark)
 {
+  uint16_t i;
+  uint16_t m;
+  int32_t diff;
+  uint16_t deadband;
 
-  if((size * tdot) > count)  //ok, but will adjust
+  cw_mark[cw_mark_n++] = mark;   //caller guarantees mark >= limiar_min_dot (real element)
+  if(cw_mark_n < CW_ADAPT_MARKS)
+    return;
+  cw_mark_n = 0;
+
+  m = 0xFFFF;
+  for(i=0; i<CW_ADAPT_MARKS; i++)
   {
-    tdot_acc--;
-    CwCalcTime();
-  }
-  else if((size * tdot) < count)  //ok, but will adjust
-  {
-    tdot_acc++;
-    CwCalcTime();
+    if(cw_mark[i] < m)
+      m = cw_mark[i];
   }
 
-/*
-  if((tdot_acc>>TDOT_SHIFT) > tdot)  //if tdot is good   try to bring tdot_acc to the correct value
+  if(m >= limiar_min_dash)   //no dot evidence on this window (all dashes or held tone)
+    return;
+
+  diff = ((int32_t)m) - ((int32_t)tdot);
+  deadband = tdot>>3;              //12.5%
+  if(deadband < 2)                 //at least 5ms
+    deadband = 2;
+
+  if((diff > deadband) && (tdot < TDOT_MAX))         //dots are longer than tdot -> slower
   {
-    tdot_acc--;
-    tdot = tdot_acc>>TDOT_SHIFT;  //tdot_acc needs 16x up to chanag 1 in tdot
+    tdot_acc += (1<<TDOT_SHIFT);
     CwCalcTime();
   }
-  else if((tdot_acc>>TDOT_SHIFT) < tdot) 
+  else if((diff < -deadband) && (tdot > TDOT_MIN))   //dots are shorter than tdot -> faster
   {
-    tdot_acc++;
-    tdot = tdot_acc>>TDOT_SHIFT;  //tdot_acc needs 16x up to chanag 1 in tdot
+    tdot_acc -= (1<<TDOT_SHIFT);
     CwCalcTime();
   }
-*/
 }
 
 
@@ -698,26 +713,23 @@ static uint16_t cw_rx_array_old = 0;
                   
                 //cw_in(count_high, tdot);  //make a list of info to send through serial when out of CW mode
                 
-                if(count_high < limiar_min_dot)   // 1/2 dot = noise ?   faster wpm ?
+                if(count_high < limiar_min_dot)   // 1/2 dot: too short, key bounce or noise - ignore this mark
                 {
-                  new_dot();
-                  wpm_up();    //lev_high = LEV_SHORT;
+                  //no element inserted, and no speed adjustment (was the noise spiral on the old code)
                 }
-                if(count_high < limiar_min_dash)    //2x_dot  =  dot time
+                else if(count_high < limiar_min_dash)    //2x_dot  =  dot time
                 {
                   new_dot();
-                  wpm_ok(count_high, DOT);    //lev_high = LEV_OK;
+                  cw_auto_adapt(count_high);
                 }
                 else if(count_high < limiar_min_space)  //5x dot  = dash time
                 {
                   new_dash();
-                  wpm_ok(count_high, DASH);    //lev_high = LEV_OK;
+                  cw_auto_adapt(count_high);
                 }
-                else    // noise?  lower wpm ?
+                else    //long tone (dash by a slow operator or held carrier): just a dash, no adaptation
                 {
                   new_dash();
-                  wpm_down();    //lev_high = LEV_LONG;
-                  //wpm_down();   //decrease wpm
                 }
 
                 cw_in(count_high, cw_letter);  //make a list of info to send through serial when out of CW mode
