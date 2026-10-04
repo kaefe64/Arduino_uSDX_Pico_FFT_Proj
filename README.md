@@ -121,9 +121,9 @@ Obs.: Don't mind the red wires on the PCB, they are only test for separated 5V p
 
 - Mod Oct04 2026<br>
   Split the PTT signal on PTT_IN and PTT_OUT to allow extra time on CW TX. It will stay on TX for 200ms after the end of CW carrier.<br>
-  Resistor R25 on PTT_IN needs to be increased to 470R to protect the input from negative voltage and current.<br>
-  Resistor R47 pullup on GPIO15 needs to be increased to 10k due to the R25 470R and guarantee low level when PTT = 0.<br>
-  Resistor R58 changes to 4k7 to assure the high level after reset.<br>
+  Increase the resistor R25 on PTT_IN to 470R to protect the input from negative voltage and current.<br>
+  Increase the resistor R47 pullup on GPIO15 to 10k to guarantee low level at GPIO15 when PTT = 0.<br>
+  Resistor R58 changes to 4k7 to assure the high level after RPI reset.<br>
   Changes marked on blue:<br>
 ![Main Block Diagram](Pictures/PTT_CW.png)
 ![Main Block Diagram](Pictures/PTT_PCB_Mod.jpg)
@@ -265,7 +265,7 @@ It starts to save/play when pressing < Enter >, and will stop after 10s or when 
 ### Aug23 2026
 - Converting the code to use Earle Philhower library instead of the MBED.<br>
   It will be better for possible use of RP2350 on future.<br>
-  Please make a backup of your actual code before using and testing this code. It is hard to test everything, and change to Earle Philhower is a big change.<br>
+  Please make a backup of your actual code before using and testing this code. It is hard to test everything.<br>
   Look again at "Software Notes" for the new Earle Philhower Library procedure.<br>
 - Correcting the ADC sample rate. It was 15,841.58Hz and should be 16kHz.
 - It shows the number of memories read from EEPROM on the title screen. Just a number on the right of the version.
