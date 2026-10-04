@@ -53,7 +53,7 @@
 
 
 #define ADC0_IRQ_FIFO 		22		// FIFO IRQ number (same value on MBED and Earle Philhower cores)
-#define GP_PTT				    15		// PTT pin 20 (GPIO 15)
+//#define GP_PTT_IN				    15		// PTT pin 20 (GPIO 15)
 
 int dma_chan;
 
@@ -64,6 +64,9 @@ volatile uint16_t tim_count_loc = 0;
 
 volatile uint16_t dac_iq, dac_audio;
 
+//time to wait on TX after dih and dahs on CW (it will hold GP_PTT_OUT for a moment)
+#define TX_ENABLED_EXTRA_CNT  (200u * (FSAMP_AUDIO/1000u))   //200ms a 16kHz = 3200
+volatile uint16_t tx_enabled_extra_cnt = 0;  //  if > 0, cw tx delay active, no cw sidetone 
 
 
 
@@ -549,13 +552,13 @@ The sampling is at 160kHz but for audio we only need 16kHz samples, so the filte
 
   //choose between 8kHz and 16kHz(or 5333Hz) for audio process
   if((dsp_mode != MODE_CW) ||  //for SSB and AM  run the audio @ 16kHz
-     (tx_enabled == true))     //run CW TX @16kHz  (good for side tone @16kHz with same output audio filter)  
+     (TX_ENABLED_OUT == true))     //run CW TX @16kHz  (good for side tone @16kHz with same output audio filter)  
   {
     
 
 #if TX_METHOD == PHASE_AMPLITUDE    // uSDX TX method used for Class E RF amplifier
 
-    if(tx_enabled == true)     //TX uses uSDX method  
+    if(TX_ENABLED_OUT == true)     //TX uses uSDX method  
     {
       //run TX @5333Hz  (uSDX method)
       st_int_count++;
@@ -770,25 +773,38 @@ void core0_irq_handler()
 
     //run the application for vox, rx and tx here in the irq
     //it must be treated as soon as possible
+
+    //earlier set of the TX relays circuit path (setting again bellow)
+    if (ptt_external_active)    //if GP_PTT_IN == 0, copy GP_PTT_IN to GP_PTT_OUT
+      gpio_clr_mask(1<<GP_PTT_OUT);   //0 = TX
   
     //use audio samples
     ptt_vox_active = vox();     // Compress + store sample audio + check level    if (VOX enable and audio)  vox = true
     ptt_internal_active = ptt_vox_active || ptt_mon_active || ptt_aud_active;
-    tx_enabled = ptt_external_active || ptt_internal_active;     //tx_enabled is used at next DMA int
 
-    if ((ptt_internal_active == true) && (ptt_internal_active_old == false))      // TX enabled internally
+    if (ptt_external_active || ptt_internal_active)                      //tx active (ptt_in == 0)
     {
-      gpio_put(GP_PTT, 0);      //drive PTT low (active)
-      gpio_set_dir(GP_PTT, GPIO_OUT);   // PTT output - internal unction drives the PTT pin
+      tx_enabled_extra_cnt = 0;                         //no cw delay
     }
-    if ((ptt_internal_active == false) && (ptt_internal_active_old == true))      // vox disabled, change PTT pin to input
+    else if(tx_enabled)   //was TX and now it is RX
     {
-      gpio_set_dir(GP_PTT, GPIO_IN);          // PTT input
+      if (dsp_mode == MODE_CW)                 //tx delay only on CW
+        tx_enabled_extra_cnt = TX_ENABLED_EXTRA_CNT;             //em CW conta o hang, nos outros modos vai direto a "terminado"
+      else
+        tx_enabled_extra_cnt = 0;
+    }
+    else if (tx_enabled_extra_cnt > 0)
+    {
+        tx_enabled_extra_cnt--;                         //conta o hang a cada amostra
     }
 
+    tx_enabled = (ptt_external_active || ptt_internal_active);
 
-    if (tx_enabled)  //commanded to TX through PTT or internally (VOX, mon, audio play)
+    //commanded to TX through PTT or internally (VOX, mon, audio play)
+    if (TX_ENABLED_OUT == true)   //(TX mode + audio) or (TX mode without audio)
     {
+      gpio_clr_mask(1<<GP_PTT_OUT);   //0 = TX
+
 #if TX_METHOD == PHASE_AMPLITUDE    // uSDX TX method used for Class E RF amplifier
       uSDX_TX_PhaseAmpl();
 #endif
@@ -798,6 +814,8 @@ void core0_irq_handler()
     }
     else
     {
+      gpio_set_mask(1<<GP_PTT_OUT);   //1 = RX
+
       rx();
     }
 
@@ -1376,27 +1394,34 @@ void tx(void)
     }
     else  //normal tx
     {
-
-      /*
-      * Tx CW I=0 Q=tone
-      */
-      cw_tone_to_play_pos++;
-      if(cw_tone_to_play_pos >= CW_TONE_NUM)
+      if(tx_enabled_extra_cnt == 0)    //tom ativo
       {
-        cw_tone_to_play_pos = 0;
+        /*
+        * Tx CW I=0 Q=tone
+        */
+        cw_tone_to_play_pos++;
+        if(cw_tone_to_play_pos >= CW_TONE_NUM)
+        {
+          cw_tone_to_play_pos = 0;
+        }
+        qh = cw_tone_to_play[cw_tone_to_play_pos];  //it uses a 4096 range, similar to the filters output (it makes >>4 below)
+        i = cw_tone_to_play_pos + (CW_TONE_NUM/4);  // 90 degrees
+        if(i >= CW_TONE_NUM)
+        {
+          i -= CW_TONE_NUM;
+        }
+        a_s[7] = cw_tone_to_play[i]; //it uses a 4096 range, similar to the filters output (it makes >>4 below)
+
+        //audio side tone
+        pwm_set_chan_level(dac_audio, PWM_CHAN_A, (cw_tone_to_play[cw_tone_to_play_pos]>>6)+DAC_BIAS);  //>>4 = max value, more >>2 to attenuate the side tone sound level
+        //pwm_set_chan_level(dac_audio, PWM_CHAN_A, ((a_s_raw[mode_filter_tap_num-1u]>>4)+DAC_BIAS));  //>>4 = max value, more >>2 to attenuate the side tone sound level
       }
-      qh = cw_tone_to_play[cw_tone_to_play_pos];  //it uses a 4096 range, similar to the filters output (it makes >>4 below)
-      i = cw_tone_to_play_pos + (CW_TONE_NUM/4);  // 90 degrees
-      if(i >= CW_TONE_NUM)
+      else
       {
-        i -= CW_TONE_NUM;
+        qh = 0;
+        a_s[7] = 0;
+        pwm_set_chan_level(dac_audio, PWM_CHAN_A, DAC_BIAS);
       }
-      a_s[7] = cw_tone_to_play[i]; //it uses a 4096 range, similar to the filters output (it makes >>4 below)
-
-      //audio side tone
-      pwm_set_chan_level(dac_audio, PWM_CHAN_A, (cw_tone_to_play[cw_tone_to_play_pos]>>6)+DAC_BIAS);  //>>4 = max value, more >>2 to attenuate the side tone sound level
-      //pwm_set_chan_level(dac_audio, PWM_CHAN_A, ((a_s_raw[mode_filter_tap_num-1u]>>4)+DAC_BIAS));  //>>4 = max value, more >>2 to attenuate the side tone sound level
-
     }
     break;
   default:

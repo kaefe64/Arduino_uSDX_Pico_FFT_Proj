@@ -904,7 +904,7 @@ void display_tft_loop(void)
 {
   static uint32_t hmi_freq_fft;
 
-  if (tx_enabled == false)  //waterfall only during RX
+  if (TX_ENABLED_OUT == false)  //waterfall only during RX
   {
     if (fft_display_graf_new == 1)    //design a new graphic only when a new line is ready from FFT
     {

@@ -7,7 +7,7 @@ extern "C" {
 
 
 //#define PY2KLA_setup     1       //setup for PY2KLA hardware   (comment this line for default setup)
-#define SW_VERSION       "Aug23 2026"    //software version
+#define SW_VERSION       "Oct04 2026"    //software version
 
 //choose the serial to be used (look at "pins_arduino.h" of the board core and comments at .ino file)
 #define Serialx   Serial     //USB virtual serial CDC (on Pico, Earle Philhower core)  /dev/ttyACM0

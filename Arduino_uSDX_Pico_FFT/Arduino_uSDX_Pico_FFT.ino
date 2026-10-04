@@ -34,7 +34,6 @@ https://github.com/earlephilhower/arduino-pico/releases/download/global/package_
 >>Mods in the Library files to fit to the project:
 ================================================
 
-
 --------------------------------------------------------------
 --------------------------------------------------------------
 >>TFT_eSPI LIBRARY:
@@ -142,21 +141,16 @@ Comment out this #define and set your own configuration
 
 
 
-
 //---------------------------------------------------------------------------
 //---------------------------------------------------------------------------
-void setup() {
-
-  //RP2040 initialize the GPIOs as inputs with pulldown as default, and this is like PTT active 
-  //it needs a strong pullup = 1K to 3v3 on pin GPIO15 (pin 20) to force high level during initialization
-  gpio_pull_up(GP_PTT);             // PTT pullup  (it takes about 1s to reach this point after power up / reset)
-  gpio_set_dir(GP_PTT, GPIO_IN);    // PTT input (just to confirm) - true for out, false for in 
-
+void setup() 
+{
+  //it takes about 1s to reach this point after power up / reset
 
   // initialize digital pin LED_BUILTIN as an output.
-  //pinMode(LED_BUILTIN, OUTPUT);
-  gpio_init_mask(1<<LED_BUILTIN);  
+  gpio_init_mask(1<<LED_BUILTIN);       //init GPIO pin state
   gpio_set_dir(LED_BUILTIN, GPIO_OUT); 
+
 
   //uSDX.h -> Serialx = Serial1   //UART0  /dev/ttyUSB0
   //if you choose Serialx = Serial on uSDR.h - it will use Pico's USB and save the use of USB to serial converter and leave 2 spare pins
@@ -168,26 +162,22 @@ void setup() {
 
   uint16_t tim = millis();
 
-  //special jobs while waiting initial display print
-  //Serialx.println("setup0");
-  uSDR_setup0();  //write something into display while waiting for the serial and eepromread
-  //Serialx.println("5s");
+  uSDR_setup0();  //write the initial msgs into display 
 
-
-  // some delay required for Serial to open
-   while((millis() - tim) < 4500)   //try for 4.5s to connect to serial
+  // wait Arduino Pro Mini to init on Filter board
+  // and also some time required for Serial to open
+  // and also the time to show the initial msgs on display
+  // fixed time for initial display
+   while((millis() - tim) < 4500)    //wait for 4.5s
   {
-  //digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
-  gpio_set_mask(1<<LED_BUILTIN);
-  delay(50);                       // wait
-  //digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
-  gpio_clr_mask(1<<LED_BUILTIN);
-  delay(50);                       // wait
-  
-  //if(Serial)  //serial open
-  //  break;
-  }  // If the serial is not open on 5s, it goes ahead and the serial print commands will be called but with no effect
-  //fixed time for initial display - if the serial is not ok - consider no serial
+    gpio_set_mask(1<<LED_BUILTIN);   // turn the LED on 
+    delay(50);                       // wait
+    gpio_clr_mask(1<<LED_BUILTIN);   // turn the LED off
+    delay(50);                       // wait
+    //if(Serial)  //serial open
+    //  break;
+  }  
+  //If the serial is not open, the serial print commands will be called with no effect
 
 /*
   Serialx.println("\n***  ARJAN-5  ***");
@@ -199,8 +189,7 @@ void setup() {
                   //and after Pro Mini finish its setup switching relays  
                   //and print on display the num of memories read
 
-  //wait more one second 
-   while((millis() - tim) < 6000)   //time to see/read the num of memories on display
+   while((millis() - tim) < 6000)   //extra time to see/read the num of memories on display
   {
     gpio_set_mask(1<<LED_BUILTIN);
     delay(50);                       // wait

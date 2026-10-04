@@ -158,14 +158,14 @@ extern st_memory_band  memory_band[HMI_NUM_OPT_MEMORY];
 //extern const uint32_t band_hmi_freq_default[HMI_S_BPF];
 
 
-#define GP_PTT		  15
-#define GP_PTT_CW		14
+#define GP_PTT_IN		  15  //GPIO15
+#define GP_PTT_OUT		14  //GPIO14
 
 //extern uint8_t  hmi_sub[HMI_NMENUS];							// Stored option selection per state
 //extern uint32_t hmi_freq;  
 #define  hmi_freq   memory_band[hmi_mem].mem_freq.u32
 extern uint8_t  hmi_mem;     // actual memory
-extern bool tx_enabled;
+extern volatile bool tx_enabled;
 extern bool tx_enable_changed;
 extern bool ptt_internal_active;    //PTT output = true for vox, mon and mem
 extern bool ptt_external_active;

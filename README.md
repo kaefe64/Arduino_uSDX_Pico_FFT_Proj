@@ -114,10 +114,22 @@ Obs.: Don't mind the red wires on the PCB, they are only test for separated 5V p
     Include a 1K resistor (R47 on picture) between GPIO15 (pin 20) and 3V3 (pin 36). The GPIOs on Pico are input with a weak pulldown during reset and this would make it to be like PTT ON and transmit. This 1k resistor pullup will pit the GPIO at high high at reset avoiding transmiting.<br>
     Increase the value of C44 from 1n to 100n, for helping in debouncing the PTT switch.<br>
     Reduce the value of R25 to 10R. This resistor will (try to) limit the current in case of PTT at wrong voltage.<br>
+    ** Values changed **, see bellow. <br>
 ![Main Block Diagram](Pictures/PTTout.png)
 
-- Use 5V or 3v3 to power the ILI9341 display depending on your display version.
+- Use 5V or 3v3 to power the ILI9341 display depending on your display version.<br>
+
+- Mod Oct04 2026<br>
+  Split the PTT signal on PTT_IN and PTT_OUT to allow extra time on CW TX. It will stay on TX for 200ms after the end of CW carrier.<br>
+  Resistor R25 on PTT_IN needs to be increased to 470R to protect the input from negative voltage and current.<br>
+  Resistor R47 pullup on GPIO15 needs to be increased to 10k due to the R25 470R and garantee low level when PTT = 0.<br>
+  Resistor R58 changes to 4k7 to assure the high level after reset.<br>
+  Changes marked on blue:<br>
+![Main Block Diagram](Pictures/PTT_CW.png)
+![Main Block Diagram](Pictures/PTT_PCB_Mod.jpg)
+![Main Block Diagram](Pictures/PTT_PCB_Mod2.jpg)
 <br>
+
 
 ## Software Notes<br>
 ### Arduino IDE setup and notes:
@@ -125,10 +137,10 @@ Obs.: Don't mind the red wires on the PCB, they are only test for separated 5V p
 - **IMPORTANT: Use the comments at beginning of  Arduino_uSDX_Pico_FFT.ino  file to "adjust" the library files to the project.**
 - Every time I update the library, I need to "adjust" the library files again.
 - Use Boards Manager: "Raspberry Pi Pico/RP2040/RP2350" by Earle F. Philhower III
-- (old: Boards Manager:  Arduino Mbed OS RP2040 Boards. My version is 4.0.2 - no longer used)
-- (old: Do not include EarlePhilhower library (it is conflitant with Mbed) - now it uses EarlePhilhower library)
+- (old: ~~Boards Manager:  Arduino Mbed OS RP2040 Boards. My version is 4.0.2~~ - no longer used)
+- (old: ~~Do not include EarlePhilhower library (it is conflitant with Mbed)~~ - now it uses EarlePhilhower library)
 - Board: "Raspberry Pi Pico"  >  Raspbery Pi Pico/RP2040/RP2350  >  Raspberry Pi Pico
-- (old: Board: "RaspberryPiPico"  >  Arduino Mbed OS RP2040 Boards  >  RaspberryPiPico - no longer used)
+- (old: ~~Board: "RaspberryPiPico"  >  Arduino Mbed OS RP2040 Boards  >  RaspberryPiPico~~ - no longer used)
 - Lib used: TFT_eSPI by Bodmer
 - The code files have cpp type, but the code itself is in C (cpp type is used to help in some compiler issues).
 
@@ -231,6 +243,23 @@ It starts to save/play when pressing < Enter >, and will stop after 10s or when 
 <br>
 
 ## Last changes and notes:<br>
+
+### Oct04 2026
+- Including a CW TX transmission delay. It keeps the relays on TX between the CW dihs and dahs. It waits 200ms after the end of the CW signal.<br>
+  The 200ms time is defined with the TX_ENABLED_EXTRA_CNT constant.<br>
+- ** Important ** 
+  There are some hardware changes necessary for this software version due to the CW TX delay:<br>
+  GPIO14 pin 19 will be the output to command the RX/TX on mainboard and the PTT_OUT to the BPF RX board.<br>
+  GPIO14 will need a pullup resistor due to the RP2040 internal weak pulldown that could put the Arjan on TX during reset.<br>
+  Resistor R25 on PTT_IN will be increased to 470R to protect the input from negative voltage and current.<br>
+  Resistor R47 pullup on GPIO15 needs to be increased to 10k due to the R25 470R and garantee low level on GPIO15 when PTT = 0.<br>
+  The debounce for input switch PTT with new values:<br>
+  RX to TX = aprox. R25*C44 = 470R * 100n = 47us<br>
+  TX to RX = aprox. R47*C44 = 10k *100n = 1ms<br>
+  The best would be to improve this PTT input circuit for better RC debounce adjust. Maybe on future changes...<br>
+  GPIO15 will be always input = GP_PTT_IN<br>
+  GPIO14 will be always output = GP_PTT_OUT<br>
+  See ptt_cw.png on Pictures folder or above on Hardware changes.<br>
 
 ### Aug23 2026
 - Converting the code to use Earle Philhower library instead of the MBED.<br>

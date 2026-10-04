@@ -56,8 +56,8 @@
 #define GP_AUX_1_Escape	7								// Escape, Cancel
 #define GP_AUX_2_Left	8								// Left move
 #define GP_AUX_3_Right	9								// Right move
-#define GP_MASK_IN	((1<<GP_ENC_A)|(1<<GP_ENC_B)|(1<<GP_AUX_0_Enter)|(1<<GP_AUX_1_Escape)|(1<<GP_AUX_2_Left)|(1<<GP_AUX_3_Right)|(1<<GP_PTT))
-//#define GP_MASK_PTT	(1<<GP_PTT)
+#define GP_MASK_IN	((1<<GP_ENC_A)|(1<<GP_ENC_B)|(1<<GP_AUX_0_Enter)|(1<<GP_AUX_1_Escape)|(1<<GP_AUX_2_Left)|(1<<GP_AUX_3_Right)|(1<<GP_PTT_IN))
+//#define GP_MASK_PTT	(1<<GP_PTT_IN)
 
 
 #define ENCODER_FALL              10    //increment/decrement freq on falling of A encoder signal
@@ -212,7 +212,7 @@ uint32_t audio_play_pos = 0;
 #define AUDIO_TIME_AFTER  (1*(1000/LOOP_MS))      //1s * (1000/LOOP_MS) = 10
 #define AUDIO_TIME_MAIN   ((AUDIO_BUF_MAX/FSAMP_AUDIO)*(1000/LOOP_MS))    //160k/16k * 1000/100 = 100
 
-bool tx_enabled = false;
+volatile bool tx_enabled = false;
 bool tx_enable_changed = true;
 bool ptt_internal_active = false;    //PTT output = true for vox, mon and mem
 bool ptt_external_active = false;    //external = from mike
@@ -488,6 +488,14 @@ void hmi_handler(uint8_t event)
           }
         hmi_tune_used = true;
       }
+      else if(!gpio_get(GP_AUX_3_Right))  //in case Right is pressed: cw decoder speed
+      {
+        if(memory_band[hmi_mem].vars[HMI_S_MODE] == MODE_CW)
+          {
+            wpm_up();  //faster
+            hmi_tune_used = true;
+          }
+      }
       else
       {
 			  if (hmi_freq < (hmi_maxfreq[memory_band[hmi_mem].vars[HMI_S_BPF]] - hmi_step[hmi_menu_opt_display]))		// Boundary check HMI_MAXFREQ
@@ -511,6 +519,14 @@ void hmi_handler(uint8_t event)
             hmi_mem--;
           }
         hmi_tune_used = true;
+      }
+      else if(!gpio_get(GP_AUX_3_Right))  //in case Right is pressed: cw decoder speed
+      {
+        if(memory_band[hmi_mem].vars[HMI_S_MODE] == MODE_CW)
+          {
+            wpm_down();  //slower
+            hmi_tune_used = true;
+          }
       }
       else
       {
@@ -616,7 +632,7 @@ void hmi_handler(uint8_t event)
 /*
         if((hmi_menu == HMI_S_VOX) && (hmi_menu_opt_display == NoVOX_pos_menu))  //if switching to NoVOX
         {
-          gpio_set_dir(GP_PTT, false);          // PTT pin input
+          gpio_set_dir(GP_PTT_IN, false);          // PTT pin input
         }
 */
       }
@@ -718,11 +734,11 @@ void hmi_callback(uint gpio, uint32_t events)
     }
 		break;
 
-  case GP_PTT:                  // PTT TX
+  case GP_PTT_IN:                  // PTT TX
 /*
     if (events&GPIO_IRQ_EDGE_ALL)
     {
-      evt = gpio_get(GP_PTT)?HMI_PTT_OFF:HMI_PTT_ON;
+      evt = gpio_get(GP_PTT_IN)?HMI_PTT_OFF:HMI_PTT_ON;
     }
 */
     if (events&GPIO_IRQ_EDGE_FALL)
@@ -810,12 +826,7 @@ void hmi_init(void)
 	gpio_pull_up(GP_AUX_1_Escape);
 	gpio_pull_up(GP_AUX_2_Left);
 	gpio_pull_up(GP_AUX_3_Right);
-	gpio_pull_up(GP_PTT);  //GPIO15
-
-  gpio_init_mask(1<<GP_PTT_CW);       //GP14 GPIO14 = GP_PTT_CW
-  gpio_set_dir(GP_PTT_CW, GPIO_OUT);  //GPIO14 = output
-  gpio_set_mask(1<<GP_PTT_CW);   //GPIO14 = 1  (GPIO14 used for PTT CW time extension)
-//  gpio_clr_mask(1<<GP_PTT_CW);  //GPIO14 = 0
+	gpio_pull_up(GP_PTT_IN);  //GPIO15
 
 
 /*	
@@ -823,12 +834,12 @@ void hmi_init(void)
 
 for(;;)
 {
-      gpio_put(GP_PTT, 0);      //drive PTT low (active)
-      gpio_set_dir(GP_PTT, GPIO_OUT);   // PTT output
+      gpio_put(GP_PTT_IN, 0);      //drive PTT low (active)
+      gpio_set_dir(GP_PTT_IN, GPIO_OUT);   // PTT output
       delay(2000);
 
-      //gpio_put(GP_PTT, 0);      //drive PTT low (active)
-      gpio_set_dir(GP_PTT, GPIO_IN);   // PTT output
+      //gpio_put(GP_PTT_IN, 0);      //drive PTT low (active)
+      gpio_set_dir(GP_PTT_IN, GPIO_IN);   // PTT output
       delay(2000);
 }
 */
@@ -852,8 +863,8 @@ for(;;)
 	gpio_set_irq_enabled(GP_AUX_1_Escape, GPIO_IRQ_EDGE_ALL, true);
 	gpio_set_irq_enabled(GP_AUX_2_Left, GPIO_IRQ_EDGE_ALL, true);
 	gpio_set_irq_enabled(GP_AUX_3_Right, GPIO_IRQ_EDGE_ALL, true);
-//	gpio_set_irq_enabled(GP_PTT, GPIO_IRQ_EDGE_ALL, false);
-  gpio_set_irq_enabled(GP_PTT, GPIO_IRQ_EDGE_ALL, true);
+//	gpio_set_irq_enabled(GP_PTT_IN, GPIO_IRQ_EDGE_ALL, false);
+  gpio_set_irq_enabled(GP_PTT_IN, GPIO_IRQ_EDGE_ALL, true);
 
 
 // I got some interrupt during init that I could not clear, 
@@ -1296,7 +1307,7 @@ void hmi_evaluate(void)   //hmi loop
 
 
   //T or R  (using letters instead of arrow used on original project)
-  if(tx_enable_old != (tx_enabled?1:0))
+  if(tx_enable_old != ((tx_enabled)?1:0))
   {
     //erase the area for T or R, infos and the bar graph area
     tft.fillRect(x_RT, y_RT, (6*X_CHAR1), (3*Y_CHAR1), TFT_BLACK);   // TFT_LIGHTGREY);  TFT_BLACK); 
@@ -1326,7 +1337,7 @@ void hmi_evaluate(void)   //hmi loop
 
 
 
-  if(tx_enabled == false)  /* RX */
+  if(TX_ENABLED_OUT == false)  /* RX */
   {
     //Smeter rec level
     hmi_smeter();  //during RX, print Smeter on display
@@ -1336,7 +1347,7 @@ void hmi_evaluate(void)   //hmi loop
       CwDecoder_array_in();
     }
   }
-  else  /* TX */
+  else if(tx_enabled)  /* TX (show SRW only on tx_enabled, not on CW TX delay)*/
   {
 #if I2C_Arduino_Pro_Mini == 1    //using Arduino Pro Mini for relays control (and allow SWR reading)
     hmi_power_swr();  //during TX, read the SWR, and print it on display

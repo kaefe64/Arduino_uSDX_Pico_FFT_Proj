@@ -114,6 +114,9 @@ extern volatile uint16_t fft_gain[HMI_NUM_OPT_MEMORY];
 
 extern volatile uint16_t dac_iq, dac_audio;
 
+extern volatile uint16_t tx_enabled_extra_cnt;  //  if > 0, cw tx delay active, no cw sidetone 
+#define TX_ENABLED_OUT    ((tx_enabled == true) || (tx_enabled_extra_cnt > 0))
+
 //extern volatile uint32_t hmi_freq_fft;
 
 #define FIFO_START_FFT  10

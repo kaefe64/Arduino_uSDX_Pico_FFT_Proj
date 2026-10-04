@@ -35,6 +35,20 @@ uint16_t tim_loc;     // local time
 
 void uSDR_setup0(void)  //main
 {
+  //RP2040 initialize the GPIOs as inputs with pulldown as default, and this is like PTT_OUT active 
+  //it needs a strong pullup = 4K7 to 3v3 on pin GPIO14 (pin 19) to force high level during initialization (until it runs here)
+  //GP_PTT_OUT follows the PTT_IN, but on power on, it will be = 1 to be RX and after initalization, it will follow PTT_IN
+  gpio_init_mask(1<<GP_PTT_OUT);       //init GPIO pin state
+  gpio_set_mask(1<<GP_PTT_OUT);        //GPIO14 = 1 = RX (GPIO14 used for PTT CW time extension)
+  gpio_set_dir(GP_PTT_OUT, GPIO_OUT);  //GPIO14 = output
+  
+  //the PTT_IN switch debounce RC time will be defined by the external pullup resistor in parallel with this internal pullup and the external capacitor
+  gpio_init_mask(1<<GP_PTT_IN);       //init GPIO pin state
+  gpio_pull_up(GP_PTT_IN);            // internal PTT pullup (about 50k ohms + external 10k ohms + 100nF for aprox 1ms debounce)
+  gpio_set_dir(GP_PTT_IN, GPIO_IN);   // PTT input (just to confirm) - true for out, false for in 
+
+
+
     //Serialx.println("uSDR_setup   Wire.begin");
 	/*
 	 * i2c0 is used for the si5351 interface
@@ -47,13 +61,21 @@ void uSDR_setup0(void)  //main
   Wire.begin();            //i2c0 master to Si5351
   //Wire.setClock(200000);   // Set i2c0 clock speed (default=100k)
 #endif
+  //Wire1 used on both TX_METHODs
   Wire1.setSDA(18);        //i2c1 SDA = GP18
   Wire1.setSCL(19);        //i2c1 SCL = GP19
   Wire1.begin();           //i2c1   used for switching band and atten/LNA
   //Wire1.setTimeout(1000);  // sets maximum milliseconds to wait for stream data, default is 1 second
 
+/*
+  //TFT_eSPI will initializate the SPI1 with SPI1.begin() using the GPIO14 and GPIO15 as default (pins_arduino.h).
+  //I am setting the SPI1 pins with the same as Setup60_RP2040_ILI9341.h, to free the GPIO14 and GPIO15
+  SPI1.setTX(11);    // MOSI 
+  SPI1.setRX(12);    // MISO  (with SS/CS not selected, this pin is tri-state)
+  SPI1.setSCK(10);   // SCK
+  SPI1.setCS(13);    // SS/CS
+*/
   display_tft_setup0();
-
 }
 
 
