@@ -260,6 +260,7 @@ It starts to save/play when pressing < Enter >, and will stop after 10s or when 
   GPIO15 will be always input = GP_PTT_IN<br>
   GPIO14 will be always output = GP_PTT_OUT<br>
   See ptt_cw.png on Pictures folder or above on Hardware changes.<br>
+- Improving and correcting the CW decoder procedure (with the AI help - Opencode). It still needs testing.
 
 ### Aug23 2026
 - Converting the code to use Earle Philhower library instead of the MBED.<br>
