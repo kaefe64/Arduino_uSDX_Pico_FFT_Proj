@@ -122,7 +122,7 @@ Obs.: Don't mind the red wires on the PCB, they are only test for separated 5V p
 - Mod Oct04 2026<br>
   Split the PTT signal on PTT_IN and PTT_OUT to allow extra time on CW TX. It will stay on TX for 200ms after the end of CW carrier.<br>
   Resistor R25 on PTT_IN needs to be increased to 470R to protect the input from negative voltage and current.<br>
-  Resistor R47 pullup on GPIO15 needs to be increased to 10k due to the R25 470R and garantee low level when PTT = 0.<br>
+  Resistor R47 pullup on GPIO15 needs to be increased to 10k due to the R25 470R and guarantee low level when PTT = 0.<br>
   Resistor R58 changes to 4k7 to assure the high level after reset.<br>
   Changes marked on blue:<br>
 ![Main Block Diagram](Pictures/PTT_CW.png)
