@@ -5,14 +5,15 @@
 
 ![uSDR-PICO FFT](Pictures/Pict1.png)
 
-This project is a QSD/QSE Software Defined HF Transceiver (SDR), 5 Band, Low Power, based on  Arjan te Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico.<br>
-I started this project based on Arjan's version https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/package/CODEv2.zip from 2021 with documentation at https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/doc/uSDR%20-%20v2.02.pdf .
+This project is a Software Defined HF Radio Transceiver (QSD/QSE SDR), 5 Band, Low Power, based on  Arjan te Marvelde / uSDR-pico, from https://github.com/ArjanteMarvelde/uSDR-pico.<br>
 
 My intention was to include a Waterfall/Panadapter to the Arjan's uSDR-Pico project. For this, I included an ILI9341 240x320 2.4" TFT display, without touch, and also, changed the software to generate the Waterfall.
 
 Initially, I used Visual Studio, like the original project, but after some considerations, I ported all code to Arduino IDE. So, to compile and run this code you need the Arduino IDE installed for a Raspberry Pi Pico project (see "Arduino IDE setup and notes:" below).
 
 I also, chose not to change the original software as much as possible, and focused on the Waterfall implementation, mostly in the dsp.c.
+<br>
+I started this project based on Arjan's version https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/package/CODEv2.zip from 2021 with documentation at https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/doc/uSDR%20-%20v2.02.pdf .
 <br>
 
 ## uSDX project (PE1NNZ)
