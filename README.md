@@ -11,7 +11,7 @@ My intention was to include a Waterfall/Panadapter to the Arjan's uSDR-Pico proj
 
 Initially, I used Visual Studio, like the original project, but after some considerations, I ported all code to Arduino IDE. So, to compile and run this code you need the Arduino IDE installed for a Raspberry Pi Pico project (see "Arduino IDE setup and notes:" below).
 
-I also, chose not to change the original software as much as possible, and focused on the Waterfall implementation, mostly in the dsp.c.
+I also, chose not to change the original software as much as possible, and focused on the Waterfall implementation, mostly in the dsp.c.<br>
 <br>
 I started this project based on Arjan's version https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/package/CODEv2.zip from 2021 with documentation at https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/doc/uSDR%20-%20v2.02.pdf .
 <br>
