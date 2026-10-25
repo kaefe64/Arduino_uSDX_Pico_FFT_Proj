@@ -12,8 +12,8 @@ My intention was to include a Waterfall/Panadapter to the Arjan's uSDR-Pico proj
 Initially, I used Visual Studio, like the original project, but after some considerations, I ported all code to Arduino IDE. So, to compile and run this code you need the Arduino IDE installed for a Raspberry Pi Pico project (see "Arduino IDE setup and notes:" below).
 
 I also, chose not to change the original software as much as possible, and focused on the Waterfall implementation, mostly in the dsp.c.<br>
-<br>
-I started this project based on Arjan's version https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/package/CODEv2.zip from 2021 with documentation at https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/doc/uSDR%20-%20v2.02.pdf .
+
+I started this project based on Arjan's version https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/package/CODEv2.zip from 2021 with documentation at https://github.com/ArjanteMarvelde/uSDR-pico/blob/main/doc/uSDR%20-%20v2.02.pdf .<br>
 <br>
 
 ## uSDX project (PE1NNZ)
@@ -210,6 +210,7 @@ Menu position used operate the radio on normal condition. It shows the actual va
 ### Menu Mode:<br>
 Options: "USB","LSB","AM","CW"<br>
 Define the modulation mode used for transmition and reception.<br>
+On CW mode, you can help the CW decoder adjusting the wpm manually using the right button when turning the dial.
 
 ### Menu AGC:<br>
 Options:  "NoAGC","Slow","Fast"<br>
@@ -244,6 +245,10 @@ It starts to save/play when pressing < Enter >, and will stop after 10s or when 
 <br>
 
 ## Last changes and notes:<br>
+
+### Oct25 2026
+- Including colors to waterfall.
+- I made some tests and corrections to CW decoder. It is possible to adjust the wpm manually to help it to start decode. Use the "right" button when turning the dial.
 
 ### Oct04 2026
 - Including a CW TX transmission delay. It keeps the relays in TX mode between the CW dits and dahs. It waits 200ms after the end of the CW signal before switching back to RX.<br>

@@ -81,6 +81,53 @@ volatile uint16_t tx_enabled_extra_cnt = 0;  //  if > 0, cw tx delay active, no 
 
 
 
+/**************************************************************************************
+ * mag_level()
+ * Convert a linear FFT magnitude (kiss_fft fixed point, up to 15 bits) into a
+ * logarithmic level 0..63 to be stored in the waterfall buffer.
+ *
+ * Why log: the magnitudes of one band span more than 70 dB, so a linear value (or a
+ * linear threshold) puts almost every bin in the same color. One bit of magnitude is
+ * 6 dB and each level step is 1.5 dB, giving ~90 dB of range on 6 bits.
+ * The level is absolute here on purpose, the waterfall reference (the noise floor
+ * measured from the band) is subtracted later in display_tft.cpp.
+ **************************************************************************************/
+#define MAG_STEP_PER_BIT   4   //level steps per bit of magnitude (1 bit = 6 dB = 4 steps)
+static uint8_t mag_level(int32_t mag)   //int32 because MAG() of two full scale bins overflows int16
+{
+  uint8_t   k = 0;
+  uint32_t  m;
+
+  if(mag < 0)
+  {
+    mag = -mag;
+  }
+  m = (uint32_t)mag;
+
+  if(m < 4u)
+  {
+    return 0;   //below the usable quantization, the waterfall floor takes over here
+  }
+
+  while(m > 1u)          //k = 4 * log2(m)
+  {
+    m >>= 1;
+    k += MAG_STEP_PER_BIT;
+  }
+
+  k += (uint8_t)(((m << 2) >> (k >> 2)) & 3u);   //2 mantissa bits
+
+  if(k > (WF_COLOR_NUM - 1u))   //never let the level escape the waterfall palette
+  {
+    k = (uint8_t)(WF_COLOR_NUM - 1u);
+  }
+
+  return k;
+}
+
+
+
+
 //local functions
 bool rx(void);
 void tx(void);
@@ -138,7 +185,18 @@ volatile int32_t peak_avg_shifted=0;     // signal level detector after AGC = av
 volatile int16_t peak_avg_diff_accu=0;   // Log peak level integrator
 volatile uint16_t agc_gain=((AGC_GAIN_MAX/2u)+1u);   // AGC gain/attenuation - starts at the middle
 uint16_t volatile fft_gain[HMI_NUM_OPT_MEMORY] = {(1<<FFT_GAIN_SHIFT)};  //16
-#define AGC_REF		3u //6
+/*
+ * AGC_REF is the level the loop hunts, in units of k, so the target average of
+ * agc_a_sample is 2^AGC_REF .. 2^(AGC_REF+1).
+ * The smallest output the loop can reach is (a_sample * agc_gain) / 2^AGC_GAIN_SHIFT,
+ * and agc_gain cannot go below 1, so the strongest reachable signal that still has an
+ * equilibrium is a_sample < 2^AGC_GAIN_SHIFT * 2^(AGC_REF+1).
+ * With AGC_REF=3 that ceiling was only 1024, so any stronger signal had NO equilibrium:
+ * k stayed above AGC_REF for ever, the attack ran to the end and the AGC latched at the
+ * minimum gain, giving a weak audio that never recovered. AGC_REF=5 raises the ceiling to
+ * 4096 and also lands the audio near the top of DAC_RANGE instead of 20 dB below it.
+ */
+#define AGC_REF		5u
 #define AGC_DECAY	8192u
 #define AGC_ATTACK_FAST	 32u  //64
 #define AGC_ATTACK_SLOW	 128u  //4096
@@ -857,9 +915,10 @@ bool rx(void)
 {
   int16_t out_sample;
 	int32_t q_accu, i_accu;
-	int16_t qh;
+	int32_t qh;   // the Hilbert sum before it can exceed 32767, an int16_t here wraps and corrupts a_sample
 	uint16_t i;
 	uint16_t k;
+	int32_t lvl_log;
 
 //  gpio_set_mask(1<<LED_BUILTIN);
 
@@ -1053,22 +1112,51 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
 	 * AGC, peak detector
 	 * Sample speed is 16k per second
 	 */
-  // average method, results ave_x4 = average value x 4
+// average method, results ave_x4 = average value x 4
   // int ave_x4 += new_value - (ave_x4/4)
-  peak_avg_shifted += ((int16_t)ABS(agc_a_sample) - (int16_t)(peak_avg_shifted>>PEAK_AVG_SHIFT));  
-  
-  k=0; i=(peak_avg_shifted>>PEAK_AVG_SHIFT);     
-	if (i&0xff00) {k+=8; i>>=8;}				// Logarithmic peak detection
-	if (i&0x00f0) {k+=4; i>>=4;}        // k=log2(peak), find highest bit set 
-	if (i&0x000c) {k+=2; i>>=2;}        // results k = 0 - 15
-	if (i&0x0002) {k+=1;}
-  if((k > AGC_REF) && (peak_avg_diff_accu < 0))
+  // done in 32 bits on purpose: agc_a_sample can reach -32768 and the old (int16_t)
+  // casts turned ABS(32768) back into -32768, driving this average negative.
   {
-    peak_avg_diff_accu = 0;  //start attack from fixed point = fast
+    int32_t lvl_abs = (agc_a_sample < 0) ? -(int32_t)agc_a_sample : (int32_t)agc_a_sample;
+    peak_avg_shifted += (lvl_abs - (peak_avg_shifted >> PEAK_AVG_SHIFT));
+    if(peak_avg_shifted < 0)
+    {
+      peak_avg_shifted = 0;
+    }
   }
-  peak_avg_diff_accu += (k - AGC_REF);            // Add difference with target to integrator (Acc += Xn - R)  AGC_REF=6
- 
-	if (peak_avg_diff_accu > agc_attack)						// Attack time, gain correction in case of high level
+
+  //log2 of the level, k = 0 to 15, one k is one octave (6 dB).
+  //lvl_log must be 32 bits and never negative: a negative value assigned to an
+  //unsigned i wrapped to 65535 and read as k=15, the maximum attack, latching the AGC.
+  k = 0;
+  lvl_log = peak_avg_shifted >> PEAK_AVG_SHIFT;
+  if(lvl_log < 0)
+  {
+    lvl_log = 0;
+  }
+  if (lvl_log&0xff00) {k+=8; lvl_log>>=8;}		// Logarithmic peak detection
+  if (lvl_log&0x00f0) {k+=4; lvl_log>>=4;}    // k=log2(peak), find highest bit set
+  if (lvl_log&0x000c) {k+=2; lvl_log>>=2;}    // results k = 0 - 15
+  if (lvl_log&0x0002) {k+=1;}
+
+  //integrator, (Acc += Xn - R). R is AGC_REF, so the loop hunts the level that
+  //brings k back onto AGC_REF.
+  peak_avg_diff_accu += ((int32_t)k - (int32_t)AGC_REF);
+
+  //anti wind up. With agc_gain already on a limit the loop can no longer reach its
+  //target, so the integrator must stop charging in that direction. Without this the
+  //integrator winds up to the limit of the int16_t and the AGC stays stuck there
+  //instead of parking, which is what a strong signal used to do.
+  if((agc_gain <= AGC_GAIN_STEP) && (peak_avg_diff_accu > 0))
+  {
+    peak_avg_diff_accu = 0;
+  }
+  else if((agc_gain >= (AGC_GAIN_MAX - AGC_GAIN_STEP)) && (peak_avg_diff_accu < 0))
+  {
+    peak_avg_diff_accu = 0;
+  }
+
+	if (peak_avg_diff_accu > (int32_t)agc_attack)						// Attack time, gain correction in case of high level
 	{
     if(agc_gain>AGC_GAIN_STEP)
     {
@@ -1076,12 +1164,12 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
     }
     else
     {
-      agc_gain = 1u;
+      agc_gain = AGC_GAIN_STEP;
     }
-		peak_avg_diff_accu -= agc_attack;						// Reset integrator
+		peak_avg_diff_accu -= (int32_t)agc_attack;						// Reset integrator
 	} 
-	else if (peak_avg_diff_accu < -(agc_decay))		// Decay time, gain correction in case of low level
-	{
+  else if (peak_avg_diff_accu < -(int32_t)agc_decay)		// Decay time, gain correction in case of low level
+  {
     if(agc_gain<(AGC_GAIN_MAX-AGC_GAIN_STEP))  //2u)) 
     {
       agc_gain+=AGC_GAIN_STEP;               // Increase gain
@@ -1090,8 +1178,8 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
     {
       agc_gain = AGC_GAIN_MAX;
     }
-		peak_avg_diff_accu += agc_decay;						// Reset integrator
-	}
+		peak_avg_diff_accu += (int32_t)agc_decay;						// Reset integrator
+  }
 
 
 	/*
@@ -1171,7 +1259,7 @@ if(aud_samples_state == AUD_STATE_SAMP_IN)    //store variables for scope graphi
   {
     aud_samp[AUD_SAMP_A][aud_samp_block_pos] = agc_a_sample>>1;
     aud_samp[AUD_SAMP_PEAK][aud_samp_block_pos] = k;  //peak_avg_shifted>>PEAK_AVG_SHIFT;
-    aud_samp[AUD_SAMP_GAIN][aud_samp_block_pos] = agc_gain;
+    aud_samp[AUD_SAMP_GAIN][aud_samp_block_pos] = agc_gain>>2;   //>>2 so the 1..64 range fits the -25..25 graph scale
 
     if(++aud_samp_block_pos >= AUD_NUM_SAMP)
     {
@@ -1494,7 +1582,7 @@ void tx(void)
   {
     //aud_samp[AUD_SAMP_A][aud_samp_block_pos] = a_sample>>1;
     //aud_samp[AUD_SAMP_PEAK][aud_samp_block_pos] = k;  //peak_avg_shifted>>PEAK_AVG_SHIFT;
-    //aud_samp[AUD_SAMP_GAIN][aud_samp_block_pos] = agc_gain;
+    //aud_samp[AUD_SAMP_GAIN][aud_samp_block_pos] = agc_gain>>2;   //>>2 so the 1..64 range fits the -25..25 graph scale
 
     if(++aud_samp_block_pos >= AUD_NUM_SAMP)
     {
@@ -1521,7 +1609,7 @@ kiss_fft_scalar fft_in_minus[FFT_NSAMP]; // kiss_fft_scalar is a float
 kiss_fft_scalar fft_in_plus[FFT_NSAMP]; // kiss_fft_scalar is a float
 kiss_fft_cpx fft_out[FFT_NSAMP];
 kiss_fftr_cfg fft_cfg; // = kiss_fftr_alloc(FFT_NSAMP,false,0,0);
-int16_t qh;  
+int32_t qh;  // same Hilbert sum, an int16_t here wraps and corrupts fft_in_minus/fft_in_plus (the waterfall)
 uint16_t block_num;
 uint16_t block_pos;
 uint16_t aux_c1 = 0;
@@ -1826,14 +1914,7 @@ void dsp_core1_setup_and_loop()
       // fill line for graphic  -band to 0
       for(i_c1=0; i_c1<FFT_NUMFREQ; i_c1++)
       {
-        if(MAG(fft_out[i_c1].r, fft_out[i_c1].i) > 1)
-        {
-          vet_graf_fft[(GRAPH_NUM_LINES-1)][(FFT_NUMFREQ-1)+i_c1] = 1;
-        }
-        else
-        {
-          vet_graf_fft[(GRAPH_NUM_LINES-1)][(FFT_NUMFREQ-1)+i_c1] = 0;
-        }
+        vet_graf_fft[(GRAPH_NUM_LINES-1)][(FFT_NUMFREQ-1)+i_c1] = mag_level(MAG(fft_out[i_c1].r, fft_out[i_c1].i));
       }
 
       
@@ -1844,15 +1925,7 @@ void dsp_core1_setup_and_loop()
       // fill line for graphic  0 to +band
       for(i_c1=0; i_c1<FFT_NUMFREQ; i_c1++)
       {
-        if(MAG(fft_out[i_c1].r, fft_out[i_c1].i) > 1)
-        {
-          vet_graf_fft[(GRAPH_NUM_LINES-1)][FFT_NUMFREQ-i_c1] = 1;
-        }
-        else
-        {
-          vet_graf_fft[(GRAPH_NUM_LINES-1)][FFT_NUMFREQ-i_c1] = 0;
-        }
-
+        vet_graf_fft[(GRAPH_NUM_LINES-1)][FFT_NUMFREQ-i_c1] = mag_level(MAG(fft_out[i_c1].r, fft_out[i_c1].i));
       }
 
 

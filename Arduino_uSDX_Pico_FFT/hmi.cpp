@@ -480,22 +480,23 @@ void hmi_handler(uint8_t event)
           }
         hmi_tune_used = true;
       }
-      else if(!gpio_get(GP_AUX_2_Left))  //in case Left is pressed
-      {
-        if(hmi_mem<(HMI_NUM_OPT_MEMORY-1))
+else if(!gpio_get(GP_AUX_2_Left))  //in case Left is pressed
+        {
+          if(hmi_mem<(HMI_NUM_OPT_MEMORY-1))
           {
             hmi_mem++;
+            hmi_menu_opt_display = memory_band[hmi_mem].vars[HMI_S_TUNE];  // sync cursor to new memory
           }
-        hmi_tune_used = true;
-      }
-      else if(!gpio_get(GP_AUX_3_Right))  //in case Right is pressed: cw decoder speed
-      {
-        if(memory_band[hmi_mem].vars[HMI_S_MODE] == MODE_CW)
+          hmi_tune_used = true;
+        }
+else if(!gpio_get(GP_AUX_3_Right))  //in case Right is pressed: cw decoder speed
+        {
+          if(memory_band[hmi_mem].vars[HMI_S_MODE] == MODE_CW)
           {
+            hmi_tune_used = true;  // set BEFORE wpm_up to block Right button interrupt
             wpm_up();  //faster
-            hmi_tune_used = true;
           }
-      }
+        }
       else
       {
 			  if (hmi_freq < (hmi_maxfreq[memory_band[hmi_mem].vars[HMI_S_BPF]] - hmi_step[hmi_menu_opt_display]))		// Boundary check HMI_MAXFREQ
@@ -512,22 +513,23 @@ void hmi_handler(uint8_t event)
           }
         hmi_tune_used = true;
       }
-      else if(!gpio_get(GP_AUX_2_Left))  //in case Left is pressed
-      {
-        if(hmi_mem>0)
+else if(!gpio_get(GP_AUX_2_Left))  //in case Left is pressed
+        {
+          if(hmi_mem>0)
           {
             hmi_mem--;
+            hmi_menu_opt_display = memory_band[hmi_mem].vars[HMI_S_TUNE];  // sync cursor to new memory
           }
-        hmi_tune_used = true;
-      }
-      else if(!gpio_get(GP_AUX_3_Right))  //in case Right is pressed: cw decoder speed
-      {
-        if(memory_band[hmi_mem].vars[HMI_S_MODE] == MODE_CW)
+          hmi_tune_used = true;
+        }
+else if(!gpio_get(GP_AUX_3_Right))  //in case Right is pressed: cw decoder speed
+        {
+          if(memory_band[hmi_mem].vars[HMI_S_MODE] == MODE_CW)
           {
+            hmi_tune_used = true;  // set BEFORE wpm_down to block Right button interrupt
             wpm_down();  //slower
-            hmi_tune_used = true;
           }
-      }
+        }
       else
       {
         if (hmi_freq > (hmi_step[hmi_menu_opt_display] + hmi_minfreq[memory_band[hmi_mem].vars[HMI_S_BPF]]))		// Boundary check HMI_MINFREQ
@@ -1228,7 +1230,8 @@ void hmi_evaluate(void)   //hmi loop
     hmi_refresh();  //refresh the view of all hmi vars
     hmi_mem_old = hmi_mem;
     sprintf(s, "M%02d", hmi_mem);  // hmi_menu_opt_display = memory_band[hmi_mem].vars[HMI_S_BPF]
-    tft_writexy_plus(1, TFT_BLUE, TFT_BLACK, 1,0,4,10,(uint8_t *)s); 
+    //tft_writexy_plus(1, TFT_BLUE, TFT_BLACK, 1,0,4,10,(uint8_t *)s); 
+    tft_writexy_plus(1, TFT_BLUE, TFT_BLACK, 1,0,4,19,(uint8_t *)s); 
   }
   if((hmi_freq_old != hmi_freq) ||
      (band_vars_old[HMI_S_TUNE] != memory_band[hmi_mem].vars[HMI_S_TUNE]))    //cursor
@@ -1280,7 +1283,8 @@ void hmi_evaluate(void)   //hmi loop
     //printf(s, "B%d", memory_band[hmi_mem].vars[HMI_S_BPF]);  // hmi_menu_opt_display = memory_band[hmi_mem].vars[HMI_S_BPF]
     //tft_writexy_plus(2, TFT_BLUE, TFT_BLACK, 0,0,3,18,(uint8_t *)s);
     sprintf(s, "B%d", memory_band[hmi_mem].vars[HMI_S_BPF]);  // hmi_menu_opt_display = memory_band[hmi_mem].vars[HMI_S_BPF]
-    tft_writexy_plus(1, TFT_YELLOW, TFT_BLACK, 1,0,5,10,(uint8_t *)s);
+    //tft_writexy_plus(1, TFT_YELLOW, TFT_BLACK, 1,0,5,10,(uint8_t *)s);
+    tft_writexy_plus(1, TFT_YELLOW, TFT_BLACK, 1,0,5,17,(uint8_t *)s);
   }  
   if(band_vars_old[HMI_S_PRE] != memory_band[hmi_mem].vars[HMI_S_PRE])
   {  

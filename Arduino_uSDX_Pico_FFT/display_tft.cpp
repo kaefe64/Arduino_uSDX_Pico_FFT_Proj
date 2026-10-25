@@ -185,13 +185,13 @@ void tft_cursor_plus(uint16_t font, uint16_t color, uint8_t x, uint8_t x_plus, u
 }
 
 
-
+#if 0
 /* used to allow calling from other modules, concentrate the use of tft variable locally */
 uint16_t tft_color565(uint16_t r, uint16_t g, uint16_t b)
 {
   return tft.color565(r, g, b);
 }
-
+#endif
 
 
 
@@ -327,7 +327,7 @@ index_old = 0;
 #define TRIANG_TOP   (ABOVE_SCALE + 6)
 #define TRIANG_WIDTH    8
 
-int16_t triang_x_min, triang_x_max;
+int16_t triang_x_min = (display_WIDTH/2), triang_x_max = (display_WIDTH/2)+TRIANG_WIDTH;
 
 /*********************************************************
   
@@ -353,8 +353,12 @@ void display_fft_graf_top(void)
       case 0:  //USB
         triang_x_min = (display_WIDTH/2);
         triang_x_max = (display_WIDTH/2)+TRIANG_WIDTH;
-        tft.fillTriangle(display_WIDTH/2, Y_MIN_DRAW - ABOVE_SCALE, display_WIDTH/2, Y_MIN_DRAW - TRIANG_TOP, (display_WIDTH/2)+TRIANG_WIDTH, Y_MIN_DRAW - ABOVE_SCALE, TFT_YELLOW);
-        tft.fillTriangle((display_WIDTH/2)-1, Y_MIN_DRAW - ABOVE_SCALE, display_WIDTH/2, Y_MIN_DRAW - TRIANG_TOP, (display_WIDTH/2)-TRIANG_WIDTH, Y_MIN_DRAW - ABOVE_SCALE, TFT_BLACK);
+        tft.fillTriangle(display_WIDTH/2, Y_MIN_DRAW - ABOVE_SCALE, 
+                        display_WIDTH/2, Y_MIN_DRAW - TRIANG_TOP, 
+                        (display_WIDTH/2)+TRIANG_WIDTH, Y_MIN_DRAW - ABOVE_SCALE, TFT_YELLOW);
+        tft.fillTriangle((display_WIDTH/2)-1, Y_MIN_DRAW - ABOVE_SCALE, 
+                         display_WIDTH/2, Y_MIN_DRAW - TRIANG_TOP, 
+                         (display_WIDTH/2)-TRIANG_WIDTH, Y_MIN_DRAW - ABOVE_SCALE, TFT_BLACK);
         break;
       case 1:  //LSB
         triang_x_min = (display_WIDTH/2)-TRIANG_WIDTH;
@@ -369,17 +373,18 @@ void display_fft_graf_top(void)
       case 2:  //AM
         triang_x_min = (display_WIDTH/2)-TRIANG_WIDTH;
         triang_x_max = (display_WIDTH/2)+TRIANG_WIDTH;
-        tft.fillTriangle((display_WIDTH/2)-TRIANG_WIDTH, Y_MIN_DRAW - ABOVE_SCALE, display_WIDTH/2, Y_MIN_DRAW - TRIANG_TOP, (display_WIDTH/2)+TRIANG_WIDTH, Y_MIN_DRAW - ABOVE_SCALE, TFT_YELLOW);
+        tft.fillTriangle((display_WIDTH/2)-TRIANG_WIDTH, Y_MIN_DRAW - ABOVE_SCALE, display_WIDTH/2, Y_MIN_DRAW - TRIANG_TOP, 
+                         (display_WIDTH/2)+TRIANG_WIDTH, Y_MIN_DRAW - ABOVE_SCALE, TFT_YELLOW);
         break;
       case 3:  //CW = LSB
         triang_x_min = (display_WIDTH/2)-(TRIANG_WIDTH*2/4);
         triang_x_max = (display_WIDTH/2);   //-(TRIANG_WIDTH*1/4);
         tft.fillTriangle(display_WIDTH/2, Y_MIN_DRAW - ABOVE_SCALE, 
-                         display_WIDTH/2, Y_MIN_DRAW - TRIANG_TOP, (display_WIDTH/2)-TRIANG_WIDTH, Y_MIN_DRAW - ABOVE_SCALE, 
-                         TFT_YELLOW);
+                         display_WIDTH/2, Y_MIN_DRAW - TRIANG_TOP, 
+                         (display_WIDTH/2)-TRIANG_WIDTH, Y_MIN_DRAW - ABOVE_SCALE, TFT_YELLOW);
         tft.fillTriangle((display_WIDTH/2)+1, Y_MIN_DRAW - ABOVE_SCALE, 
-                          display_WIDTH/2, Y_MIN_DRAW - TRIANG_TOP, (display_WIDTH/2)+TRIANG_WIDTH, Y_MIN_DRAW - ABOVE_SCALE, 
-                          TFT_BLACK);
+                          display_WIDTH/2, Y_MIN_DRAW - TRIANG_TOP, 
+                          (display_WIDTH/2)+TRIANG_WIDTH, Y_MIN_DRAW - ABOVE_SCALE, TFT_BLACK);
         break;
     }
 
@@ -390,7 +395,15 @@ void display_fft_graf_top(void)
     tft.drawFastHLine (0, Y_MIN_DRAW - 11, display_WIDTH, TFT_WHITE);
     tft.fillRect(0, Y_MIN_DRAW - 10, display_WIDTH, 10, TFT_BLACK);
     tft.fillRect(triang_x_min, Y_MIN_DRAW - 10, (triang_x_max - triang_x_min + 1), 11, tft.color565(25, 25, 25)); //shadow
-    
+/*    
+    //using #define TFT_RGB_ORDER TFT_GRB at Setup60_RP2040_ILI9341.h  (not affected by tft.setSwapBytes() )
+    tft.fillRect(triang_x_min - 75, Y_MIN_DRAW - 10 -25, 12, 12, tft.color565(50, 50, 50));  //cinza escuro
+    tft.fillRect(triang_x_min - 50, Y_MIN_DRAW - 10 -25, 12, 12, tft.color565(105, 105, 105));  //cinza
+    tft.fillRect(triang_x_min - 25, Y_MIN_DRAW - 10 -25, 12, 12, tft.color565(200, 0, 0));  //red
+    tft.fillRect(triang_x_min - 0, Y_MIN_DRAW - 10 -25, 12, 12, tft.color565(0, 200, 0));   //green
+    tft.fillRect(triang_x_min + 25, Y_MIN_DRAW - 10 -25, 12, 12, tft.color565(0, 0, 200));  //blue
+*/
+
     x=0;
     for(; freq_graf_ini < freq_graf_fim; freq_graf_ini+=1)
     {
@@ -442,115 +455,416 @@ void display_fft_graf_top(void)
 
 uint8_t vet_graf_fft[GRAPH_NUM_LINES][FFT_NSAMP];    // [NL][NCOL]
 //uint16_t vet_graf_fft_pos = 0;
+
+
 /*********************************************************
+  Waterfall colors
+
+  vet_graf_fft[] holds the log level of each bin (see mag_level() in dsp.cpp), one level
+  step is 1.5 dB. The color is taken from the difference between the level and the noise
+  floor of the band, not from the level itself.
+
+  Why not from the level: with the AGC, with fft_gain and with propagation the band is
+  sometimes generally weak and sometimes generally strong, so an absolute scale saturates.
+
+  Why the floor is measured over the whole band and not per column: a carrier that stays
+  on cannot be told apart from a band that got stronger. Any floor that follows one column
+  eventually walks up into that carrier and erases it, which is exactly what happened here,
+  first with a slow creep and then with a windowed minimum. Over the whole band it cannot
+  happen, because a signal is narrow.
+
+  Why the median and not the average or the minimum: a strong signal entering the band
+  would drag the average up and wipe out the rest of the band, and a single quiet bin would
+  drag a minimum down. The median ignores both, a signal only moves a handful of the
+  320 columns.
+ *********************************************************/
+//marks the floor as not measured yet
+#define WF_FLOOR_UNKNOWN  (0xFFu)
+
+static uint16_t wf_palette[WF_COLOR_NUM];        //color index -> RGB565
+static uint16_t wf_hist[WF_COLOR_NUM];           //histogram of the levels of one line
+static uint16_t wf_line[GRAPH_NUM_COLS];         //one waterfall line in RGB565, sent in a single SPI burst
+static uint8_t  wf_floor = WF_FLOOR_UNKNOWN;     //noise floor of the band, in levels
+static uint8_t  wf_floor_tic = 0;                //lines counter, steps the floor up
+
+// Shadow color for tune cursor area (bitwise OR blend)
+// Initialized in wf_palette_setup() to match palette color space (RGB565/BGR565)
+static uint16_t wf_shadow_color;
+
+// Per-line horizontal offset for waterfall shifting
+static int16_t wf_line_offset[GRAPH_NUM_LINES];
+
+/*
+//color ramp control points, RGB888, interpolated in wf_palette_setup()
+// Index 0 = black (background), Index 1 = white (weakest signal), then yellow -> pink -> red
+#define WF_RAMP_NUM  6
+static const uint8_t wf_ramp_r[WF_RAMP_NUM] = {   0, 255, 255, 255, 255, 255 };
+static const uint8_t wf_ramp_g[WF_RAMP_NUM] = {   0, 255, 255, 180,  50,   0 };
+static const uint8_t wf_ramp_b[WF_RAMP_NUM] = {   0, 255,   0,   0, 100,   0 };
+*/
+
+// Color ramp control points, RGB888.
+// Index 0 is reserved for black.
+// Index 1 starts at white, then yellow -> orange -> pink -> red.
+#define WF_RAMP_NUM  5
+static const uint8_t wf_ramp_r[WF_RAMP_NUM] =  { 255, 255, 255, 255, 255 };
+static const uint8_t wf_ramp_g[WF_RAMP_NUM] =  { 255, 255, 180,  50,   0 };
+static const uint8_t wf_ramp_b[WF_RAMP_NUM] =  { 255,   0,   0, 100,   0 };
+
+
+static uint8_t wf_ramp_lerp(const uint8_t *ramp, uint16_t seg, uint16_t frac)
+{
+  return (uint8_t)((int16_t)ramp[seg] + (((int16_t)ramp[seg+1] - (int16_t)ramp[seg]) * (int16_t)frac) / 255);
+}
+
+
+#if 0
+/*********************************************************
+  Build the 64 color ramp once, so that color565() is not called
+  48*320 times per frame
+ *********************************************************/
+static void wf_palette_setup(void)
+{
+  static bool palette_ready = false;
+  uint16_t i, seg, frac;
+
+  if(palette_ready == true)
+  {
+    return;
+  }
+
+  for(i=0; i<WF_COLOR_NUM; i++)
+  {
+    seg  = (uint16_t)(((uint32_t)i * (WF_RAMP_NUM-1u)) / (WF_COLOR_NUM-1u));
+    frac = (uint16_t)((((uint32_t)i * (WF_RAMP_NUM-1u)) % (WF_COLOR_NUM-1u)) * 255u / (WF_COLOR_NUM-1u));
+    if(seg >= (WF_RAMP_NUM-2u))
+    {
+      seg  = WF_RAMP_NUM-2u;
+      frac = 255u;
+    }
+
+    uint8_t r = wf_ramp_lerp(wf_ramp_r, seg, frac);
+    uint8_t g = wf_ramp_lerp(wf_ramp_g, seg, frac);
+    uint8_t b = wf_ramp_lerp(wf_ramp_b, seg, frac);
+    wf_palette[i] = tft.color565(r, g, b);
+/*
+    // Debug: print first few palette entries with intermediate values
+    if(i < 5)
+    {
+      Serialx.print("i="); Serialx.print(i);
+      Serialx.print(" seg="); Serialx.print(seg);
+      Serialx.print(" frac="); Serialx.print(frac);
+      Serialx.print(" rgb=("); Serialx.print(r); Serialx.print(","); Serialx.print(g); Serialx.print(","); Serialx.print(b); Serialx.print(")");
+      Serialx.print(" palette=0x"); Serialx.println(wf_palette[i], HEX);
+    }
+*/
+  }
+
+  wf_shadow_color = tft.color565(25, 25, 25);  // init after tft is ready, matches palette color space
+
+  palette_ready = true;
+}
+#endif
+
+
+/*********************************************************
+  Build the 64-entry palette:
+  Index 0 = black (background)
+  Index 1 = white (weakest visible signal)
+  Index 2–15	= white to yellow transition
+  Index 16–31	= yellow to orange transition
+  Index 32–47	= orange to pink-red transition
+  Index 48–63	= pink-red to red transition
+  Index 63 = red (strongest signal)
+ *********************************************************/
+static void wf_palette_setup(void)
+{
+  //static bool palette_ready = false;
+  uint16_t i, seg, frac;
+  uint32_t pos;
+/*
+  if(palette_ready == true)    
+  {
+    return;
+  }
+*/
+  // Reserve index 0 exclusively for black.
+  wf_palette[0] = tft.color565(0, 0, 0);
+
+  // Spread the five color control points over indices 1..63.
+  for(i = 1; i < WF_COLOR_NUM; i++)
+  {
+    pos = (uint32_t)(i - 1u) * (WF_RAMP_NUM - 1u);
+
+    seg = (uint16_t)(pos / (WF_COLOR_NUM - 2u));
+
+    frac = (uint16_t)(
+      (pos % (WF_COLOR_NUM - 2u)) * 255u
+      / (WF_COLOR_NUM - 2u)
+    );
+
+    // Ensure the final index is exactly red.
+    if(seg >= (WF_RAMP_NUM - 1u))
+    {
+      seg  = WF_RAMP_NUM - 2u;
+      frac = 255u;
+    }
+
+    uint8_t r = wf_ramp_lerp(wf_ramp_r, seg, frac);
+    uint8_t g = wf_ramp_lerp(wf_ramp_g, seg, frac);
+    uint8_t b = wf_ramp_lerp(wf_ramp_b, seg, frac);
+
+    wf_palette[i] = tft.color565(r, g, b);
+  }
+
+  // Initialize the tuning cursor shadow.
+  wf_shadow_color = tft.color565(25, 25, 25);
+
+//  palette_ready = true;
+}
+
+
+
+#if 0
+/*********************************************************
+  Darken a color for the tune cursor shadow.
+  Keeping the top bits of each channel, the former TFT_WHITE|extra_color was a
+  no op (0xFFFF | 0x18C3 == 0xFFFF) and the signal pixels were never dimmed.
+  Halving each channel scales the intensity without moving the hue, and black
+  stays black and white becomes grey.
+ *********************************************************/
+static uint16_t wf_shadow(uint16_t color)
+{
+  uint16_t r = (color >> 11) & 0x1Fu;
+  uint16_t g = (color >>  5) & 0x3Fu;
+  uint16_t b =  color        & 0x1Fu;
+
+  return (uint16_t)(((r >> 1) << 11) | ((g >> 1) << 5) | (b >> 1));
+}
+#endif
+
+/*********************************************************
+  Convert the newest FFT line (row GRAPH_NUM_LINES-1) from levels into color
+  indices, measuring the noise floor of the band on the way.
+
+  The floor is the median level of the line, found with a histogram so that it costs
+  one increment per column plus one scan of 64 bins, no sorting. The median is what
+  makes a carrier safe: it only occupies a few of the 320 columns, so it cannot move
+  the reference, no matter how long it stays on.
+
+  The floor drops at once, so a band that gets weaker re centers without lag, and it
+  climbs one step every WF_FLOOR_RISE_DIV lines, so a single quiet bin cannot darken
+  the whole waterfall.
+
+  Called before the drawing
+ *********************************************************/
+static void wf_colorize_new_line(void)
+{
+  uint16_t x, acc;
+  uint8_t  lvl, idx, median;
+  int16_t  above;
+  bool     step_up;
+
+  //histogram of the levels of this line
+  memset(wf_hist, 0, sizeof(wf_hist));
+  for(x=0; x<GRAPH_NUM_COLS; x++)
+  {
+    lvl = vet_graf_fft[GRAPH_NUM_LINES-1][x];
+    if(lvl < WF_COLOR_NUM)
+    {
+      wf_hist[lvl]++;
+    }
+  }
+
+  //median: the level that half of the columns are below
+  acc    = 0;
+  median = 0;
+  for(x=0; x<WF_COLOR_NUM; x++)
+  {
+    acc += wf_hist[x];
+    if((acc * 2u) >= GRAPH_NUM_COLS)
+    {
+      median = (uint8_t)x;
+      break;
+    }
+  }
+
+  if(wf_floor == WF_FLOOR_UNKNOWN)
+  {
+    wf_floor = median;             //first line, take the measurement as it is
+  }
+  else if(median < wf_floor)
+  {
+    wf_floor = median;             //weaker band, follow it down at once
+  }
+  else
+  {
+    step_up = ((wf_floor_tic++ & (WF_FLOOR_RISE_DIV-1u)) == 0u);
+    if((step_up == true) && (wf_floor < WF_COLOR_NUM-1u))
+    {
+      wf_floor++;
+    }
+  }
+
+  #if WF_DEBUG_LEVELS
+    {   //one report every 32 lines: where the band sits and how much is above the reference
+      static uint8_t dbg_tic = 0;
+      uint8_t  dbg_min = 255, dbg_max = 0, dbg_over = 0;
+      uint16_t n;
+      for(n=0; n<GRAPH_NUM_COLS; n++)
+      {
+        lvl = vet_graf_fft[GRAPH_NUM_LINES-1][n];
+        if(lvl < dbg_min) { dbg_min = lvl; }
+        if(lvl > dbg_max) { dbg_max = lvl; }
+        if(lvl > (uint8_t)(wf_floor + WF_ABOVE_FLOOR)) { dbg_over++; }
+      }
+      if(((dbg_tic++) & 31u) == 0u)
+      {
+        Serialx.print("wf line ");   Serialx.print(dbg_tic);
+        Serialx.print("  min=");      Serialx.print(dbg_min);
+        Serialx.print("  median=");   Serialx.print(median);
+        Serialx.print("  max=");      Serialx.print(dbg_max);
+        Serialx.print("  floor=");    Serialx.print(wf_floor);
+        Serialx.print("  above_ref="); Serialx.print(dbg_over);
+        Serialx.print("  brightest_color="); Serialx.println((int)dbg_max);
+      }
+    }
+#endif
+
+  for(x=0; x<GRAPH_NUM_COLS; x++)
+  {
+    lvl = vet_graf_fft[GRAPH_NUM_LINES-1][x];
+
+    //color index from how much the bin is above the reference of the band
+    above = (int16_t)lvl - (int16_t)wf_floor - (int16_t)WF_ABOVE_FLOOR;
+    if(above <= 0)
+    {
+      idx = 0;                //at or below the reference, this is background
+    }
+    else
+    {
+      idx = (uint8_t)(((uint32_t)above * WF_COLOR_NUM) / WF_WINDOW);
+      if(idx > (WF_COLOR_NUM-1u))
+      {
+        idx = WF_COLOR_NUM-1u;
+      }
+
+      //A bin that is above the reference never gets painted like the background.
+      //The scale is relative to the band, but this floor of one step does not
+      //depend on it, so a signal can never be hidden by the floor calculation.
+      if(idx == 0)
+      {
+        idx = 1;
+      }
+    }
+
+    vet_graf_fft[GRAPH_NUM_LINES-1][x] = idx;
+  }
+}
+
+
+/*********************************************************
+  The floor belongs to the band and not to a position on the screen, so it does not
+  move with the dial. A dial jump bigger than the screen brings an unknown band, drop
+  the reference so it is measured again from scratch
+ *********************************************************/
+static void wf_floor_move(int16_t freq_change)
+{
+  if((freq_change >= (int16_t)GRAPH_NUM_COLS) || (freq_change <= -(int16_t)GRAPH_NUM_COLS))
+  {
+    wf_floor = WF_FLOOR_UNKNOWN;
+    wf_floor_tic = 0;
+  }
+}
+
   
+/*********************************************************
+  Plot the waterfall, and move it sideways when the dial moved
 *********************************************************/
 void display_fft_graf(uint16_t freq)    //receive the actual freq to move the waterfall as changing the dial
 {                                       //consider 1kHz for each pixel on horizontal
   uint16_t x, y;
-  uint16_t extra_color;
+  uint16_t y_screen;
+  uint16_t color;
   static uint16_t freq_old = 7080;
   int16_t freq_change;
 
+  //wf_palette_setup();  moved to display_tft_setup()
+
   freq_change = ((int16_t)freq - (int16_t)freq_old);  //how much then dial (freq) changed
 
-  //erase waterfall area
-  //tft.fillRect(0, Y_MIN_DRAW, GRAPH_NUM_COLS, GRAPH_NUM_LINES, TFT_BLACK);
+  //the floors move with the dial, before the new line is colored
+  wf_floor_move(freq_change);
 
-  extra_color = tft.color565(25, 25, 25);  //light shadow on center freq
+  //levels -> color indices of the new line, this also refreshes the noise floors
+  wf_colorize_new_line();
+
+  // Apply frequency change to all line offsets (visual shift effect)
+  if(freq_change != 0)
+  {
+    for(y=0; y<GRAPH_NUM_LINES; y++)
+    {
+      wf_line_offset[y] += freq_change;
+      // Clamp to valid range
+      if(wf_line_offset[y] > (int16_t)GRAPH_NUM_COLS) wf_line_offset[y] = GRAPH_NUM_COLS;
+      if(wf_line_offset[y] < -(int16_t)GRAPH_NUM_COLS) wf_line_offset[y] = -GRAPH_NUM_COLS;
+    }
+  }
+
+  // New line captured at current frequency -> offset 0
+  wf_line_offset[GRAPH_NUM_LINES-1] = 0;
 
   //plot waterfall
   //vet_graf_fft[GRAPH_NUM_LINES][GRAPH_NUM_COLS]   [NL][NCOL]
   for(y=0; y<GRAPH_NUM_LINES; y++)   // y=0 is the line at the bottom   y=(GRAPH_NUM_LINES-1) is the new line
   {
-    //erase one waterfall line
-    tft.drawFastHLine (0, (GRAPH_NUM_LINES + Y_MIN_DRAW - y), GRAPH_NUM_COLS, TFT_BLACK);
+    y_screen = (GRAPH_NUM_LINES + Y_MIN_DRAW - y);
 
-#ifdef WATERFALL_IN_BLOCK   // all lines in the waterfall move with the freq change (not only the new line)
-    //move the waterfall in block according the freq change
-    //if (freq changed) and (its is not the last line) // new line does not move, it is in the right position
-    if((freq_change != 0) && (y < (GRAPH_NUM_LINES-1)))
-    {      
-      //  move the waterfall line to left or right  according to the freq change
-      if(freq_change > 0)    // new freq greater than old
-      {
-        for(x=0; x<GRAPH_NUM_COLS; x++)
-        {
-          if(freq_change < (int16_t)GRAPH_NUM_COLS)   //change in the visible area
-          {
-            if((x + freq_change) < (int16_t)GRAPH_NUM_COLS)
-            {
-              vet_graf_fft[y][x] = vet_graf_fft[y][x + freq_change];   //move to left
-            }
-            else
-            {
-              vet_graf_fft[y][x] = 0;  //fill with empty
-            }
-          }    
-          else  //big change, make a empty line (erase the old data)
-          {
-            vet_graf_fft[y][x] = 0;
-          }
-        }
-      }
-      else   // new freq smaller than old = freq_change is negative
-      {
-        for(x=GRAPH_NUM_COLS; x>0; x--)
-        {
-          if((uint16_t)(-freq_change) < GRAPH_NUM_COLS)   //change in the visible area
-          {
-            if((x-1 + freq_change) > 0)
-            {
-              vet_graf_fft[y][x-1] = vet_graf_fft[y][x-1 + freq_change];   //move to right
-            }
-            else
-            {
-              vet_graf_fft[y][x-1] = 0;  //fill with empty
-            }
-          }    
-          else  //big change, make a empty line (erase the old data)
-          {
-            vet_graf_fft[y][x] = 0;
-          }
-        }
-      }
-    }      
-#endif
-
-    //plot waterfall line
+    //plot waterfall line, whole line in RGB565 sent in a single SPI burst
+    // Each line drawn with its own horizontal offset (tracked per line)
+    int16_t offset = wf_line_offset[y];
     for(x=0; x<GRAPH_NUM_COLS; x++)
     {
-      //plot one waterfall line
-      if(vet_graf_fft[y][x] > 0)
+  
+      int16_t src_x = x + offset;
+      uint8_t idx = 0;
+      if(src_x >= 0 && src_x < (int16_t)GRAPH_NUM_COLS)
       {
-        if((x>=triang_x_min) && (x<=triang_x_max))  //tune shadow area
-        {
-          tft.drawPixel(x, (GRAPH_NUM_LINES + Y_MIN_DRAW - y), TFT_WHITE|extra_color); 
-        }
-        else
-        {
-          tft.drawPixel(x, (GRAPH_NUM_LINES + Y_MIN_DRAW - y), TFT_WHITE); 
-        }
+        idx = vet_graf_fft[y][src_x];
       }
-      else
-      {
-        if((x>=triang_x_min) && (x<=triang_x_max))  //tune shadow area
-        {
-          tft.drawPixel(x, (GRAPH_NUM_LINES + Y_MIN_DRAW - y), TFT_BLACK|extra_color); 
-        }
-      }
-    }
-  }
+      color = wf_palette[idx];
 
+      if((x >= (uint16_t)triang_x_min) && (x <= (uint16_t)triang_x_max))  //tune shadow area
+      {
+        if(idx==0)  //tft.color565(0,0,0) = 0x0000 = black = background without color
+          color = tft.color565(25, 25, 25);  //dark gray
+      }
+
+      wf_line[x] = color;
+  
+/*
+    //it needs tft.setSwapBytes(true) to set the correct colors
+    if(x<(GRAPH_NUM_COLS/3))
+      wf_line[x] =  tft.color565(200, 0, 0);  //red
+    else if(x<((GRAPH_NUM_COLS * 2)/3))
+      wf_line[x] =  tft.color565(0, 200, 0);   /green
+    else
+      wf_line[x] =  tft.color565(0, 0, 200);  //blue
+*/
+    }
+
+    tft.startWrite();
+    tft.setAddrWindow(0, y_screen, GRAPH_NUM_COLS, 1);
+    tft.pushPixels(wf_line, GRAPH_NUM_COLS);
+    tft.endWrite();
+  }
 
 
   //move graph data array one line up to open space for next FFT (new line will be the last line)
   for(y=0; y<(GRAPH_NUM_LINES-1); y++)
   {
-    for(x=0; x<GRAPH_NUM_COLS; x++)
-    {
-      vet_graf_fft[y][x] = vet_graf_fft[y+1][x];
-    }
+    memcpy(vet_graf_fft[y], vet_graf_fft[y+1], GRAPH_NUM_COLS);
+    wf_line_offset[y] = wf_line_offset[y+1];
   }
 
 
@@ -711,7 +1025,7 @@ void display_tft_setup0_num_mem_ok(uint8_t num)
 
 
 /*********************************************************
-  
+  Setup
 *********************************************************/
 void display_tft_setup(void) {
 
@@ -723,6 +1037,7 @@ char s[32];
 
   tft.fillScreen(TFT_BLACK);
   
+  tft.setSwapBytes(true);  //used with tft.pushPixels() to set the correct colors
 
   //tft.drawRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color)
   //tft.drawRect(X_MIN_AUD_GRAPH-1, Y_MIN_AUD_GRAPH-1, AUD_GRAPH_NUM_COLS+2, (AUD_GRAPH_MAX - AUD_GRAPH_MIN + 1)+2, TFT_WHITE);
@@ -758,110 +1073,11 @@ char s[32];
   tft_writexy_plus(1, TFT_MAGENTA, TFT_BLACK, 10,4,3,0,(uint8_t *)s);
 
 
-/* 
-  tft.setFreeFont(FONT1);                 // Select the font
-  txt_size = 1;
-  tft.setTextColor(TFT_MAGENTA, TFT_BLACK);
-  tft.setTextSize(txt_size);  //size 1 = 10 pixels, size 2 =20 pixels, and so on
 
-  x = 0;
-  y = 0;
-  sprintf(vet_char, "%dx%d", display_WIDTH/(X_CHAR1 * txt_size) ,display_HEIGHT/(Y_CHAR1 * txt_size));
-  //sprintf(vet_char, "%dx%d %dx%d",display_WIDTH ,display_HEIGHT
-  //                , display_WIDTH/(X_CHAR1 * txt_size) ,display_HEIGHT/(Y_CHAR1 * txt_size));
-  //tft.setCursor(0, 0);
-  //tft.println(vet_char);
-  tft.drawString(vet_char, x * X_CHAR1 * txt_size, y * Y_CHAR1 * txt_size, 1);// Print the string name of the font
-
-  x = 1;
-  y = 1;
-  sprintf(vet_char, "x=%d y=%d",x ,y);
-  //tft.setCursor(x * X_CHAR1 * txt_size, y * Y_CHAR1 * txt_size);
-  //tft.println(vet_char);
-  tft.drawString(vet_char, x * X_CHAR1 * txt_size, y * Y_CHAR1 * txt_size, 1);// Print the string name of the font
-*/
-/*  
-  x = 0;
-  y = 4;
-  sprintf(vet_char, "x=%d y=%d",x ,y);
-  //tft.setCursor(x * X_CHAR1 * txt_size, y * Y_CHAR1 * txt_size);
-  //tft.println(vet_char);
-  tft.drawString(vet_char, x * X_CHAR1 * txt_size, y * Y_CHAR1 * txt_size, 1);// Print the string name of the font
-*/
-
-/*
-  tft.setFreeFont(FONT2);                 // Select the font
-  txt_size = 1;
-  tft.setTextColor(TFT_MAGENTA, TFT_BLACK);
-  tft.setTextSize(txt_size);  //size 1 = 10 pixels, size 2 =20 pixels, and so on
-
-  
-  x = 0;
-  y = 6;
-  sprintf(vet_char, "%dx%d x=%d y=%d", display_WIDTH/(X_CHAR2 * txt_size), display_HEIGHT/(Y_CHAR2 * txt_size), x, y);
-  //sprintf(vet_char, "x=%d y=%d",x ,y);
-  //tft.setCursor(x * X_CHAR2 * txt_size, y * Y_CHAR2 * txt_size);
-  //tft.println(vet_char);
-  tft.drawString(vet_char, x * X_CHAR2 * txt_size, y * Y_CHAR2 * txt_size, 1);// Print the string name of the font
-  
-  x = 5;
-  y = 7;
-  sprintf(vet_char, "x=%d  y=%d",x ,y);
-  //tft.setCursor(x * X_CHAR2 * txt_size, y * Y_CHAR2 * txt_size);
-  //tft.println(vet_char);
-  tft.drawString(vet_char, x * X_CHAR2 * txt_size, y * Y_CHAR2 * txt_size, 1);// Print the string name of the font
-*/
-/*
-  x = 14;
-  y = 10;
-  sprintf(vet_char, "x=%d y=%d",x ,y);
-  //tft.setCursor(x * X_CHAR2 * txt_size, y * Y_CHAR2 * txt_size);
-  //tft.println(vet_char);
-  tft.drawString(vet_char, x * X_CHAR2 * txt_size, y * Y_CHAR2 * txt_size, 1);// Print the string name of the font
-*/
-
-
-/*
-
-//  tft.startWrite();  //CS on for SPI
-
-  tft.drawFastHLine (0, Y_MIN_DRAW, display_WIDTH, TFT_WHITE);
-  for(x=0; x<=((display_WIDTH/(X_CHAR2 * SIZE2))*X_CHAR2); x+=X_CHAR2)
-  {
-    tft.drawFastVLine (x, Y_MIN_DRAW, 10, TFT_WHITE);
-    //x+=X_CHAR2;
-  }
-
-
-
-  for(y=0; y<=((display_HEIGHT/(Y_CHAR2 * SIZE2))*Y_CHAR2); y+=Y_CHAR2)
-  {
-    tft.drawFastHLine (0, y, 10, TFT_WHITE);
-    //y+=Y_CHAR2;
-  }
-
-
-  for(x=0; x<80; x++)
-  {
-    y = x/2;
-    tft.drawPixel(x, y + Y_MIN_DRAW, TFT_RED); 
-    tft.drawPixel(x, y + Y_MIN_DRAW + 1, TFT_RED); 
-    tft.drawPixel(x, y + Y_MIN_DRAW + 2, TFT_RED); 
-  }
-
-//  tft.endWrite();  //CS off for SPI
-
-
-*/
-
-
-
-  //draw Smeter first block
-  //tft.fillRect((bargraph_X + ((bargraph_dX + bargraph_dX_space) * 0)), bargraph_Y, bargraph_dX, bargraph_dY, Smeter_table_color[0]);
-
+  wf_palette_setup();  //setup for graphic colors
 
    
-} // main
+} 
 
 
 
@@ -900,6 +1116,9 @@ void display_tft_countdown(bool show, uint16_t val)
 
 
 
+/*********************************************************
+  Loop
+*********************************************************/
 void display_tft_loop(void) 
 {
   static uint32_t hmi_freq_fft;

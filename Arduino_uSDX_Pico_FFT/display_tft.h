@@ -102,6 +102,36 @@ uint16_t yellow = tft.color565(255, 255, 0);
 
 #define WATERFALL_IN_BLOCK   1   // all lines in the waterfall move with the freq change (not only the new line)
 
+/* waterfall colors
+ *
+ * vet_graf_fft[] holds the log level of each bin (see mag_level() in dsp.cpp), one level
+ * step is 1.5 dB. The color is not taken from the level itself but from the difference
+ * between the level and the noise floor of the band, so the meaning of a given color
+ * does not change when the AGC, fft_gain or propagation make the whole band weaker or
+ * stronger.
+ *
+ * Why not from the level: an absolute scale saturates as soon as the band gets strong.
+ * Why not from a per column floor: a carrier that stays on can not be told apart from a
+ * band that got stronger, and any floor that follows a single column ends up swallowing
+ * the carrier. The floor is therefore taken over the whole band.
+ * Why not from the average or the minimum of the plotted points: a strong signal entering
+ * the band would move them. The median does not, because a signal is narrow, it only moves
+ * a handful of the 320 columns.
+ *
+ * WF_ABOVE_FLOOR biases the reference below the measured floor, raise it to hide more
+ * of the noise, lower it to show weaker signals.
+ * WF_FLOOR_RISE_DIV is how many waterfall lines the floor takes to step up once, so the
+ * band re centers gradually instead of jumping when a quiet bin happens to appear.
+ */
+#define WF_COLOR_NUM         (64u)      //palette entries, also the max color index stored in vet_graf_fft
+#define WF_ABOVE_FLOOR       (0u)       //reference this many steps below the measured floor (any value above floor will be white)
+#define WF_WINDOW            (34u)      //color window above the reference, in steps (~51 dB)
+#define WF_FLOOR_RISE_DIV    (8u)       //lines the floor takes to step up once
+
+//set to 1 to print on serial, every 32 lines, the level range of the band and how many
+//bins are over the reference. Use it once to confirm the levels on real hardware.
+#define WF_DEBUG_LEVELS      (0)
+
 
 extern uint8_t vet_graf_fft[GRAPH_NUM_LINES][GRAPH_NUM_COLS];    // [NL][NCOL]
 //extern uint16_t vet_graf_fft_pos;
@@ -117,7 +147,7 @@ void tft_writexy_(uint16_t font, uint16_t color, uint16_t color_back, uint16_t x
 void tft_writexy_plus(uint16_t font, uint16_t color, uint16_t color_back, uint16_t x, uint16_t x_plus, uint16_t y, uint16_t y_plus, uint8_t *s);
 void tft_cursor(uint16_t font, uint16_t color, uint8_t x, uint8_t y);
 void tft_cursor_plus(uint16_t font, uint16_t color, uint8_t x, uint8_t x_plus, uint8_t y, uint8_t y_plus);
-uint16_t tft_color565(uint16_t r, uint16_t g, uint16_t b);
+//uint16_t tft_color565(uint16_t r, uint16_t g, uint16_t b);
 
 // Smeter barr graph definitions
 #define MAX_Smeter_table  11   // S1, S2..   S9, S9+  S9++  = 11 steps

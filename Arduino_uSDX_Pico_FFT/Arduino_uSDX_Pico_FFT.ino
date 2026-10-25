@@ -28,6 +28,8 @@ https://github.com/earlephilhower/arduino-pico/releases/download/global/package_
 >> 'setup_t::version' has default member initializer
 >> #warning >>>>------>> TOUCH_CS pin not defined,
 
+>>compiled sketches:  /home/..../.cache/arduino/sketches
+
 
 
  
@@ -48,7 +50,8 @@ https://github.com/earlephilhower/arduino-pico/releases/download/global/package_
 >>On User_Setups/Setup60_RP2040_ILI9341.h
 >>Uncomment:
 #define ILI9341_DRIVER
-#define TFT_RGB_ORDER TFT_RGB  // Colour order Red-Green-Blue
+>>Change:
+#define TFT_RGB_ORDER TFT_GRB  // Colour order Green-Red-Blue
 >>Choose the SPI pins (SPI1):
 // For the Pico use these #define lines
 #define TFT_MISO  12  //0  RX

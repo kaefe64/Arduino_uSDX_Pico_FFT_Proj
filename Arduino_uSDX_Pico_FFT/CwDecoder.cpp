@@ -7,7 +7,7 @@
  * 
  * This file contains the logic for decoding the CW signal received.
  * It shows the letters received on display. 
- * It try to adapt tothe CW speed to decode the dots and dashs.
+ * It trys to adapt to the CW speed to decode the dots and dahs.
  *
  */
 
@@ -58,9 +58,11 @@ uint16_t cw_rx_cnt;
 
 // wpm = 1200 / tponto ms 
 //#define TDOT_MIN      16          // x 2.5ms =  40ms
-#define TDOT_MIN       4         // x 2.5ms =  10ms   120wpm
-#define TDOT_MAX      96         // x 2.5ms = 240ms     5wpm
-#define TDOT_SHIFT     4         // tdot_acc needs 16x to change 1 in tdot (smooth adaptation)
+//#define TDOT_MIN       4         // x 2.5ms =  10ms   120wpm
+#define TDOT_MIN       4         // x 5ms =  20ms   80wpm
+//#define TDOT_MAX      96         // x 2.5ms = 240ms     5wpm
+#define TDOT_MAX      48         // x 5ms = 240ms     5wpm
+//#define TDOT_SHIFT     4         // tdot_acc needs 16x to change 1 in tdot (smooth adaptation)
 // wpm = 1200 / tponto ms   (time base for reading the cw audio is 2.5ms)
 // 60  =  20ms   / 2.5ms =  8 counts
 // 30  =  40ms   / 2.5ms = 16
@@ -69,7 +71,7 @@ uint16_t cw_rx_cnt;
 // 10  = 120ms   / 2.5ms = 48
 //  5  = 240ms   / 2.5ms = 96
 uint16_t tdot;
-uint16_t tdot_acc;
+//uint16_t tdot_acc;
 uint16_t limiar_min_dot;    // 1/2 dot
 uint16_t limiar_min_dash;  //2x_dot
 uint16_t limiar_min_space;    //5x dot
@@ -78,6 +80,7 @@ uint16_t cw_rx_limiar;
 uint16_t count_low;
 uint16_t count_high;
 uint16_t cw_level;
+bool CwCalcTimeNew = false;
 
 //auto adaptation: collects the last element times and slowly moves tdot
 //to the shortest mark found on the window (the dot time)
@@ -95,7 +98,8 @@ uint16_t cw_letter;
 
 #define SCW_MAX   15
 //                     "123456789012345"
-char scw[SCW_MAX+1] =  "123456789012345";    //chars received to print to the screen [0] to [29]  + [30] = 0;
+//char scw[SCW_MAX+1] =  "123456789012345";    //chars received to print to the screen [0] to [29]  + [30] = 0;
+char scw[SCW_MAX+1] =  "";    //chars received to print to the screen [0] to [29]  + [30] = 0;
 char s1[32];   //aux          
 
 
@@ -151,10 +155,11 @@ bool cw_out(int8_t *v, int8_t *u)
 
 
 
+
 /**************************************************************************************
     
 **************************************************************************************/
-void CwCalcTime()
+void CwCalcTimeInic()
 {
   //tdash = 3 * tdot;
   //spchar = 3 * tdot;
@@ -166,16 +171,27 @@ void CwCalcTime()
   // space letter = 3
   // space word = 7
 
-  tdot = tdot_acc>>TDOT_SHIFT;  //tdot_acc needs 16x up to chanag 1 in tdot
+  //tdot = tdot_acc>>TDOT_SHIFT;  //tdot_acc needs 16x up to chanag 1 in tdot
 
   limiar_min_dot = tdot>>1;       // 1/2 dot = min time for dot and space  less than this = noise or high wpm
   limiar_min_dash = 2 * tdot;  //2x_dot
   limiar_min_space = 5 * tdot;    //5x dot
   limiar_space = 7 * tdot;    //7x dot
+}
 
-  sprintf(s1, "%3dw", 480/tdot);   //wpm = 1200ms / dot time   (dot = tdot * 2.5ms)
+/**************************************************************************************
+    
+**************************************************************************************/
+void CwCalcTime()
+{
+  CwCalcTimeInic();
+  //sprintf(s1, "%3dw", 480/tdot);   //wpm = 1200ms / dot time   (dot = tdot * 2.5ms)
+  sprintf(s1, "%3dw", 240/tdot);   //wpm = 1200ms / dot time   (dot = tdot * 5ms)
   tft_writexy_plus(1, TFT_LIGHTGREY, TFT_BLACK, 1, 0, 3, 20, (uint8_t *)s1);   
 }
+
+
+
 
 
 /**************************************************************************************
@@ -287,9 +303,10 @@ void  graph_to_display(void)
 **************************************************************************************/
 void CwDecoder_Inic(void)
 {
-  tdot_acc = 32<<TDOT_SHIFT;   //tdot = 32 ticks = 80ms = 15wpm  cw dot time (time base for other parameters)
+  //tdot_acc = 16<<TDOT_SHIFT;   //tdot = 16 * 5ms ticks = 80ms = 15wpm  cw dot time (time base for other parameters)
+  tdot = 16;   //tdot = 16 * 5ms ticks = 80ms = 15wpm  cw dot time (time base for other parameters)
   cw_mark_n = 0;
-  CwCalcTime();
+  CwCalcTimeInic();
 
   //tft_writexy_plus(1, TFT_LIGHTGREY, TFT_BLACK, 8, 0, 3, 20, (uint8_t *)scw);   
   //to_display('K');
@@ -454,44 +471,7 @@ void new_space_words(void)
   }
 }
 
-/*
-#define LEV_SHORT   0
-#define LEV_OK      1
-#define LEV_LONG    2
 
-uint16_t lev_high = LEV_OK;
-uint16_t lev_low = LEV_OK;
-*/
-
-/**************************************************************************************
-    
-**************************************************************************************/
-/*
-void wpm_adjust(void)
-{
-//  if((lev_low == LEV_SHORT) && (lev_high == LEV_SHORT))
-  if(lev_high == LEV_SHORT)
-  {
-    if(tdot > TDOT_MIN)
-    {  
-      tdot_acc--;
-      CwCalcTime();
-    }
-    lev_high = LEV_OK;
-  }
-
-//  if((lev_low == LEV_LONG) && (lev_high == LEV_LONG))
-  if(lev_high == LEV_LONG)
-  {
-    if(tdot < TDOT_MAX)
-    {
-      tdot_acc++;
-      CwCalcTime();
-    } 
-    lev_high = LEV_OK;
-  }
-}
-*/
 
 /**************************************************************************************
     manual speed adjust (rotate encoder + Right button pressed, on TUNE screen)
@@ -499,15 +479,16 @@ void wpm_adjust(void)
 **************************************************************************************/
 void wpm_up(void)   //faster
 {
-  uint16_t step = 2<<TDOT_SHIFT;
+  //uint16_t step = 2<<TDOT_SHIFT;
+  uint16_t step = 1;
 
   if(tdot > TDOT_MIN)
   {
-    if((tdot_acc - step) < (TDOT_MIN<<TDOT_SHIFT))
-      tdot_acc = TDOT_MIN<<TDOT_SHIFT;
+    if((tdot - step) < TDOT_MIN)
+      tdot = TDOT_MIN;
     else
-      tdot_acc -= step;
-    CwCalcTime();
+      tdot -= step;
+    CwCalcTimeNew = true;
   }
 }
 
@@ -516,15 +497,16 @@ void wpm_up(void)   //faster
 **************************************************************************************/
 void wpm_down(void)   //slower
 {
-  uint16_t step = 2<<TDOT_SHIFT;
+  //uint16_t step = 2<<TDOT_SHIFT;
+  uint16_t step = 1;
 
   if(tdot < TDOT_MAX)
   {
-    if((tdot_acc + step) > (TDOT_MAX<<TDOT_SHIFT))
-      tdot_acc = TDOT_MAX<<TDOT_SHIFT;
+    if((tdot + step) > TDOT_MAX)
+      tdot = TDOT_MAX;
     else
-      tdot_acc += step;
-    CwCalcTime();
+      tdot += step;
+    CwCalcTimeNew = true;
   }
 }
 
@@ -566,31 +548,15 @@ void cw_auto_adapt(uint16_t mark)
 
   if((diff > deadband) && (tdot < TDOT_MAX))         //dots are longer than tdot -> slower
   {
-    tdot_acc += (1<<TDOT_SHIFT);
+    tdot += 1;
     CwCalcTime();
   }
   else if((diff < -deadband) && (tdot > TDOT_MIN))   //dots are shorter than tdot -> faster
   {
-    tdot_acc -= (1<<TDOT_SHIFT);
+    tdot -= 1;
     CwCalcTime();
   }
 }
-
-
-/**************************************************************************************
-    
-**************************************************************************************/
-void cw_limiar_up(void)
-{
-}
-
-/**************************************************************************************
-    
-**************************************************************************************/
-void cw_limiar_down(void)
-{
-}
-
 
 
 
@@ -643,31 +609,19 @@ static uint16_t cw_rx_array_old = 0;
                 {
                   //possible noise, but counts as space between dots and dashs  
                   new_space_dot_dash();
-                  //wpm_up();    //lev_low = LEV_SHORT;
-                  //wpm_up(0);   //increase wpm
                 }
                 else if(count_low < limiar_min_dash)   //2x_dot
                 {
                   new_space_dot_dash();
-                  //wpm_ok(count_low, SPACE_DOT_DASH);    //lev_low = LEV_OK;
                 }
                 else if(count_low < limiar_min_space)        //5x dot  = space between letter
                 {
                   new_space_letters();
-                  //wpm_ok(count_low, SPACE_LETTERS);    //lev_low = LEV_OK;
                 }
                 else  //big space
                 {
                   new_space_words();
-                  //cw_limiar_down();  //decrease limiar to detect level high (no high level detected)
-                  //wpm_ok(count_low, SPACE_WORDS);    //lev_low = LEV_OK;
                 }
-
-                //cw_in(-count_low, cw_letter);  //make a list of info to send through serial when out of CW mode
-
-
-                //wpm_adjust();
-
               }
             count_low = 0;
             cw_level = 1;   //receiving the high level
@@ -684,35 +638,13 @@ static uint16_t cw_rx_array_old = 0;
                   new_space_letters();
                   count_low = limiar_space;      //7x dot = just to limit the counter
                 }
-/*
-                if(count_low > limiar_space)        //7x dot =  space between words (no more signal)
-                {
-                  new_space_words();
-                  count_low = limiar_space;      //7x dot = just to limit the counter
-                }
-*/
               }
             else  // cw_level == 1   was high and changed to low (look for dots and dashs)
               { 
                 // *********************************************************************
                 // *************************** level falling ***************************
                 // *********************************************************************
-
-                //to_scw((count_high / tdot) + '0');
-/*
-                if(count_high < limiar_min_dot)   // 1/2 dot = noise ?   faster wpm ?
-                {
-                  //ignores this level - noise?
-                  count_low++;
-                  lev_high = LEV_SHORT;
-                  //wpm_up(1);  //increase wpm
-                  cw_limiar_up();  //increase limiar to detect level high (getting spikes os sound)
-                }
-                else
-*/
-                  
-                //cw_in(count_high, tdot);  //make a list of info to send through serial when out of CW mode
-                
+     
                 if(count_high < limiar_min_dot)   // 1/2 dot: too short, key bounce or noise - ignore this mark
                 {
                   //no element inserted, and no speed adjustment (was the noise spiral on the old code)
@@ -751,7 +683,11 @@ static uint16_t cw_rx_array_old = 0;
 void CwDecoder_Loop(void)
 { 
 
-  //graph_to_display();
+  if(CwCalcTimeNew == true)  //to avoid calling TFT_eSPI from an interrupt handler
+  {
+    CwCalcTime();   //it calls display library
+    CwCalcTimeNew = false;
+  }
 
 }
 
@@ -887,61 +823,6 @@ tabcw['*'].cod = 0x0000;    /* 00000000B  ; ERRO  */
 }
 
 
-
-
-#if 0
-
-
-  if(cw_rx_array != cw_rx_array_old)  //new array ready to analysis
-  {
-    // shows the cw audio array on display
-
-    //sprintf(s, "%3d %3d %3d %3d %3d ", cw_rx[i][cw_rx_array_old], cw_rx[i+1][cw_rx_array_old], 
-    //                                     cw_rx[i+2][cw_rx_array_old], cw_rx[i+3][cw_rx_array_old], cw_rx[i+4][cw_rx_array_old]);
-    //tft_writexy_plus(1, TFT_GREEN, TFT_BLACK, 1, 0, 3, 20, (uint8_t *)s);   
-
-    //sprintf(s, "%3d", max_a_sample);
-    //for(i=0; i<MAX_CW_RX_INDEX; i++)
-    for(i=0; i<20; i++)
-      {
-      scw[i] = ((cw_rx[i][cw_rx_array_old] > CW_RX_LIMIAR) ? '1' : '0');
-      }
-    scw[i] = 0;
-    tft_writexy_plus(1, TFT_LIGHTGREY, TFT_BLACK, 1, 0, 3, 20, (uint8_t *)scw);   
-
-    cw_rx_array_old = cw_rx_array;
-  }
-
-
-
-
-
-
-
-
-
-  // CW Decoder - save the audio level to analize on hmi.cpp
-  if(dsp_mode == MODE_CW)
-  {
-    cw_rx_avg += avg_a_sample;  //average 40 samples = ((1/16kHz) * 40) = 2.5ms
-    if(++cw_rx_cnt >= MAX_CW_RX_CNT)  // 40 samples to average
-    {
-      cw_rx[cw_rx_index][cw_rx_array] = (cw_rx_avg >> 6); // save the 2.5ms average on array for further analysis  (40 samples / 64 - I don't like to make a division)
-      cw_rx_avg = 0;
-      cw_rx_cnt = 0;
-
-      if(++cw_rx_index >= MAX_CW_RX_INDEX)  // 40 averages of 2.5ms saved on array = 100ms
-      {
-        if(cw_rx_array==0)  // 0 or 1   change the array  (one array is to fill, another to analize/show on display)
-          { cw_rx_array = 1; }
-        else
-          { cw_rx_array = 0; }
-
-        cw_rx_index = 0;
-      }
-    }
-  }
-#endif
 
 
 
