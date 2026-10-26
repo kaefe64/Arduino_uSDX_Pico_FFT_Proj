@@ -133,7 +133,9 @@ Obs.: Don't mind the red wires on the PCB, they are only test for separated 5V p
 - Mod Oct25 2026<br>
   Changing the MIC amplifier Vcc from 5V to 3V3 to avoid ADC saturation and interference on I/Q ADC.<br>
   I also reduced the MIC audio band frequency to reduce the >8kHz signals with C46 from 2n2 to 4n7.<br>
+  
 ![MIC_ckt](Pictures/MIC_Ampl_Vcc.png)
+
 <br>
 
 ## Software Notes<br>
