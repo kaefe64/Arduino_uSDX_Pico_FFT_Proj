@@ -130,7 +130,11 @@ Obs.: Don't mind the red wires on the PCB, they are only test for separated 5V p
 ![Main Block Diagram](Pictures/PTT_PCB_Mod.jpg)
 ![Main Block Diagram](Pictures/PTT_PCB_Mod2.jpg)
 <br>
-
+- Mod Oct25 2026<br>
+  Changing the MIC amplifier Vcc from 5V to 3V3 to avoid ADC saturation and interference on I/Q ADC.<br>
+  I also reduced the MIC audio band frequency to reduce the >8kHz signals with C46 from 2n2 to 4n7.
+![Main Block Diagram](Pictures/MIC_Ampl_Vcc.png)
+  <br>
 
 ## Software Notes<br>
 ### Arduino IDE setup and notes:
@@ -148,7 +152,7 @@ Obs.: Don't mind the red wires on the PCB, they are only test for separated 5V p
 
 ### To implement the Waterfall I considered this:
 
-- There are 3 ADC inputs: I, Q and MIC  (if we remove the VOX function, we could remove the MIC ADC during reception, this will increase the ADC frequency for I and Q, improving the frequencies we can see at the display - for now I will keep it like the original).
+- There are 3 ADC inputs: I, Q and MIC  (if we remove the VOX function, we could remove the MIC ADC during reception, this will increase the ADC frequency for I and Q, improving the frequencies we can see at the display,or we can increase the >80kHz signal filter rejection - for now I will keep it like the original).
 - The max ADC frequency is 500kHz, I have changed it to 480kHz (close to the original) to make the divisions "rounded".
 - The ADC for audio reception has frequency of 16kHz (close to the original). I have tested higher frequencies, but the time became critical, without so much benefit.
 - The max ADC frequency for each sample = 480kHz / 3 = 160kHz   (because there is only one internal ADC used to read the 3 inputs in sequence).
@@ -182,7 +186,7 @@ Obs.: Don't mind the red wires on the PCB, they are only test for separated 5V p
 ## Operational Notes<br>
 ### Keys description<br>
 **Normal operation:**<br>
-Encoder = to change the frequency at the cursor position<br>
+Encoder (dial) = to change the frequency at the cursor position<br>
 Left key = move the cursor to left. We can select the memory position using the Encoder while holding the Left key.<br>
 Right key = move the cursor to right<br>
 Enter key = We can adjust the Waterfall gain with the Encoder while holding the Enter key.<br>
@@ -191,7 +195,7 @@ Escape key = to enter on menu mode<br>
 Escape key = to go back to normal operation<br>
 Left key = to move between the menu items<br>
 Right key = to move between the menu items<br>
-Encoder = to change menu item value<br>
+Encoder (dial) = to change menu item value<br>
 Enter key = to confirm the menu item value<br>
 <br>
 <br>
@@ -249,6 +253,7 @@ It starts to save/play when pressing < Enter >, and will stop after 10s or when 
 ### Oct25 2026
 - Including colors to waterfall.
 - I made some tests and corrections to CW decoder. It is possible to adjust the wpm manually to help it to start decode. Use the "right" button when turning the dial.
+- Another hardware change: the MIC sound is affecting the I and Q ADC inputs due to MIC ADC saturation. I am changing the MIC amplifier Vcc from 5V to 3V3 to avoid this ADC saturation. See hardware changes topic above.
 
 ### Oct04 2026
 - Including a CW TX transmission delay. It keeps the relays in TX mode between the CW dits and dahs. It waits 200ms after the end of the CW signal before switching back to RX.<br>
@@ -299,7 +304,7 @@ It starts to save/play when pressing < Enter >, and will stop after 10s or when 
 - Improving the CW Morse Decoder. It is still under test (well... all features are always under test).<br>
 
 ### Oct28 2024
-- Including a CW Morse Decoder. It will try to interpret the CW sound and translate it to letters on display. To enable the decoder you just need to select CW on MODE menu and tune to the highest sound level CW reception. It is still not working properlly, under test (I also notice some issues with the CW filter).<br>
+- Including a CW Morse Decoder. It will try to interpret the CW sound and translate it to letters on display. To enable the decoder you just need to select CW on MODE menu and tune to the highest sound level CW reception. It is under tests (I notice some issues with the CW filter).<br>
 
 ![Display SWR Power](Pictures/CwDecoder_display_area.png)
 <br>
